@@ -603,7 +603,7 @@ export const Pikachu = ({ columns, isFirstPage = false }: TemplateProps) => {
   return (
     <div className="p-custom grid grid-cols-3 space-x-6">
       <div className="sidebar group space-y-4">
-        {isFirstPage && <Picture className="w-full !max-w-none" />}
+        {isFirstPage && <Picture className="w-full !max-w-none" size={250}/>}
 
         {sidebar.map((section) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>

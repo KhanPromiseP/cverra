@@ -56,14 +56,13 @@ msgstr "<0>L'authentification à deux facteurs est activée.</0> Il vous sera de
 
 #: apps/client/src/pages/home/page.tsx:24
 #: apps/client/src/pages/home/sections/hero/index.tsx:40
-msgid "A free and open-source resume builder"
-msgstr "Un générateur de CV gratuit et open-source"
+msgid "Build, update, and share professional resumes that stand out with us."
+msgstr "Créez, mettez à jour et partagez des CV professionnels qui se démarquent avec nous."
 
 #: apps/client/src/pages/home/components/footer.tsx:21
 #: apps/client/src/pages/home/sections/hero/index.tsx:45
-msgid "A free and open-source resume builder that simplifies the process of creating, updating, and sharing your resume."
-msgstr "Un générateur de CV gratuit et open-source qui simplifie le processus de création, de mise à jour et de partage de votre CV."
-
+msgid "Build, update, and share professional resumes that stand out and impress recruiters instantly."
+msgstr "Concevez, mettez à jour et partagez des CV professionnels qui se démarquent et impressionnent instantanément les recruteurs."
 #: apps/client/src/pages/builder/_components/toolbar.tsx:59
 #: apps/client/src/pages/builder/sidebars/right/sections/sharing.tsx:29
 msgid "A link has been copied to your clipboard."
@@ -721,9 +720,137 @@ msgstr "J'apprécie toujours que les utilisateurs de Reactive Resume me fassent 
 msgid "Icon"
 msgstr "Icône"
 
+#: apps/client/src/pages/home/sections/logo-cloud/index.tsx:33
+msgid "Why choose Cverra?"
+msgstr "Pourquoi choisir Cverra ?"
+
+#: apps/client/src/pages/home/sections/logo-cloud/index.tsx:36
+msgid "Professionals, students, and job seekers across the globe trust Cverra because it has saved them countless hours of hard work—helping them craft polished resumes that truly stand out. With us, you don’t just build a CV—you unlock opportunities."
+msgstr "Des professionnels, des étudiants et des chercheurs d'emploi du monde entier font confiance à Cverra, car il leur a permis d’économiser d’innombrables heures de travail acharné — les aidant à créer des CV soignés qui se démarquent vraiment. Avec nous, vous ne créez pas seulement un CV — vous ouvrez des opportunités."
+
 #: apps/client/src/pages/home/sections/logo-cloud/index.tsx:47
-msgid "If this app has helped you with your job hunt, let me know by reaching out through <0>this contact form</0>."
-msgstr "Si cette application vous a aidé dans votre recherche d'emploi, faites-le moi savoir en utilisant <0>ce formulaire de contact</0>."
+msgid "Join thousands who have already discovered how effortless resume building can be with Cverra."
+msgstr "Rejoignez des milliers de personnes qui ont déjà découvert à quel point la création de CV peut être simple avec Cverra."
+
+
+
+#: apps/client/src/pages/home/sections/features/index.tsx:74
+msgid "Built for professionals who demand excellence."
+msgstr "Conçu pour les professionnels qui exigent l’excellence."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:76
+msgid "Cverra helps you create, update, and share your professional profiles with elegance and precision."
+msgstr "Cverra vous aide à créer, mettre à jour et partager vos profils professionnels avec élégance et précision."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:17
+msgid "Smart AI assistance"
+msgstr "Assistance IA intelligente"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:18
+msgid "Get intelligent suggestions to craft resumes that stand out to recruiters."
+msgstr "Obtenez des suggestions intelligentes pour créer des CV qui retiennent l’attention des recruteurs."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:22
+msgid "Single or multi-page resumes"
+msgstr "CV d’une ou plusieurs pages"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:23
+msgid "Easily create resumes for different needs, whether concise or detailed without page limits."
+msgstr "Créez facilement des CV pour différents besoins, qu’ils soient concis ou détaillés, sans limite de pages."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:27
+msgid "Manage multiple resumes"
+msgstr "Gérer plusieurs CV"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:28
+msgid "Keep different versions of your resumes well organized and accessible with no stress."
+msgstr "Gardez différentes versions de vos CV bien organisées et accessibles sans stress."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:32
+msgid "Customizable color palettes"
+msgstr "Palettes de couleurs personnalisables"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:33
+msgid "Pick the perfect colors to match your personal or corporate brand."
+msgstr "Choisissez les couleurs parfaites pour correspondre à votre marque personnelle ou d’entreprise."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:37
+msgid "Variety of fonts"
+msgstr "Variété de polices"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:38
+msgid "Choose from professional fonts to make your resume visually appealing."
+msgstr "Choisissez parmi des polices professionnelles pour rendre votre CV visuellement attrayant."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:42
+msgid "Secure & private"
+msgstr "Sécurisé et privé"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:43
+msgid "Protect your resumes with optional password security and access control in your settings."
+msgstr "Protégez vos CV avec une sécurité par mot de passe optionnelle et un contrôle d’accès dans vos paramètres."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:47
+msgid "Custom resume sections"
+msgstr "Sections de CV personnalisées"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:48
+msgid "You are not resticted to particular format. Add unique sections to highlight achievements, skills, and projects."
+msgstr "Vous n’êtes pas limité à un format particulier. Ajoutez des sections uniques pour mettre en valeur vos réalisations, compétences et projets."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:52
+msgid "Multilingual support"
+msgstr "Support multilingue"
+
+#: apps/client/src/pages/home/sections/hero/index.tsx:12
+msgid "Welcome to the ultimate resume builder"
+msgstr "Bienvenue sur le créateur de CV ultime"
+
+#: apps/client/src/pages/home/sections/hero/index.tsx:15
+msgid "Cverra - Your Super Professional Resume Builder"
+msgstr "Cverra - Votre Super Créateur de CV Professionnel"
+
+#: apps/client/src/pages/home/sections/hero/index.tsx:19
+msgid "Save hours of hard work with resumes that impress recruiters, students, and professionals alike."
+msgstr "Gagnez des heures de travail avec des CV qui impressionnent les recruteurs, les étudiants et les professionnels."
+
+#: apps/client/src/pages/home/sections/hero/index.tsx:38
+msgid "Cverra Resume Builder Screenshot"
+msgstr "Capture d'écran du créateur de CV Cverra"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:57
+msgid "Analytics & tracking"
+msgstr "Analyses et suivi"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:58
+msgid "Monitor how often your resume is viewed or downloaded by employers."
+msgstr "Suivez combien de fois votre CV est consulté ou téléchargé par des employeurs."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:62
+msgid "Cloud sync & hosting"
+msgstr "Synchronisation et hébergement cloud"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:63
+msgid "Access your resumes anywhere and choose to self-host or store in the cloud."
+msgstr "Accédez à vos CV partout et choisissez de les auto-héberger ou de les stocker dans le cloud."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:67
+msgid "Best responsiveness"
+msgstr "Meilleure réactivité"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:68
+msgid "Your resumes look perfect on desktop, tablet, and mobile devices."
+msgstr "Vos CV sont parfaits sur ordinateur, tablette et mobile."
+
+#: apps/client/src/pages/home/sections/features/index.tsx:72
+msgid "High-level professional resumes"
+msgstr "CV professionnels de haut niveau"
+
+#: apps/client/src/pages/home/sections/features/index.tsx:73
+msgid "Craft resumes suitable for top industries and enterprise-level roles."
+msgstr "Rédigez des CV adaptés aux principaux secteurs et aux postes de niveau entreprise."
+
+
 
 #: apps/client/src/pages/dashboard/settings/_dialogs/two-factor.tsx:128
 msgid "If you disable two-factor authentication, you will no longer be required to enter a verification code when logging in."
@@ -1262,6 +1389,73 @@ msgstr "Enregistrer Localement"
 #: apps/client/src/pages/dashboard/settings/_sections/openai.tsx:176
 msgid "Saved"
 msgstr "Enregistré"
+
+
+
+
+#: apps/client/src/pages/privacy-policy.tsx:28
+msgid "Back"
+msgstr "Retour"
+
+#: apps/client/src/pages/privacy-policy.tsx:33
+msgid "Privacy Policy"
+msgstr "Politique de Confidentialité"
+
+#: apps/client/src/pages/privacy-policy.tsx:36
+msgid "Cverra values your privacy and is committed to protecting your personal information. This Privacy Policy outlines how we collect, use, and safeguard your data."
+msgstr "Cverra respecte votre vie privée et s'engage à protéger vos informations personnelles. Cette politique de confidentialité explique comment nous collectons, utilisons et sécurisons vos données."
+
+#: apps/client/src/pages/privacy-policy.tsx:40
+msgid "Information We Collect"
+msgstr "Informations que nous collectons"
+
+#: apps/client/src/pages/privacy-policy.tsx:41
+msgid "We may collect personal information such as your name, email address, and resume content when you create or update your CV. We also collect usage data to improve our services."
+msgstr "Nous pouvons collecter des informations personnelles telles que votre nom, votre adresse e-mail et le contenu de votre CV lorsque vous créez ou mettez à jour votre CV. Nous collectons également des données d'utilisation pour améliorer nos services."
+
+#: apps/client/src/pages/privacy-policy.tsx:45
+msgid "How We Use Your Information"
+msgstr "Comment nous utilisons vos informations"
+
+#: apps/client/src/pages/privacy-policy.tsx:46
+msgid "The information you provide is used to create, save, and manage your CVs. Usage data helps us improve Cverra and deliver a better user experience."
+msgstr "Les informations que vous fournissez sont utilisées pour créer, enregistrer et gérer vos CV. Les données d'utilisation nous aident à améliorer Cverra et à offrir une meilleure expérience utilisateur."
+
+#: apps/client/src/pages/privacy-policy.tsx:50
+msgid "Data Sharing and Security"
+msgstr "Partage et sécurité des données"
+
+#: apps/client/src/pages/privacy-policy.tsx:51
+msgid "We do not sell your personal data. We may share information with trusted service providers to maintain and improve our platform. All data is stored securely using industry-standard practices."
+msgstr "Nous ne vendons pas vos données personnelles. Nous pouvons partager des informations avec des prestataires de services de confiance pour maintenir et améliorer notre plateforme. Toutes les données sont stockées en toute sécurité selon les normes de l'industrie."
+
+#: apps/client/src/pages/privacy-policy.tsx:55
+msgid "Your Rights"
+msgstr "Vos droits"
+
+#: apps/client/src/pages/privacy-policy.tsx:56
+msgid "You have the right to access, update, or delete your personal data at any time. You can contact us for any privacy-related inquiries."
+msgstr "Vous avez le droit d'accéder, de mettre à jour ou de supprimer vos données personnelles à tout moment. Vous pouvez nous contacter pour toute question relative à la vie privée."
+
+#: apps/client/src/pages/privacy-policy.tsx:60
+msgid "Changes to This Policy"
+msgstr "Modifications de cette politique"
+
+#: apps/client/src/pages/privacy-policy.tsx:61
+msgid "We may update this Privacy Policy from time to time. The latest version will always be available on our website."
+msgstr "Nous pouvons mettre à jour cette politique de confidentialité de temps en temps. La dernière version sera toujours disponible sur notre site Web."
+
+#: apps/client/src/pages/privacy-policy.tsx:65
+msgid "© ${currentYear} Cverra. All rights reserved."
+msgstr "© ${currentYear} Cverra. Tous droits réservés."
+
+
+
+
+#: apps/client/src/pages/dashboard/settings/_sections/openai.tsx:176
+msgid "Cverra – Create high-quality CVs quickly and professionally."
+msgstr "Cverra – Créez des CV de haute qualité rapidement et professionnellement."
+
 
 #: apps/client/src/pages/dashboard/settings/_dialogs/two-factor.tsx:168
 msgid "Scan the QR code below with your authenticator app to setup 2FA on your account."

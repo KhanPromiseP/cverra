@@ -21,6 +21,9 @@ import { Providers } from "../providers";
 import { AuthGuard } from "./guards/auth";
 import { GuestGuard } from "./guards/guest";
 import { authLoader } from "./loaders/auth";
+// Example in your router configuration
+import { PrivacyPolicyPage } from "../pages/home/components/privacy-policy";
+
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
@@ -28,6 +31,8 @@ export const routes = createRoutesFromElements(
       <Route element={<HomeLayout />}>
         <Route path="/" element={<HomePage />} />
       </Route>
+
+<Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
       <Route path="auth">
         <Route element={<AuthLayout />}>

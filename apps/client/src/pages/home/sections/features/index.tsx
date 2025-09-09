@@ -1,140 +1,120 @@
 import { t } from "@lingui/macro";
+import { motion } from "framer-motion";
 import {
   Brain,
   Cloud,
-  CloudSun,
-  CurrencyDollarSimple,
-  EnvelopeSimple,
-  Eye,
-  File,
   Files,
   Folder,
-  GitBranch,
-  GithubLogo,
-  GoogleChromeLogo,
-  GoogleLogo,
-  IconContext,
-  Layout,
   Lock,
-  Note,
-  Prohibit,
-  Scales,
-  StackSimple,
   Star,
-  Swatches,
   TextAa,
   Translate,
+  Eye,
+  Swatches,
+  Layout,
+  Briefcase,
 } from "@phosphor-icons/react";
-import { cn, languages, templatesList } from "@reactive-resume/utils";
-import { motion } from "framer-motion";
+import { cn } from "@reactive-resume/utils";
 
 type Feature = {
   icon: React.ReactNode;
   title: string;
-  className?: string;
+  description: string;
 };
 
-const featureLabel = cn(
-  "flex cursor-default items-center justify-center gap-x-2 rounded bg-secondary px-4 py-3 text-sm font-medium leading-none text-primary transition-colors hover:bg-primary hover:text-background",
-);
+const features: Feature[] = [
+  {
+    icon: <Brain size={32} />,
+    title: t`Smart AI assistance`,
+    description: t`Get intelligent suggestions to craft resumes that stand out to recruiters.`,
+  },
+  {
+    icon: <Files size={32} />,
+    title: t`Single or multi-page resumes`,
+    description: t`Easily create resumes for different needs, whether concise or detailed without page limits.`,
+  },
+  {
+    icon: <Folder size={32} />,
+    title: t`Manage multiple resumes`,
+    description: t`Keep different versions of your resumes well organized and accessible with no stress.`,
+  },
+  {
+    icon: <Swatches size={32} />,
+    title: t`Customizable color palettes`,
+    description: t`Pick the perfect colors to match your personal or corporate brand.`,
+  },
+  {
+    icon: <TextAa size={32} />,
+    title: t`Variety of fonts`,
+    description: t`Choose from professional fonts to make your resume visually appealing.`,
+  },
+  {
+    icon: <Lock size={32} />,
+    title: t`Secure & private`,
+    description: t`Protect your resumes with optional password security and access control in your settings.`,
+  },
+  {
+    icon: <Star size={32} />,
+    title: t`Custom resume sections`,
+    description: t`You are not restricted to a particular format. Add unique sections to highlight achievements, skills, and projects.`,
+  },
+  {
+    icon: <Translate size={32} />,
+    title: t`Multilingual support`,
+    description: t`Create resumes in multiple languages to reach global opportunities without need for extra translation.`,
+  },
+  {
+    icon: <Eye size={32} />,
+    title: t`Analytics & tracking`,
+    description: t`Monitor how often your resume is viewed or downloaded by employers.`,
+  },
+  {
+    icon: <Cloud size={32} />,
+    title: t`Cloud sync & hosting`,
+    description: t`Access your resumes anywhere and choose to self-host or store in the cloud.`,
+  },
+  {
+    icon: <Layout size={32} />,
+    title: t`Best responsiveness`,
+    description: t`Your resumes look perfect on desktop, tablet, and mobile devices.`,
+  },
+  {
+    icon: <Briefcase size={32} />,
+    title: t`High-level professional resumes`,
+    description: t`Craft resumes suitable for top industries and enterprise-level roles.`,
+  },
+];
 
 export const FeaturesSection = () => {
-  const languagesCount = languages.length;
-  const templatesCount = templatesList.length;
-
-  const features: Feature[] = [
-    { icon: <CurrencyDollarSimple />, title: t`Free, forever` },
-    { icon: <GitBranch />, title: t`Open Source` },
-    { icon: <Scales />, title: t`MIT License` },
-    { icon: <Prohibit />, title: t`No user tracking or advertising` },
-    { icon: <Cloud />, title: t`Self-host with Docker` },
-    { icon: <Translate />, title: t`Available in ${languagesCount} languages` },
-    { icon: <Brain />, title: t`OpenAI Integration` },
-    { icon: <GithubLogo />, title: t`Sign in with GitHub` },
-    { icon: <GoogleLogo />, title: t`Sign in with Google` },
-    { icon: <EnvelopeSimple />, title: t`Sign in with Email` },
-    { icon: <Lock />, title: t`Secure with two-factor authentication` },
-    { icon: <StackSimple />, title: t`${templatesCount} resume templates to choose from` },
-    { icon: <Files />, title: t`Design single/multi page resumes` },
-    { icon: <Folder />, title: t`Manage multiple resumes` },
-    { icon: <Swatches />, title: t`Customisable colour palettes` },
-    { icon: <Layout />, title: t`Customisable layouts` },
-    { icon: <Star />, title: t`Custom resume sections` },
-    { icon: <Note />, title: t`Personal notes for each resume` },
-    { icon: <Lock />, title: t`Lock a resume to prevent editing` },
-    { icon: <File />, title: t`Supports A4/Letter page formats` },
-    { icon: <TextAa />, title: t`Pick any font from Google Fonts` },
-    { icon: <GoogleChromeLogo />, title: t`Host your resume publicly` },
-    { icon: <Eye />, title: t`Track views and downloads` },
-    { icon: <CloudSun />, title: t`Light or dark theme` },
-    {
-      icon: (
-        <div className="flex items-center space-x-1">
-          <img src="https://cdn.simpleicons.org/react" alt="React" width={14} height={14} />
-          <img src="https://cdn.simpleicons.org/vite" alt="Vite" width={14} height={14} />
-          <img
-            src="https://cdn.simpleicons.org/tailwindcss"
-            alt="TailwindCSS"
-            width={14}
-            height={14}
-          />
-          <img src="https://cdn.simpleicons.org/nestjs" alt="NestJS" width={14} height={14} />
-          <img
-            src="https://cdn.simpleicons.org/googlechrome"
-            alt="Google Chrome"
-            width={14}
-            height={14}
-          />
-          <img
-            src="https://cdn.simpleicons.org/postgresql"
-            alt="PostgreSQL"
-            width={14}
-            height={14}
-          />
-        </div>
-      ),
-      title: t`Powered by`,
-      className: "flex-row-reverse",
-    },
-  ];
-
   return (
-    <section id="features" className="relative bg-secondary-accent py-24 sm:py-32">
-      <div className="container">
-        <div className="space-y-6 leading-loose">
-          <h2 className="text-4xl font-bold">{t`Rich in features, not in pricing.`}</h2>
-          <p className="max-w-4xl text-base leading-relaxed">
-            {t`Reactive Resume is a passion project of over 3 years of hard work, and with that comes a number of re-iterated ideas and features that have been built to (near) perfection.`}
+    <section
+      id="features"
+      className="relative py-24 sm:py-32 bg-background text-foreground transition-colors"
+    >
+      <div className="container mx-auto px-6">
+        <div className="text-center space-y-6 mb-16">
+          <h2 className="text-4xl font-bold">
+            {t`Built for professionals who demand excellence.`}
+          </h2>
+          <p className="max-w-2xl mx-auto text-base leading-relaxed">
+            {t`Cverra helps you create, update, and share your professional profiles with elegance and precision.`}
           </p>
+        </div>
 
-          <IconContext.Provider value={{ size: 14, weight: "bold" }}>
-            <div className="!mt-12 flex flex-wrap items-center gap-4">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={index}
-                  viewport={{ once: true }}
-                  initial={{ opacity: 0, x: -50 }}
-                  className={cn(featureLabel, feature.className)}
-                  whileInView={{ opacity: 1, x: 0, transition: { delay: index * 0.1 } }}
-                >
-                  {feature.icon}
-                  <h4>{feature.title}</h4>
-                </motion.div>
-              ))}
-
-              <motion.p
-                viewport={{ once: true }}
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{
-                  opacity: 1,
-                  x: 0,
-                  transition: { delay: (features.length + 1) * 0.1 },
-                }}
-              >
-                {t`and many more...`}
-              </motion.p>
-            </div>
-          </IconContext.Provider>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {features.map((feature, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0, transition: { delay: index * 0.1 } }}
+              viewport={{ once: true }}
+              className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border p-6 text-center bg-muted/50 backdrop-blur-md transition-colors hover:bg-primary/10 dark:hover:bg-primary/20"
+            >
+              <div className="text-primary dark:text-primary/80">{feature.icon}</div>
+              <h4 className="font-semibold text-lg">{feature.title}</h4>
+              <p className="text-sm text-muted-foreground">{feature.description}</p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

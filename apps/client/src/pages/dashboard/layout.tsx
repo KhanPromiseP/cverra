@@ -3,6 +3,11 @@ import { Button, Sheet, SheetClose, SheetContent, SheetTrigger } from "@reactive
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Outlet } from "react-router";
+import { LocaleSwitch } from "@/client/components/locale-switch";
+import { Logo } from "@/client/components/logo";
+import { ThemeSwitch } from "@/client/components/theme-switch";
+import { Link } from "react-router";
+
 
 import { Sidebar } from "./_components/sidebar";
 
@@ -10,8 +15,27 @@ export const DashboardLayout = () => {
   const [open, setOpen] = useState(false);
 
   return (
+    
     <div>
+        <div className="sticky top-0 flexjustify-between ">
+          {/* Top Nav */}
+          <header className="relative z-10 backdrop-blur-md bg-white/10 border-b border-gray-300 shadow-md">
+          
+            <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
+              <Link to="/" className="flex items-center">
+                <Logo className="-ml-3" size={72} />
+              </Link>
+      
+              <div className="flex items-center space-x-4">
+                <LocaleSwitch />
+                <ThemeSwitch />
+              </div>
+            </div>
+          </header>
+        </div>
+      
       <div className="sticky top-0 z-50 flex items-center justify-between p-4 pb-0 lg:hidden">
+        
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button size="icon" variant="ghost" className="bg-background">

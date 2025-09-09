@@ -96,15 +96,7 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
   ];
 
   return (
-    <div className="flex h-full flex-col gap-y-4">
-      <div className="ml-12 flex justify-center lg:ml-0">
-        <Button asChild size="icon" variant="ghost" className="size-10 p-0">
-          <Link to="/">
-            <Icon size={24} className="mx-auto hidden lg:block" />
-          </Link>
-        </Button>
-      </div>
-
+    <div className="mt-28 flex h-full flex-col gap-y-4 border-r border-gray-300">
       <Separator className="opacity-50" />
 
       <div className="grid gap-y-2">
@@ -118,13 +110,13 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
       <Separator className="opacity-50" />
 
       <UserOptions>
-        <Button size="lg" variant="ghost" className="w-full justify-start px-3">
-          <UserAvatar size={24} className="mr-3" />
+        <Button size="lg" variant="ghost" className="border-t border-gray-300  mb-28 justify-start px-3">
+          <UserAvatar size={24} className="bg-green-500 mr-3" />
           <span>{user?.name}</span>
         </Button>
       </UserOptions>
 
-      <Copyright className="ml-2" />
+  
     </div>
   );
 };

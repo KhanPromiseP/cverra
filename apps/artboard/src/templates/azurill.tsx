@@ -29,7 +29,7 @@ const Header = () => {
 
   return (
     <div className="flex flex-col items-center justify-center space-y-2 pb-2 text-center">
-      <Picture />
+      <Picture size={128}/>
 
       <div>
         <div className="text-2xl font-bold">{basics.name}</div>

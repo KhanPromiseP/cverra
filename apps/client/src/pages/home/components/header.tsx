@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router";
 
+import { LocaleSwitch } from "@/client/components/locale-switch";
 import { Logo } from "@/client/components/logo";
-
-import { DonationBanner } from "./donation-banner";
+import { ThemeSwitch } from "@/client/components/theme-switch";
 
 export const Header = () => (
   <motion.header
@@ -11,15 +11,18 @@ export const Header = () => (
     initial={{ opacity: 0, y: -50 }}
     animate={{ opacity: 1, y: 0, transition: { delay: 0.3, duration: 0.3 } }}
   >
-    <DonationBanner />
-
-    <div className="bg-gradient-to-b from-background to-transparent py-3">
-      <div className="container flex items-center justify-between">
-        <Link to="/">
-          <Logo size={48} />
+    {/* Transparent background with shadow and bottom line */}
+    <div className="backdrop-blur-md bg-white/10 border-b border-gray-300 shadow-md">
+      {/* Container to align nav items with page content */}
+      <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
+        <Link to="/" className="flex items-center">
+          <Logo className="-ml-3" size={72} />
         </Link>
 
-        <div />
+        <div className="flex items-center space-x-4">
+          <LocaleSwitch />
+          <ThemeSwitch />
+        </div>
       </div>
     </div>
   </motion.header>
