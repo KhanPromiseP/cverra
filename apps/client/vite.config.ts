@@ -7,6 +7,7 @@ import { defineConfig, searchForWorkspaceRoot } from "vite";
 
 export default defineConfig({
   cacheDir: "../../node_modules/.vite/client",
+  
 
   build: {
     sourcemap: true,

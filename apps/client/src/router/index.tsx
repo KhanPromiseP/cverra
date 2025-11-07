@@ -23,7 +23,7 @@ import { GuestGuard } from "./guards/guest";
 import { authLoader } from "./loaders/auth";
 // Example in your router configuration
 import { PrivacyPolicyPage } from "../pages/home/components/privacy-policy";
-
+import { LearnMorePage } from "../pages/home/sections/hero/learn-more";
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
@@ -33,6 +33,7 @@ export const routes = createRoutesFromElements(
       </Route>
 
 <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+<Route path="/learn-more" element={<LearnMorePage />} />
 
       <Route path="auth">
         <Route element={<AuthLayout />}>

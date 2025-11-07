@@ -8,7 +8,8 @@ export const openai = () => {
 
   if (!apiKey) {
     throw new Error(
-      t`Your OpenAI API Key has not been set yet. Please go to your account settings to enable OpenAI Integration.`,
+      // t`Your OpenAI API Key has not been set yet. Please go to your account settings to enable OpenAI Integration.`,
+      t`error.`,
     );
   }
 

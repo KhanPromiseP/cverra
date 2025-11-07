@@ -32,14 +32,12 @@ export const HeroCTA = () => {
       </Button>
 
       <Button asChild size="lg" variant="link">
-        <a
-          href="https://docs.rxresu.me"
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-        >
+        <Link to="/learn-more">
           <Book className="mr-3" />
           {t`Learn more`}
-        </a>
+        </Link>
+
+
       </Button>
     </div>
   );

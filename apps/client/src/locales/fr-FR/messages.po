@@ -1429,6 +1429,31 @@ msgstr "Partage et sécurité des données"
 msgid "We do not sell your personal data. We may share information with trusted service providers to maintain and improve our platform. All data is stored securely using industry-standard practices."
 msgstr "Nous ne vendons pas vos données personnelles. Nous pouvons partager des informations avec des prestataires de services de confiance pour maintenir et améliorer notre plateforme. Toutes les données sont stockées en toute sécurité selon les normes de l'industrie."
 
+#: apps/client/src/pages/learn-more.tsx:12
+msgid "Learn More About Cverra"
+msgstr "En savoir plus sur Cverra"
+
+#: apps/client/src/pages/learn-more.tsx:14
+msgid "Cverra is more than just a CV builder — it is a career empowerment platform. We help you communicate your value clearly, present yourself with confidence, and stand out in competitive job markets. Whether you are crafting your first resume or refining your professional profile, Cverra guides you step-by-step with structure, clarity, and professional styling."
+msgstr "Cverra est bien plus qu'un créateur de CV — c'est une plateforme de valorisation de carrière. Nous vous aidons à communiquer clairement votre valeur, à vous présenter avec confiance et à vous démarquer sur des marchés du travail compétitifs. Que vous rédigiez votre premier CV ou que vous raffiniez votre profil professionnel, Cverra vous guide étape par étape avec structure, clarté et style professionnel."
+
+#: apps/client/src/pages/learn-more.tsx:18
+msgid "Our templates are built to reflect real hiring standards. Each section, wording suggestion, and formatting layout is designed based on what recruiters look for. No unnecessary complexity. No clutter. Just clean, impactful presentation that makes your strengths undeniable."
+msgstr "Nos modèles sont conçus pour refléter les standards réels de recrutement. Chaque section, suggestion de formulation et mise en page est basée sur ce que recherchent les recruteurs. Pas de complexité inutile. Pas d'encombrement. Juste une présentation claire et percutante qui rend vos forces indéniables."
+
+#: apps/client/src/pages/learn-more.tsx:22
+msgid "With Cverra, you do not need to be a designer, a writer, or a career strategist. You simply bring your story, and we help you shape it with elegance, clarity, and professional impact."
+msgstr "Avec Cverra, vous n'avez pas besoin d'être designer, rédacteur ou spécialiste de carrière. Il vous suffit d'apporter votre histoire, et nous vous aidons à la façonner avec élégance, clarté et impact professionnel."
+
+#: apps/client/src/pages/learn-more.tsx:27
+msgid "Get Started"
+msgstr "Commencer"
+
+#: apps/client/src/pages/learn-more.tsx:32
+msgid "Go Back Home"
+msgstr "Retour à l'accueil"
+
+
 #: apps/client/src/pages/privacy-policy.tsx:55
 msgid "Your Rights"
 msgstr "Vos droits"
