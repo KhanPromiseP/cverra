@@ -65,7 +65,7 @@ export const InterestsDialog = () => {
                   <BadgeInput {...field} setPendingKeyword={setPendingKeyword} />
                 </FormControl>
                 <FormDescription>
-                  {t`You can add multiple keywords by separating them with a comma or pressing enter.`}
+                  {t`You can add multiple keywords by separating them with a comma (,) or pressing enter.`}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

@@ -7,7 +7,8 @@ import { FeaturesSection } from "./sections/features";
 import { HeroSection } from "./sections/hero";
 import { LogoCloudSection } from "./sections/logo-cloud";
 import { TemplatesSection } from "./sections/templates";
-
+import { ResumeSection } from "./sections/resume";
+import { LettersSection } from "./sections/letters";
 
 export const HomePage = () => {
   const { i18n } = useLingui();
@@ -18,7 +19,7 @@ export const HomePage = () => {
         <html lang={i18n.locale} />
 
         <title>
-          {t`Reactive Resume`} - {t`A powerful resume builder`}
+          {t`Cverra`} - {t`A powerful resume builder`}
         </title>
 
         <meta
@@ -28,9 +29,12 @@ export const HomePage = () => {
       </Helmet>
 
       <HeroSection />
+      <ResumeSection />
+      <LettersSection />
       <LogoCloudSection />
       <FeaturesSection />
-      <TemplatesSection />
+      {/* <TemplatesSection /> */}
+    
      
     
     </main>

@@ -1453,7 +1453,6 @@ msgstr "Commencer"
 msgid "Go Back Home"
 msgstr "Retour à l'accueil"
 
-
 #: apps/client/src/pages/privacy-policy.tsx:55
 msgid "Your Rights"
 msgstr "Vos droits"

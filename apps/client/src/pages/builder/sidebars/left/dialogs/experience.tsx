@@ -71,7 +71,7 @@ export const ExperienceDialog = () => {
             <FormItem>
               <FormLabel>{t`Date or Date Range`}</FormLabel>
               <FormControl>
-                <Input {...field} placeholder={t`March 2023 - Present`} />
+                <Input {...field} placeholder={t`June 2021 - Present`} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -23,10 +23,13 @@ export const AuthLayout = () => {
   // Motion Background
   // -------------------------
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // Detect Tailwind dark/light mode
   useEffect(() => {
+    const html = document.documentElement;
+    setTheme(html.classList.contains("dark") ? "dark" : "light");
+
     const observer = new MutationObserver(() => {
       const html = document.documentElement;
       setTheme(html.classList.contains("dark") ? "dark" : "light");
@@ -44,32 +47,49 @@ export const AuthLayout = () => {
 
     let w: number, h: number;
     let particles: { x: number; y: number; vx: number; vy: number }[] = [];
+    let animationId: number;
 
     const resize = () => {
       w = canvas.width = window.innerWidth;
       h = canvas.height = window.innerHeight;
-      particles = Array.from({ length: 80 }, () => ({
+      particles = Array.from({ length: 60 }, () => ({
         x: Math.random() * w,
         y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
       }));
     };
 
     const draw = () => {
       if (!ctx) return;
 
-      // Background color
-      ctx.fillStyle = theme === "dark" ? "#000000" : "gray";
+      // Enhanced background colors with gradients
+      if (theme === "dark") {
+        // Dark theme: Deep blue to purple gradient
+        const gradient = ctx.createLinearGradient(0, 0, w, h);
+        gradient.addColorStop(0, "#0f172a"); // slate-900
+        gradient.addColorStop(0.5, "#1e1b4b"); // indigo-950
+        gradient.addColorStop(1, "#312e81"); // indigo-900
+        ctx.fillStyle = gradient;
+      } else {
+        // Light theme: Soft blue to white gradient
+        const gradient = ctx.createLinearGradient(0, 0, w, h);
+        gradient.addColorStop(0, "#f0f9ff"); // sky-50
+        gradient.addColorStop(0.4, "#e0f2fe"); // sky-100
+        gradient.addColorStop(0.8, "#bae6fd"); // sky-200
+        gradient.addColorStop(1, "#7dd3fc"); // sky-300
+        ctx.fillStyle = gradient;
+      }
+      
       ctx.fillRect(0, 0, w, h);
 
-      // Dot and line colors
-      const dotColor = theme === "dark" ? "rgba(253, 250, 250, 0.7)" : "rgba(0,112,255,0.8)"; // blue in light mode
-      const lineColor = theme === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,112,255,0.2)"; // lighter blue lines in light mode
+      // Enhanced dot and line colors
+      const dotColor = theme === "dark" ? "rgba(120, 113, 255, 0.8)" : "rgba(59, 130, 246, 0.8)"; // indigo-500 / blue-500
+      const lineColor = theme === "dark" ? "rgba(120, 113, 255, 0.2)" : "rgba(59, 130, 246, 0.15)";
 
       ctx.fillStyle = dotColor;
       ctx.strokeStyle = lineColor;
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 1;
 
       particles.forEach((p, i) => {
         p.x += p.vx;
@@ -79,7 +99,7 @@ export const AuthLayout = () => {
         if (p.y < 0 || p.y > h) p.vy *= -1;
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, theme === "dark" ? 2.5 : 2, 0, Math.PI * 2);
         ctx.fill();
 
         for (let j = i + 1; j < particles.length; j++) {
@@ -87,22 +107,29 @@ export const AuthLayout = () => {
           const dx = p.x - q.x;
           const dy = p.y - q.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
+          if (dist < 150) {
+            const opacity = 1 - dist / 150;
+            ctx.globalAlpha = opacity * 0.6;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
             ctx.stroke();
+            ctx.globalAlpha = 1;
           }
         }
       });
 
-      requestAnimationFrame(draw);
+      animationId = requestAnimationFrame(draw);
     };
 
     resize();
     draw();
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animationId);
+    };
   }, [theme]);
 
   // -------------------------
@@ -111,48 +138,46 @@ export const AuthLayout = () => {
   if (!providers) return null;
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden">
       {/* Motion Background */}
       <canvas
         ref={canvasRef}
-        className="absolute top-0 left-0 z-0 h-screen w-screen block"
-        style={{ display: "block" }}
+        className="absolute top-0 left-0 z-0 h-screen w-screen"
       />
 
-    {/* Top Nav */}
-    <header className="relative z-10 backdrop-blur-md bg-white/10 border-b border-gray-300 shadow-md">
-      <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
-        <Link to="/" className="flex items-center">
-          <Logo className="-ml-3" size={72} />
-        </Link>
+      {/* Enhanced Top Nav */}
+      <header className="relative z-10 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+        <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
+          <Link to="/" className="flex items-center group">
+            <Logo className="group-hover:scale-105 transition-transform duration-300" size={72} />
+          </Link>
 
-        <div className="flex items-center space-x-4">
-          <LocaleSwitch />
-          <ThemeSwitch />
+          <div className="flex items-center space-x-4">
+            <LocaleSwitch />
+            <ThemeSwitch />
+          </div>
         </div>
-      </div>
-    </header>
-
+      </header>
 
       {/* Main Content */}
       <main className="relative z-10 flex flex-1 items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-lg sm:max-w-xl lg:max-w-xl flex flex-col items-center justify-center gap-y-10">
-          <div className="w-full space-y-6">
+        <div className="w-full max-w-lg sm:max-w-xl lg:max-w-xl flex flex-col items-center justify-center gap-y-8">
+          <div className="w-full">
             <Outlet />
           </div>
 
           {isAuthRoute && (
             <>
-              <div className={cn("flex items-center gap-x-4", hideDivider && "hidden")}>
-                <hr className="flex-1 border-gray-500" />
-                <span className="text-sm sm:text-base lg:text-lg font-medium">
+              <div className={cn("flex items-center gap-x-4 w-full", hideDivider && "hidden")}>
+                <hr className="flex-1 border-gray-300 dark:border-gray-600" />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 px-4">
                   {t({
                     message: "or continue with",
                     context:
                       "The user can either login with email/password, or continue with GitHub or Google.",
                   })}
                 </span>
-                <hr className="flex-1 border-gray-500" />
+                <hr className="flex-1 border-gray-300 dark:border-gray-600" />
               </div>
 
               <SocialAuth />
@@ -161,18 +186,6 @@ export const AuthLayout = () => {
         </div>
       </main>
 
-      {/* Footer (image credit) */}
-      <footer className="relative z-10 hidden lg:block lg:p-6">
-        <div className="absolute bottom-5 right-5 z-10 bg-primary/30 px-4 py-2 text-xs font-medium text-primary-foreground backdrop-blur-sm">
-          <a
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            href="https://unsplash.com/photos/Oaqk7qqNh_c"
-          >
-            {t`Photograph by Patrick Tomasso`}
-          </a>
-        </div>
-      </footer>
     </div>
   );
 };

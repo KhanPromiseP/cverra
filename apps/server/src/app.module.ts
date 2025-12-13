@@ -1,9 +1,8 @@
 import path from "node:path";
-
-import { HttpException, Module } from "@nestjs/common";
-import { APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
+import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
+import { APP_PIPE } from "@nestjs/core";
 import { ServeStaticModule } from "@nestjs/serve-static";
-import { RavenInterceptor, RavenModule } from "nest-raven";
 import { ZodValidationPipe } from "nestjs-zod";
 
 import { AuthModule } from "./auth/auth.module";
@@ -19,14 +18,37 @@ import { StorageModule } from "./storage/storage.module";
 import { TranslationModule } from "./translation/translation.module";
 import { UserModule } from "./user/user.module";
 
+import { OpenAiController } from './controllers/openai.controller';
+import { CoverLetterModule } from './cover-letter/cover-letter.module';
+
+
+import { PrismaService } from './../../../tools/prisma/prisma.service';
+import { WalletModule } from './wallet/wallet.module';
+import { PaymentsModule } from '../src/payments/payments.module';
+import { SubscriptionsModule } from './payments/subscriptions/subscriptions.module';
+import { UsageModule } from './usage/usage.module';
+
+import { AdminModule } from './admin/admin.module';
+
+import { ArticleModule } from './articles/article.module';
+
+
 @Module({
+  controllers: [OpenAiController],
   imports: [
+    HttpModule,
     // Core Modules
     ConfigModule,
     DatabaseModule,
     MailModule,
-    RavenModule,
     HealthModule,
+    AdminModule,
+
+  // Payments & Subscriptions
+    PaymentsModule,
+    SubscriptionsModule, 
+    WalletModule,
+    UsageModule,
 
     // Feature Modules
     AuthModule.register(),
@@ -37,35 +59,33 @@ import { UserModule } from "./user/user.module";
     FeatureModule,
     TranslationModule,
     ContributorsModule,
+    
+    // Cover Letter Module
+    CoverLetterModule,
 
-    // Static Assets
+    // Article Module 
+    ArticleModule,
+
+    // Artboard static files
     ServeStaticModule.forRoot({
       serveRoot: "/artboard",
-      // eslint-disable-next-line unicorn/prefer-module
       rootPath: path.join(__dirname, "..", "artboard"),
     }),
+
+    // Client static files - serve for all non-API routes
     ServeStaticModule.forRoot({
-      renderPath: "/*",
-      // eslint-disable-next-line unicorn/prefer-module
       rootPath: path.join(__dirname, "..", "client"),
+      serveStaticOptions: {
+        index: false,
+      },
+      renderPath: /^(?!\/api).*/,
     }),
   ],
   providers: [
+    PrismaService,
     {
       provide: APP_PIPE,
       useClass: ZodValidationPipe,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useValue: new RavenInterceptor({
-        filters: [
-          // Filter all HttpException with status code <= 500
-          {
-            type: HttpException,
-            filter: (exception: HttpException) => exception.getStatus() < 500,
-          },
-        ],
-      }),
     },
   ],
 })

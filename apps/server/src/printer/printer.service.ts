@@ -5,7 +5,7 @@ import { ResumeDto } from "@reactive-resume/dto";
 import { ErrorMessage } from "@reactive-resume/utils";
 import retry from "async-retry";
 import { PDFDocument } from "pdf-lib";
-import { connect } from "puppeteer";
+import { connect } from "puppeteer-core";
 
 import { Config } from "../config/schema";
 import { StorageService } from "../storage/storage.service";
@@ -62,7 +62,7 @@ export class PrinterService {
       },
     });
 
-    const duration = Number(performance.now() - start).toFixed(0);
+    const duration = +(performance.now() - start).toFixed(0);
     const numberPages = resume.data.metadata.layout.length;
 
     this.logger.debug(`Chrome took ${duration}ms to print ${numberPages} page(s)`);
@@ -83,7 +83,7 @@ export class PrinterService {
       },
     });
 
-    const duration = Number(performance.now() - start).toFixed(0);
+    const duration = +(performance.now() - start).toFixed(0);
 
     this.logger.debug(`Chrome took ${duration}ms to generate preview`);
 
@@ -127,11 +127,17 @@ export class PrinterService {
       // Set the data of the resume to be printed in the browser's session storage
       const numberPages = resume.data.metadata.layout.length;
 
-      await page.evaluateOnNewDocument((data) => {
+      await page.goto(`${url}/artboard/preview`, { waitUntil: "domcontentloaded" });
+
+      await page.evaluate((data) => {
         window.localStorage.setItem("resume", JSON.stringify(data));
       }, resume.data);
 
-      await page.goto(`${url}/artboard/preview`, { waitUntil: "networkidle0" });
+      await Promise.all([
+        page.reload({ waitUntil: "load" }),
+        // Wait until first page is present before proceeding
+        page.waitForSelector('[data-page="1"]', { timeout: 15_000 }),
+      ]);
 
       const pagesBuffer: Buffer[] = [];
 

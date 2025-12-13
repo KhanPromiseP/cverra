@@ -1,3 +1,25 @@
+// src/client/stores/openai.ts
+// import { create } from "zustand";
+// import { DEFAULT_MAX_TOKENS, DEFAULT_MODEL } from "../constants/llm";
+
+// type OpenAIStore = {
+//   model: string;
+//   maxTokens: number;
+//   setModel: (model: string) => void;
+//   setMaxTokens: (maxTokens: number) => void;
+// };
+
+// export const useOpenAiStore = create<OpenAIStore>((set) => ({
+//   model: DEFAULT_MODEL,
+//   maxTokens: DEFAULT_MAX_TOKENS,
+//   setModel: (model: string) => set({ model }),
+//   setMaxTokens: (maxTokens: number) => set({ maxTokens }),
+// }));
+
+
+
+
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

@@ -146,7 +146,7 @@ export const SectionDialog = <T extends SectionItem>({
 
   return (
     <Dialog open={isOpen} onOpenChange={close}>
-      <DialogContent className="z-50">
+      <DialogContent className="border border-gray-700 rounded-2xl z-50">
         <Form {...form}>
           <ScrollArea>
             <form

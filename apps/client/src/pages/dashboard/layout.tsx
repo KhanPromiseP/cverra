@@ -1,6 +1,5 @@
 import { SidebarSimple } from "@phosphor-icons/react";
-import { Button, Sheet, SheetClose, SheetContent, SheetTrigger } from "@reactive-resume/ui";
-import { motion } from "framer-motion";
+import { Button, Sheet, SheetClose, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@reactive-resume/ui";
 import { useState } from "react";
 import { Outlet } from "react-router";
 import { LocaleSwitch } from "@/client/components/locale-switch";
@@ -8,66 +7,101 @@ import { Logo } from "@/client/components/logo";
 import { ThemeSwitch } from "@/client/components/theme-switch";
 import { Link } from "react-router";
 
-
 import { Sidebar } from "./_components/sidebar";
 
-export const DashboardLayout = () => {
+export const DashboardLayout: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    
-    <div>
-        <div className="sticky top-0 flexjustify-between ">
-          {/* Top Nav */}
-          <header className="relative z-10 backdrop-blur-md bg-white/10 border-b border-gray-300 shadow-md">
-          
-            <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
-              <Link to="/" className="flex items-center">
-                <Logo className="-ml-3" size={72} />
+    <div className="min-h-screen bg-background">
+      {/* Top Navigation */}
+      <div className="sticky top-0 z-50">
+        <header className="relative backdrop-blur-md bg-background/80 border-b border-border shadow-lg supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex items-center gap-3">
+              {/* Mobile Sidebar Trigger */}
+              <div className="lg:hidden">
+                <Sheet open={open} onOpenChange={setOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="h-9 w-9 bg-background hover:bg-muted border border-border sm:h-10 sm:w-10"
+                    >
+                      <SidebarSimple className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                  </SheetTrigger>
+
+                  <SheetContent 
+                    showClose={false} 
+                    side="left" 
+                    className="focus-visible:outline-none w-[280px] p-0 border-r border-border bg-background sm:w-80"
+                  >
+                    {/* Add accessibility titles */}
+                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Main navigation menu for the application
+                    </SheetDescription>
+                    
+                    <div className="flex items-center justify-between p-3 border-b border-border sm:p-4">
+                      <Link to="/" className="flex items-center">
+                        <Logo size={40} className="sm:size-48" />
+                      </Link>
+                      <SheetClose asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-9 sm:w-9">
+                          <SidebarSimple className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </SheetClose>
+                    </div>
+                    <div className="p-3 sm:p-4">
+                      {/* Mobile Sidebar - Always expanded */}
+                      <Sidebar setOpen={setOpen} forceExpanded={true} />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+
+              {/* Logo */}
+              <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+                <Logo className="hidden sm:block" size={56} />
+                <Logo className="sm:hidden" size={40} />
               </Link>
-      
-              <div className="flex items-center space-x-4">
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <LocaleSwitch />
                 <ThemeSwitch />
               </div>
             </div>
-          </header>
-        </div>
-      
-      <div className="sticky top-0 z-50 flex items-center justify-between p-4 pb-0 lg:hidden">
-        
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button size="icon" variant="ghost" className="bg-background">
-              <SidebarSimple />
-            </Button>
-          </SheetTrigger>
-
-          <SheetContent showClose={false} side="left" className="focus-visible:outline-none">
-            <SheetClose asChild className="absolute left-4 top-4">
-              <Button size="icon" variant="ghost">
-                <SidebarSimple />
-              </Button>
-            </SheetClose>
-
-            <Sidebar setOpen={setOpen} />
-          </SheetContent>
-        </Sheet>
+          </div>
+        </header>
       </div>
 
-      <motion.div
-        initial={{ x: -320 }}
-        animate={{ x: 0 }}
-        className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-[320px] lg:flex-col"
-      >
-        <div className="h-full rounded p-4">
-          <Sidebar />
+      {/* Main Layout Container */}
+      <div className="flex">
+        {/* Desktop Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block fixed inset-y-0 z-30 pt-[76px]">
+          <Sidebar onCollapseChange={setSidebarCollapsed} />
         </div>
-      </motion.div>
 
-      <main className="mx-6 my-4 lg:mx-8 lg:pl-[320px]">
-        <Outlet />
-      </main>
+        {/* Main Content Area - Use CSS classes with proper responsive design */}
+        <main className={`
+          flex-1 w-full min-w-0
+          transition-all duration-300 ease-in-out
+          lg:ml-80
+          ${sidebarCollapsed ? 'lg:!ml-20' : ''}
+        `}>
+          <div className="w-full px-4 py-4 sm:px-6 sm:py-6 lg:container lg:mx-auto lg:px-8 lg:py-8">
+            {/* Page Content */}
+            <div className="animate-in fade-in duration-500">
+              <Outlet />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

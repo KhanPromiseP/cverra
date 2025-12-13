@@ -10,6 +10,7 @@ export const LearnMorePage = () => {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const currentYear = new Date().getFullYear();
 
   // Detect Tailwind dark/light mode
   useEffect(() => {
@@ -130,13 +131,17 @@ export const LearnMorePage = () => {
 
             <button
               onClick={() => navigate("/")}
-              className="px-6 py-3 border border-secondary text-primary rounded-lg hover:bg-secondary hover:text-white transition w-full sm:w-auto"
+              className="px-6 py-3 border border-gray-300 text-primary rounded-lg hover:bg-secondary hover:text-white transition w-full sm:w-auto"
             >
               {t`Go Back Home`}
             </button>
           </div>
+          
         </div>
       </main>
+        <footer className="mt-10 mb-4 text-sm text-center opacity-70">
+            {t`© ${currentYear} Cverra. All rights reserved.`}
+          </footer>
     </div>
   );
 };

@@ -1,11 +1,14 @@
 import { t } from "@lingui/macro";
-import { HouseSimple, Lock, SidebarSimple } from "@phosphor-icons/react";
+import { House, Lock, SidebarSimple } from "@phosphor-icons/react";
 import { Button, Tooltip } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { Link } from "react-router";
 
 import { useBuilderStore } from "@/client/stores/builder";
 import { useResumeStore } from "@/client/stores/resume";
+
+import { LocaleSwitch } from "@/client/components/locale-switch";
+import { ThemeSwitch } from "@/client/components/theme-switch";
 
 export const BuilderHeader = () => {
   const title = useResumeStore((state) => state.resume.title);
@@ -26,30 +29,29 @@ export const BuilderHeader = () => {
     <div
       style={{ left: `${leftPanelSize}%`, right: `${rightPanelSize}%` }}
       className={cn(
-        "fixed inset-x-0 top-0 z-[60] h-16 bg-secondary-accent/50 backdrop-blur-lg lg:z-20",
+        "fixed inset-x-0 top-0 z-[60] h-16 bg-secondary-accent/50 backdrop-blur-lg lg:z-20 border border-gray-700",
         !isDragging && "transition-[left,right]",
       )}
     >
-      <div className="flex h-full items-center justify-between px-4">
+      <div className="relative flex h-full items-center px-4">
+        {/* Left sidebar toggle */}
         <Button
           size="icon"
           variant="ghost"
           className="flex lg:hidden"
-          onClick={() => {
-            onToggle("left");
-          }}
+          onClick={() => onToggle("left")}
         >
           <SidebarSimple />
         </Button>
 
-        <div className="flex items-center justify-center gap-x-1 lg:mx-auto">
-          <Button asChild size="icon" variant="ghost">
-            <Link to="/dashboard/resumes">
-              <HouseSimple />
-            </Link>
-          </Button>
-
-          <span className="mr-2 text-xs opacity-40">{"/"}</span>
+        <Button asChild size="icon" variant="ghost" className="text-foreground">
+          <Link to="/dashboard/resumes">
+            <House size={22} weight="bold" />
+          </Link>
+        </Button>
+        {/* Centered Title */}
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center space-x-2">
+          
 
           <h1 className="font-medium">{title}</h1>
 
@@ -60,13 +62,18 @@ export const BuilderHeader = () => {
           )}
         </div>
 
+        {/* Right: Locale & Theme Switch */}
+        <div className="ml-auto flex items-center space-x-4">
+          <LocaleSwitch />
+          <ThemeSwitch />
+        </div>
+
+        {/* Right sidebar toggle */}
         <Button
           size="icon"
           variant="ghost"
           className="flex lg:hidden"
-          onClick={() => {
-            onToggle("right");
-          }}
+          onClick={() => onToggle("right")}
         >
           <SidebarSimple className="-scale-x-100" />
         </Button>

@@ -18,20 +18,25 @@ export const Picture = ({ className, size }: PictureProps) => {
   return (
     <div className="flex justify-center">
       <img
-        src={picture.url}
-        alt="Profile"
-        className={cn(
-          "relative z-20 object-cover rounded-full", // Added rounded-full for perfect circle
-          picture.effects.border && "border-primary",
-          picture.effects.grayscale && "grayscale",
-          className,
-        )}
-        style={{
-          width: `${imageSize}px`,
-          height: `${imageSize}px`, // Set both width and height to the same value
-          borderWidth: `${picture.effects.border ? fontSize / 3 : 0}px`,
-        }}
-      />
+          src={picture.url}
+          alt="Profile"
+          className={cn(
+            "relative z-20 object-cover",
+            picture.effects.border && "border-primary",
+            picture.effects.grayscale && "grayscale",
+            className,
+            "rounded-full"
+          )}
+          style={{
+            width: `${imageSize}px`,
+            height: `${imageSize}px`,
+            borderWidth: `${picture.effects.border ? fontSize / 3 : 0}px`,
+            borderRadius: "9999px",
+            WebkitBorderRadius: "9999px",
+            MozBorderRadius: "9999px",
+            overflow: "hidden",
+          }}
+        />
     </div>
   );
 };

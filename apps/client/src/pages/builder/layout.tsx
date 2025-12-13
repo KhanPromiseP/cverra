@@ -49,7 +49,7 @@ export const BuilderLayout = () => {
 
   if (isDesktop) {
     return (
-      <div className="relative size-full overflow-hidden">
+      <div className="relative size-full overflow-hidden ">
         <PanelGroup direction="horizontal">
           <Panel
             minSize={25}

@@ -3,6 +3,24 @@
 @import url("./_theme.css");
 @import url("./_fonts.css");
 
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
 * {
   @apply border-border/50;
 }
+
+/* Add this to your global CSS or component CSS */
+/* @media print {
+  .profile-image, .avatar, [data-type="profile-picture"] {
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Ensure the rounded class is preserved */
+/* .rounded-full {
+  border-radius: 50% !important;
+} */ 

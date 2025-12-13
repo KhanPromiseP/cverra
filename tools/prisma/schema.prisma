@@ -19,6 +19,14 @@ enum Visibility {
   private
 }
 
+// Add Role enum
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Update User model to include role AND article relations
 model User {
   id               String   @id @default(cuid())
   name             String
@@ -28,11 +36,37 @@ model User {
   locale           String   @default("en-US")
   emailVerified    Boolean  @default(false)
   twoFactorEnabled Boolean  @default(false)
+  role             Role     @default(USER) // Add this line
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   provider         Provider
   secrets          Secrets?
   resumes          Resume[]
+
+  coverLetters CoverLetter[] // <--- Opposite relation side
+
+  wallet             Wallet?
+  payments           Payment[]
+  walletTransactions WalletTransaction[]
+  subscriptions      UserSubscription[]
+  usageLogs          UsageLog[]
+
+  // ========== ARTICLE RELATIONS ==========
+  articles               Article[]
+  articleComments        ArticleComment[]
+  articleLikes           ArticleLike[]
+  articleClaps           ArticleClap[]
+  articleSaves           ArticleSave[]
+  articleShares          ArticleShare[]
+  articleViews           ArticleView[]
+  commentLikes           CommentLike[]
+  readingProfile         UserReadingProfile?
+  articleRecommendations ArticleRecommendation[]
+  searchHistories        SearchHistory[]
+  userEngagements        UserEngagement[]
+  PremiumAccess          PremiumAccess[]
+  Notification           Notification[]
+  Achievement            Achievement[]
 }
 
 model Secrets {
@@ -48,6 +82,36 @@ model Secrets {
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, id])
+}
+
+model CoverLetter {
+  id         String           @id @default(cuid())
+  title      String
+  slug       String
+  content    Json // Stores all blocks and layout
+  style      CoverLetterStyle @default(Modern)
+  visibility Visibility       @default(private)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  isPublic   Boolean          @default(false)
+  layout     String?
+
+  @@unique([userId, id])
+  @@unique([userId, slug])
+  @@index(fields: [userId])
+}
+
+enum CoverLetterStyle {
+  Modern
+  Traditional
+  Executive
+  Creative
+  Minimalist
+  Professional
+  Academic
+  Technical
 }
 
 model Resume {
@@ -78,4 +142,714 @@ model Statistics {
   updatedAt DateTime @updatedAt
 
   @@unique([resumeId, id])
+}
+
+// --- Wallet + Payments + Subscriptions + Usage (add to schema.prisma) ---
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions WalletTransaction[] @relation("WalletToTransactions")
+}
+
+model WalletTransaction {
+  id          String            @id @default(cuid())
+  walletId    String
+  amount      Int
+  type        TransactionType
+  source      TransactionSource // <-- Add this field
+  description String?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+
+  wallet Wallet  @relation("WalletToTransactions", fields: [walletId], references: [id])
+  User   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  @@index([walletId])
+}
+
+// Add this enum
+enum TransactionSource {
+  SUBSCRIPTION
+  ONE_TIME_PURCHASE
+  REFUND
+  BONUS
+  MANUAL_ADJUSTMENT
+  SYSTEM
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+model SubscriptionPlan {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal
+  coins       Int
+  interval    PlanInterval // Change from String to PlanInterval
+  features    Json?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  subscriptions UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
+model UserSubscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  planId             String
+  status             SubscriptionStatus // Change from String to SubscriptionStatus
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@unique([userId, planId])
+  @@map("user_subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PENDING
+  FAILED
+}
+
+model Payment {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider         PaymentProvider
+  providerRef      String?
+  amount           Decimal
+  currency         String            @default("USD")
+  status           PaymentStatus
+  coinsGranted     Int?
+  metadata         Json?
+  subscriptionId   String? // Add this field
+  userSubscription UserSubscription? @relation(fields: [subscriptionId], references: [id]) // Add this relation
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@map("payments")
+}
+
+enum PaymentProvider {
+  MOMO
+  ORANGE
+  STRIPE
+  PAYPAL
+  FLUTTERWAVE
+  PAYSTACK
+  TRANZAK
+  MOCK
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+model UsageLog {
+  id        String      @id @default(cuid())
+  userId    String
+  action    UsageAction
+  cost      Int
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum UsageAction {
+  RESUME_DOWNLOAD
+  COVERLETTER_DOWNLOAD
+  AI_RESUME_ENHANCEMENT
+  AI_LETTER_GENERATION
+  TEMPLATE_PREMIUM
+}
+
+// ========== ARTICLE SYSTEM ==========
+
+// Add to your existing enums section
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+enum ContentAccess {
+  FREE
+  PREMIUM
+}
+
+// Add translation status
+enum TranslationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Dynamic categories managed from admin panel
+model ArticleCategory {
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  description  String?
+  icon         String? // Icon name or URL
+  color        String? // Hex color for UI
+  order        Int     @default(0) // For sorting in UI
+  isActive     Boolean @default(true)
+  articleCount Int     @default(0)
+
+  articles Article[]
+
+  // Many-to-many with UserReadingProfile
+  favoredBy UserReadingProfile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([order])
+}
+
+// Main article model - optimized for engagement
+model Article {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  excerpt   String
+  content   Json // Rich JSON from editor (TipTap/Lexical)
+  plainText String? // For search & previews
+
+  // Category (dynamic from admin panel)
+  category   ArticleCategory @relation(fields: [categoryId], references: [id])
+  categoryId String
+  tags       String[]        @default([])
+
+  // Access control
+  accessType ContentAccess @default(FREE)
+  coinPrice  Int           @default(0) // If using coins for premium
+
+  // Author info
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  // Media
+  coverImage    String?
+  featuredImage String?
+
+  // SEO & Metadata
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[] @default([])
+  readingTime     Int      @default(5) // minutes
+
+  // Status & Visibility
+  status       ArticleStatus @default(DRAFT)
+  isFeatured   Boolean       @default(false)
+  isTrending   Boolean       @default(false)
+  isEditorPick Boolean       @default(false)
+
+  // Engagement Metrics (Updated in real-time)
+  viewCount       Int @default(0)
+  uniqueViewCount Int @default(0)
+  likeCount       Int @default(0)
+  commentCount    Int @default(0)
+  shareCount      Int @default(0)
+  saveCount       Int @default(0)
+  clapCount       Int @default(0) // Medium-style claps
+
+  // Translation settings
+  autoTranslate      Boolean  @default(true) // Auto-translate to other languages
+  availableLanguages String[] @default(["en"]) // Languages this article is available in
+  targetLanguages    String[] @default(["fr"]) // Target languages for auto-translation
+
+  // Timestamps
+  publishedAt    DateTime?
+  scheduledFor   DateTime?
+  lastTrendingAt DateTime?
+
+  // Relations
+  comments        ArticleComment[]
+  likes           ArticleLike[]
+  shares          ArticleShare[]
+  saves           ArticleSave[]
+  claps           ArticleClap[]
+  views           ArticleView[]
+  translations    ArticleTranslation[]
+  translationJobs TranslationJob[]
+  recommendations ArticleRecommendation[]
+  userEngagements UserEngagement[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  PremiumAccess PremiumAccess[]
+
+  @@index([slug])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([isFeatured])
+  @@index([isTrending])
+  @@index([viewCount])
+  @@index([likeCount])
+  @@index([accessType])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String // 'ARTICLE_PUBLISHED', 'COMMENT_REPLY', 'SYSTEM', etc.
+  title     String
+  message   String
+  data      Json?
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// PremiumAccess model (optional but recommended for tracking)
+model PremiumAccess {
+  id          String   @id @default(cuid())
+  userId      String
+  articleId   String
+  amountPaid  Int      @default(0)
+  accessUntil DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@index([articleId])
+  @@index([accessUntil])
+}
+
+// ========== TRANSLATION SYSTEM ==========
+
+model ArticleTranslation {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  language  String // ISO code: "fr", "es", "de", etc.
+
+  // Translated content
+  title     String
+  excerpt   String
+  content   Json // Translated rich content (same structure as original)
+  plainText String?
+
+  // SEO translations
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[] @default([])
+
+  // Translation metadata
+  status       TranslationStatus @default(COMPLETED)
+  translatedBy String            @default("AI") // "AI", "HUMAN", "ADMIN"
+  aiModel      String? // "gpt-4", "claude-3", etc.
+  confidence   Float             @default(0.95)
+  attemptCount Int               @default(0)
+
+  // Quality control
+  needsReview  Boolean   @default(false)
+  contentHash  String?
+  reviewedBy   String? // Admin who reviewed
+  reviewedAt   DateTime?
+  qualityScore Int? // 1-5 score
+
+  // Performance & caching
+  lastAccessed DateTime?
+  accessCount  Int       @default(0)
+  isCached     Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([articleId, language])
+  @@index([articleId])
+  @@index([language])
+  @@index([status])
+  @@index([lastAccessed])
+  @@index([needsReview])
+}
+
+// ========== ENGAGEMENT MODELS ==========
+
+// Enhanced comments for articles
+model ArticleComment {
+  id        String           @id @default(cuid())
+  content   String
+  article   Article          @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  parentId  String? // For nested replies
+  replies   ArticleComment[] @relation("CommentReplies")
+  parent    ArticleComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+
+  // Language context (which translation was user reading?)
+  language String @default("en")
+
+  // Engagement
+  likeCount  Int     @default(0)
+  isEdited   Boolean @default(false)
+  isPinned   Boolean @default(false)
+  isFeatured Boolean @default(false) // Featured by admin
+
+  // Moderation
+  status      CommentStatus @default(ACTIVE)
+  reported    Boolean       @default(false)
+  reportCount Int           @default(0)
+
+  // Relations
+  likes CommentLike[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@index([language])
+}
+
+enum CommentStatus {
+  ACTIVE
+  DELETED
+  HIDDEN
+  PENDING_REVIEW
+}
+
+// Like system
+model ArticleLike {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  language  String  @default("en") // Which language version they liked
+
+  createdAt DateTime @default(now())
+
+  @@unique([articleId, userId, language])
+  @@index([articleId])
+  @@index([userId])
+}
+
+// Medium-style claps
+model ArticleClap {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  count     Int     @default(1) // User can clap multiple times
+  language  String  @default("en")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([articleId, userId, language])
+  @@index([articleId])
+  @@index([userId])
+}
+
+// Save/Bookmark articles
+model ArticleSave {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  folder    String? // "favorites", "read-later", custom folders
+  language  String  @default("en") // Which language they saved
+
+  createdAt DateTime @default(now())
+
+  @@unique([articleId, userId, language])
+  @@index([articleId])
+  @@index([userId])
+}
+
+// Track shares for analytics
+model ArticleShare {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User?   @relation(fields: [userId], references: [id])
+  userId    String? // Nullable for anonymous shares
+  platform  String // "facebook", "twitter", "whatsapp", "linkedin", "copy_link"
+  shareUrl  String? // Unique tracking URL
+  language  String  @default("en") // Which language they shared
+
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+// Track views for analytics
+model ArticleView {
+  id        String  @id @default(cuid())
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  user      User?   @relation(fields: [userId], references: [id])
+  userId    String? // Nullable for anonymous views
+  ipAddress String?
+  userAgent String?
+  country   String?
+  language  String  @default("en") // Which language they viewed
+
+  createdAt DateTime @default(now())
+
+  @@unique([articleId, userId, language], name: "articleId_userId_language_unique")
+  @@index([articleId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([language])
+}
+
+// Comment likes
+model CommentLike {
+  id        String         @id @default(cuid())
+  comment   ArticleComment @relation(fields: [commentId], references: [id])
+  commentId String
+  user      User           @relation(fields: [userId], references: [id])
+  userId    String
+
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+}
+
+// ========== TRANSLATION QUEUE ==========
+
+model TranslationJob {
+  id             String            @id @default(cuid())
+  article        Article           @relation(fields: [articleId], references: [id])
+  articleId      String
+  targetLanguage String
+  status         TranslationStatus @default(PENDING)
+  priority       Int               @default(1) // 1-5, higher = more important
+
+  // Job metadata
+  attemptCount Int       @default(0)
+  maxAttempts  Int       @default(3)
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  // AI settings
+  aiModel  String  @default("gpt-4")
+  useCache Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([articleId, targetLanguage])
+  @@index([articleId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+// ========== PERSONALIZATION & RECOMMENDATIONS ==========
+
+// User reading preferences and history
+model UserReadingProfile {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  // Preferred categories (auto-detected from reading history)
+  favoriteCategories ArticleCategory[]
+  favoriteTags       String[]          @default([])
+
+  // Reading habits
+  averageReadingTime   Int       @default(0) // seconds
+  preferredReadingTime String? // "morning", "afternoon", "evening"
+  readingStreak        Int       @default(0) // consecutive days
+  lastReadAt           DateTime?
+
+  // Content preferences
+  preferredContentType String? // "articles", "guides", "videos"
+  difficultyPreference String  @default("intermediate") // "beginner", "intermediate", "advanced"
+
+  // Notification preferences
+  notifyNewArticles  Boolean @default(true)
+  notifyTrending     Boolean @default(true)
+  notifyPersonalized Boolean @default(true)
+  digestFrequency    String  @default("weekly") // "daily", "weekly", "none"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Article recommendations for users
+model ArticleRecommendation {
+  id        String  @id @default(cuid())
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+
+  // Recommendation algorithm data
+  score  Float // 0-1 confidence score
+  reason RecommendationReason // Why recommended
+  source String               @default("CONTENT_BASED") // "CONTENT_BASED", "COLLABORATIVE", "POPULAR", "TRENDING"
+
+  // User interaction with recommendation
+  shownAt     DateTime?
+  clickedAt   DateTime?
+  dismissedAt DateTime?
+  feedback    FeedbackType? // "liked", "not_interested"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@index([articleId])
+  @@index([score])
+  @@index([createdAt])
+}
+
+enum RecommendationReason {
+  SIMILAR_TO_HISTORY
+  POPULAR_IN_CATEGORY
+  TRENDING_NOW
+  SIMILAR_USERS_LIKED
+  BASED_ON_SEARCH
+  EDITORS_PICK
+  COMPLEMENTARY_SKILL
+  CAREER_PATH
+}
+
+enum FeedbackType {
+  LIKED
+  NOT_INTERESTED
+  ALREADY_READ
+  NOT_RELEVANT
+}
+
+// User search history for recommendations
+model SearchHistory {
+  id      String @id @default(cuid())
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  query   String
+  results Int    @default(0)
+  filters Json? // Search filters used
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([query])
+  @@index([createdAt])
+}
+
+// Track what users click/engage with
+model UserEngagement {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  article   Article?         @relation(fields: [articleId], references: [id])
+  articleId String?
+  action    EngagementAction
+  metadata  Json? // Additional data
+  sessionId String? // For session tracking
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([articleId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum EngagementAction {
+  VIEW
+  READ_COMPLETE
+  LIKE
+  COMMENT
+  SHARE
+  SAVE
+  CLICK_RECOMMENDATION
+  DISMISS_RECOMMENDATION
+}
+
+model Achievement {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  description   String
+  icon          String
+  badgeColor    String
+  rarity        String // COMMON, RARE, EPIC, LEGENDARY
+  category      String // READING, ENGAGEMENT, COMMUNITY, PREMIUM, MILESTONE
+  points        Int
+  unlocked      Boolean   @default(false)
+  unlockedAt    DateTime?
+  progress      Int       @default(0)
+  totalRequired Int
+  shareable     Boolean   @default(true)
+  shareImage    String?
+  shareText     String?
+  shareUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, title])
+  @@index([userId])
+  @@index([userId, unlocked])
 }

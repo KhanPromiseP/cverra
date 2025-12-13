@@ -1,0 +1,101 @@
+/* components/articles/ArticleFeed.css */
+.article-card.featured .ant-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.dark .article-card.featured .ant-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.article-card:hover .ant-card {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .article-card:hover .ant-card {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* Premium card glow effect */
+.article-card .ant-card:hover {
+  border-color: #6366f1;
+}
+
+.article-card .ant-card:hover .premium-badge {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+/* Reading time indicator */
+.reading-time-indicator {
+  position: relative;
+}
+
+.reading-time-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.article-card:hover .reading-time-indicator::after {
+  opacity: 1;
+}
+
+/* Category button hover effect */
+.ant-btn-default:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.dark .ant-btn-default:hover {
+  border-color: #818cf8;
+  color: #818cf8;
+}
+
+/* Gradient text for headings */
+.gradient-text {
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

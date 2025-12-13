@@ -62,6 +62,8 @@ services:
       PROXY_HOST: "localhost"
       PROXY_PORT: ${CHROME_PORT:-8080}
       PROXY_SSL: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   minio_data:

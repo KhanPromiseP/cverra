@@ -17,7 +17,7 @@ export const ResumesPage = () => {
     <>
       <Helmet>
         <title>
-          {t`Resumes`} - {t`Reactive Resume`}
+          {t`Resumes`} - {t`Cverra`}
         </title>
       </Helmet>
 
@@ -51,7 +51,7 @@ export const ResumesPage = () => {
 
         <ScrollArea
           allowOverflow
-          className="h-[calc(100vh-140px)] overflow-visible lg:h-[calc(100vh-88px)]"
+          className="h-[calc(60vh-140px)] overflow-visible lg:h-[calc(100vh-88px)]"
         >
           <TabsContent value="grid">
             <GridView />

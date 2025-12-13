@@ -72,7 +72,7 @@ export const BuilderToolbar = () => {
 
   return (
     <motion.div className="fixed inset-x-0 bottom-0 mx-auto hidden py-6 text-center md:block">
-      <div className="inline-flex items-center justify-center rounded-full bg-background px-4 shadow-xl">
+      <div className="inline-flex items-center justify-center rounded-full bg-background px-4 shadow-xl  border border-gray-700">
         <Tooltip content={t`Undo`}>
           <Button
             size="icon"
@@ -85,6 +85,9 @@ export const BuilderToolbar = () => {
             <ArrowCounterClockwise />
           </Button>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-9" />
+
 
         <Tooltip content={t`Redo`}>
           <Button
@@ -115,17 +118,24 @@ export const BuilderToolbar = () => {
           </Button>
         </Tooltip>
 
+        <Separator orientation="vertical" className="h-9" />
+
+
         <Tooltip content={t`Zoom Out`}>
           <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomOut}>
             <MagnifyingGlassMinus />
           </Button>
         </Tooltip>
 
+        <Separator orientation="vertical" className="h-9" />
+
         <Tooltip content={t`Reset Zoom`}>
           <Button size="icon" variant="ghost" className="rounded-none" onClick={onResetView}>
             <ClockClockwise />
           </Button>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-9" />
 
         <Tooltip content={t`Center Artboard`}>
           <Button size="icon" variant="ghost" className="rounded-none" onClick={onCenterView}>
@@ -147,6 +157,8 @@ export const BuilderToolbar = () => {
           </Toggle>
         </Tooltip>
 
+        <Separator orientation="vertical" className="h-9" />
+
         <Tooltip content={t`Toggle Page Numbers`}>
           <Toggle
             className="rounded-none"
@@ -161,6 +173,7 @@ export const BuilderToolbar = () => {
 
         <Separator orientation="vertical" className="h-9" />
 
+
         <Tooltip content={t`Copy Link to Resume`}>
           <Button
             size="icon"
@@ -172,6 +185,9 @@ export const BuilderToolbar = () => {
             <LinkSimple />
           </Button>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-9" />
+
 
         <Tooltip content={t`Download PDF`}>
           <Button

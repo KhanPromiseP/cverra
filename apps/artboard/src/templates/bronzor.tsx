@@ -15,9 +15,9 @@ import type {
   URL,
 } from "@reactive-resume/schema";
 import { Education, Experience, Volunteer } from "@reactive-resume/schema";
-import { cn, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
+import { cn, isEmptyString, isUrl, linearTransform, sanitize } from "@reactive-resume/utils";
 import get from "lodash.get";
-import { Fragment } from "react";
+import React, { Fragment } from "react";
 
 import { BrandIcon } from "../components/brand-icon";
 import { Picture } from "../components/picture";
@@ -28,50 +28,86 @@ const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
 
   return (
-    <div className="flex flex-col items-center space-y-2 text-center">
-      <Picture />
-
-      <div>
-        <div className="text-2xl font-bold">{basics.name}</div>
-        <div className="text-base">{basics.headline}</div>
+    <div className="relative grid grid-cols-3 gap-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/80">
+      {/* Enhanced geometric shapes with better structure */}
+      <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-white/10 blur-2xl"></div>
+      <div className="absolute -left-16 -bottom-16 h-36 w-36 rounded-full bg-white/5 blur-xl"></div>
+      <div className="absolute right-1/3 top-1/3 h-28 w-28 rounded-full bg-white/8 blur-lg"></div>
+      
+      {/* Floating geometric elements */}
+      <div className="absolute left-1/4 bottom-8 h-6 w-6 rotate-45 bg-white/20"></div>
+      <div className="absolute right-32 top-20 h-4 w-4 rounded-full bg-white/15"></div>
+      
+      {/* Abstract wave patterns */}
+      <div className="absolute inset-0 opacity-[0.03]">
+        <svg className="h-full w-full" viewBox="0 0 1200 400" preserveAspectRatio="none">
+          <path d="M0,200 C300,100 400,300 600,200 C800,100 900,300 1200,200 L1200,400 L0,400 Z" fill="white"/>
+          <path d="M0,250 C200,150 400,350 800,250 C1000,150 1100,350 1200,250 L1200,400 L0,400 Z" fill="white" opacity="0.5"/>
+        </svg>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-        {basics.location && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-map-pin text-primary" />
-            <div>{basics.location}</div>
+      {/* Profile Picture Section with enhanced background */}
+      <div className="relative z-10 flex items-center justify-center p-6">
+        {/* Multi-layered background effect */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-44 w-44 rounded-full bg-gradient-to-br from-white/25 to-white/5 blur-2xl"></div>
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-36 w-36 rounded-full bg-white/15 blur-lg"></div>
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-32 w-32 rounded-full bg-white/10 animate-pulse-slow"></div>
+        </div>
+        
+        {/* Geometric frame around picture */}
+        <div className="relative">
+          {/* Outer glow effect */}
+          <div className="absolute -inset-3 rounded-full bg-white/20 blur-md"></div>
+          {/* Main picture container */}
+          <div className="relative rounded-full border-4 border-white/90 p-1.5 shadow-2xl">
+            <Picture size={160} className="rounded-full" />
           </div>
-        )}
-        {basics.phone && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-phone text-primary" />
-            <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-              {basics.phone}
-            </a>
+          {/* Floating corner elements */}
+          <div className="absolute -top-2 -left-2 h-5 w-5 rotate-45 bg-primary/80 rounded-sm"></div>
+          <div className="absolute -bottom-2 -right-2 h-5 w-5 rotate-45 bg-white/80 rounded-sm"></div>
+        </div>
+      </div>
+
+      {/* Name and Title Section with improved curved transition */}
+      <div className="relative col-span-2 flex flex-col justify-center space-y-4 bg-white p-8">
+        {/* Enhanced curved edge with gradient */}
+        <div className="absolute -left-6 top-0 h-full w-20">
+          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M0,0 C35,25 40,60 0,100 L100,100 L100,0 Z" fill="white" />
+            <defs>
+              <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                <stop offset="100%" stopColor="white" stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        
+        <div className="relative z-10 space-y-3">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black uppercase tracking-tight text-gray-900 leading-tight">
+              {basics.name}
+            </h1>
+            <div className="inline-block rounded-full bg-primary px-5 py-2 shadow-lg">
+              <p className="text-lg font-semibold uppercase tracking-wide text-white">
+                {basics.headline}
+              </p>
+            </div>
           </div>
-        )}
-        {basics.email && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-at text-primary" />
-            <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-              {basics.email}
-            </a>
+          
+          {/* Enhanced decorative elements */}
+          <div className="flex items-center gap-3 pt-2">
+            <div className="h-1.5 w-16 rounded-full bg-gradient-to-r from-primary to-primary/70"></div>
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+            <div className="h-1 w-12 rounded-full bg-gradient-to-r from-primary/50 to-primary/30"></div>
+            <div className="h-1.5 w-1.5 rounded-full bg-primary/60"></div>
           </div>
-        )}
-        <Link url={basics.url} />
-        {basics.customFields.map((item) => (
-          <div key={item.id} className="flex items-center gap-x-1.5">
-            <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
-            {isUrl(item.value) ? (
-              <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
-                {item.name || item.value}
-              </a>
-            ) : (
-              <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
-            )}
-          </div>
-        ))}
+        </div>
       </div>
     </div>
   );
@@ -83,16 +119,34 @@ const Summary = () => {
   if (!section.visible || isEmptyString(section.content)) return null;
 
   return (
-    <section id={section.id} className="grid grid-cols-5 border-t pt-2.5">
-      <div>
-        <h4 className="text-base font-bold">{section.name}</h4>
+    <section id={section.id}>
+      {/* Sidebar Style */}
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+        <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
+        <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
-      <div
-        dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
-        style={{ columns: section.columns }}
-        className="wysiwyg col-span-4"
-      />
+      {/* Main Style */}
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+        <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
+        <h4 className="text-lg font-bold uppercase">{section.name}</h4>
+      </div>
+
+      <main className={cn(
+        "relative space-y-2",
+        "group-[.main]:border-l-4 group-[.main]:border-primary group-[.main]:pl-6",
+        "group-[.sidebar]:pl-2"
+      )}>
+        <div
+          dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
+          style={{ columns: section.columns }}
+          className={cn(
+            "wysiwyg text-sm leading-relaxed",
+            "group-[.main]:text-justify group-[.main]:text-gray-700",
+            "group-[.sidebar]:text-white"
+          )}
+        />
+      </main>
     </section>
   );
 };
@@ -100,13 +154,12 @@ const Summary = () => {
 type RatingProps = { level: number };
 
 const Rating = ({ level }: RatingProps) => (
-  <div className="flex items-center gap-x-1.5">
-    {Array.from({ length: 5 }).map((_, index) => (
-      <div
-        key={index}
-        className={cn("size-2 rounded-full border border-primary", level > index && "bg-primary")}
-      />
-    ))}
+  <div className="relative h-2 w-full">
+    <div className="absolute inset-0 h-2 rounded-full bg-gray-300 group-[.sidebar]:bg-gray-600" />
+    <div
+      className="absolute inset-0 h-2 rounded-full bg-primary"
+      style={{ width: `${(level / 5) * 100}%` }}
+    />
   </div>
 );
 
@@ -128,7 +181,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
         href={url.href}
         target="_blank"
         rel="noreferrer noopener nofollow"
-        className={cn("inline-block", className)}
+        className={cn("inline-block hover:text-primary hover:underline", className)}
       >
         {label ?? (url.label || url.href)}
       </a>
@@ -166,6 +219,8 @@ type SectionProps<T> = {
   levelKey?: keyof T;
   summaryKey?: keyof T;
   keywordsKey?: keyof T;
+  sidebarIcon?: string;
+  mainIcon?: string;
 };
 
 const Section = <T,>({
@@ -176,17 +231,27 @@ const Section = <T,>({
   levelKey,
   summaryKey,
   keywordsKey,
+  sidebarIcon = "list",
+  mainIcon = "list",
 }: SectionProps<T>) => {
   if (!section.visible || section.items.length === 0) return null;
 
   return (
-    <section id={section.id} className="grid grid-cols-5 border-t pt-2.5">
-      <div>
-        <h4 className="text-base font-bold">{section.name}</h4>
+    <section id={section.id} className="grid">
+      {/* Sidebar Header Style */}
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+        <i className={cn(`ph ph-bold ph-${sidebarIcon}`, "text-2xl text-primary")} />
+        <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
+      </div>
+
+      {/* Main Header Style */}
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+        <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-2xl text-primary")} />
+        <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
 
       <div
-        className="col-span-4 grid gap-x-6 gap-y-3"
+        className="grid gap-x-6 gap-y-4"
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
@@ -198,24 +263,44 @@ const Section = <T,>({
             const keywords = (keywordsKey && get(item, keywordsKey, [])) as string[] | undefined;
 
             return (
-              <div key={item.id} className={cn("space-y-2", className)}>
-                <div>
-                  {children?.(item as T)}
-                  {url !== undefined && section.separateLinks && <Link url={url} />}
-                </div>
+              <div
+                key={item.id}
+                className={cn(
+                  "relative space-y-2",
+                  "group-[.main]:border-l-4 group-[.main]:border-primary group-[.main]:pl-8",
+                  "group-[.sidebar]:pl-2",
+                  className,
+                )}
+              >
+                {/* Timeline dot for main section */}
+                <div className="absolute -left-[9px] top-0 hidden size-4 rounded-full border-4 border-primary bg-white group-[.main]:block" />
+                
+                {/* Bullet dot for sidebar section */}
+                <div className="absolute left-[-6px] top-1.5 hidden size-2 rounded-full bg-primary group-[.sidebar]:block" />
+
+                <div>{children?.(item as T)}</div>
 
                 {summary !== undefined && !isEmptyString(summary) && (
                   <div
                     dangerouslySetInnerHTML={{ __html: sanitize(summary) }}
-                    className="wysiwyg"
+                    className={cn(
+                      "wysiwyg text-sm leading-relaxed",
+                      "group-[.main]:text-justify group-[.main]:text-gray-600",
+                      "group-[.sidebar]:text-gray-300"
+                    )}
                   />
                 )}
 
                 {level !== undefined && level > 0 && <Rating level={level} />}
 
                 {keywords !== undefined && keywords.length > 0 && (
-                  <p className="text-sm">{keywords.join(", ")}</p>
+                  <p className={cn(
+                    "text-xs",
+                    "group-[.sidebar]:text-gray-400"
+                  )}>{keywords.join(", ")}</p>
                 )}
+
+                {url !== undefined && section.separateLinks && <Link url={url} />}
               </div>
             );
           })}
@@ -225,21 +310,93 @@ const Section = <T,>({
 };
 
 const Profiles = () => {
-  const section = useArtboardStore((state) => state.resume.sections.profiles);
+  const section = useArtboardStore((state) => {
+    const profilesSection = state.resume.sections.profiles;
+    return {
+      ...profilesSection,
+      columns: 2
+    };
+  });
 
   return (
-    <Section<Profile> section={section}>
+    <Section<Profile> 
+      section={section} 
+      mainIcon="users" 
+      sidebarIcon="users"
+    >
       {(item) => (
-        <div>
+        <div className="flex items-center gap-x-3">
+          <div className="text-xl text-primary">
+            <BrandIcon slug={item.icon} />
+          </div>
           {isUrl(item.url.href) ? (
-            <Link url={item.url} label={item.username} icon={<BrandIcon slug={item.icon} />} />
+            <a href={item.url.href} className="text-sm hover:text-primary hover:underline" target="_blank" rel="noreferrer">
+              {item.username}
+            </a>
           ) : (
-            <p>{item.username}</p>
+            <span className="text-sm">{item.username}</span>
           )}
-          {!item.icon && <p className="text-sm">{item.network}</p>}
         </div>
       )}
     </Section>
+  );
+};
+
+const ContactInfo = () => {
+  const basics = useArtboardStore((state) => state.resume.basics);
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2">
+        <i className="ph ph-bold ph-address-book text-2xl text-primary" />
+        <h3 className="text-base font-bold uppercase text-white">Contact</h3>
+      </div>
+
+      <div className="space-y-3 pl-2">
+        {basics.phone && (
+          <div className="flex items-start gap-x-3">
+            <i className="ph ph-bold ph-phone text-xl text-primary" />
+            <a href={`tel:${basics.phone}`} className="text-sm text-white break-words hover:text-primary hover:underline">
+              {basics.phone}
+            </a>
+          </div>
+        )}
+        {basics.email && (
+          <div className="flex items-start gap-x-3">
+            <i className="ph ph-bold ph-at text-xl text-primary" />
+            <a href={`mailto:${basics.email}`} className="text-sm text-white break-words hover:text-primary hover:underline">
+              {basics.email}
+            </a>
+          </div>
+        )}
+        {basics.location && (
+          <div className="flex items-start gap-x-3">
+            <i className="ph ph-bold ph-map-pin text-xl text-primary" />
+            <div className="text-sm text-white">{basics.location}</div>
+          </div>
+        )}
+        {basics.url && isUrl(basics.url.href) && (
+          <div className="flex items-start gap-x-3">
+            <i className="ph ph-bold ph-link text-xl text-primary" />
+            <a href={basics.url.href} className="text-sm text-white break-words hover:text-primary hover:underline" target="_blank" rel="noreferrer">
+              {basics.url.label || basics.url.href}
+            </a>
+          </div>
+        )}
+        {basics.customFields.map((item) => (
+          <div key={item.id} className="flex items-start gap-x-3">
+            <i className={cn(`ph ph-bold ph-${item.icon}`, "text-xl text-primary")} />
+            {isUrl(item.value) ? (
+              <a href={item.value} target="_blank" rel="noreferrer noopener nofollow" className="text-sm text-white hover:text-primary hover:underline">
+                {item.name || item.value}
+              </a>
+            ) : (
+              <span className="text-sm text-white">{[item.name, item.value].filter(Boolean).join(": ")}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 };
 
@@ -247,22 +404,38 @@ const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
 
   return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+    <Section<Experience> section={section} urlKey="url" summaryKey="summary" mainIcon="briefcase" sidebarIcon="briefcase">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.company}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.position}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.location}</div>
+        <div className="space-y-2">
+          <div className={cn(
+            "flex items-start justify-between gap-x-4",
+            "group-[.sidebar]:flex-col group-[.sidebar]:gap-y-2"
+          )}>
+            <div className="flex-1 space-y-1">
+              <LinkedEntity
+                name={item.company}
+                url={item.url}
+                separateLinks={section.separateLinks}
+                className={cn(
+                  "text-base font-bold",
+                  "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+                )}
+              />
+              <div className={cn(
+                "text-sm font-semibold text-primary",
+                "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+              )}>{item.position}</div>
+              {item.location && (
+                <div className={cn(
+                  "text-sm text-gray-600",
+                  "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+                )}>{item.location}</div>
+              )}
+            </div>
+            <div className={cn(
+              "text-sm font-bold text-primary whitespace-nowrap",
+              "group-[.sidebar]:text-xs"
+            )}>{item.date}</div>
           </div>
         </div>
       )}
@@ -274,24 +447,38 @@ const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
 
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+    <Section<Education> section={section} urlKey="url" summaryKey="summary" mainIcon="graduation-cap" sidebarIcon="graduation-cap">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.institution}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.area}</div>
-            <div>{item.score}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.studyType}</div>
-          </div>
+        <div className="space-y-2">
+          <LinkedEntity
+            name={item.institution}
+            url={item.url}
+            separateLinks={section.separateLinks}
+            className={cn(
+              "text-base font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
+          />
+          <div className={cn(
+            "text-sm font-medium text-primary",
+            "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+          )}>{item.area}</div>
+          {item.studyType && (
+            <div className={cn(
+              "text-sm text-gray-600",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+            )}>{item.studyType}</div>
+          )}
+          {item.score && (
+            <div className={cn(
+              "text-sm text-gray-600",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+            )}>{item.score}</div>
+          )}
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -302,21 +489,26 @@ const Awards = () => {
   const section = useArtboardStore((state) => state.resume.sections.awards);
 
   return (
-    <Section<Award> section={section} urlKey="url" summaryKey="summary">
+    <Section<Award> section={section} urlKey="url" summaryKey="summary" mainIcon="trophy" sidebarIcon="trophy">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <div className="font-bold">{item.title}</div>
-            <LinkedEntity
-              name={item.awarder}
-              url={item.url}
-              separateLinks={section.separateLinks}
-            />
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-          </div>
+        <div className="space-y-2">
+          <div className={cn(
+            "font-bold",
+            "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+          )}>{item.title}</div>
+          <LinkedEntity 
+            name={item.awarder} 
+            url={item.url} 
+            separateLinks={section.separateLinks}
+            className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}
+          />
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -327,17 +519,26 @@ const Certifications = () => {
   const section = useArtboardStore((state) => state.resume.sections.certifications);
 
   return (
-    <Section<Certification> section={section} urlKey="url" summaryKey="summary">
+    <Section<Certification> section={section} urlKey="url" summaryKey="summary" mainIcon="certificate" sidebarIcon="certificate">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <div className="font-bold">{item.name}</div>
-            <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-          </div>
+        <div className="space-y-2">
+          <div className={cn(
+            "font-bold",
+            "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+          )}>{item.name}</div>
+          <LinkedEntity 
+            name={item.issuer} 
+            url={item.url} 
+            separateLinks={section.separateLinks}
+            className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}
+          />
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -348,11 +549,19 @@ const Skills = () => {
   const section = useArtboardStore((state) => state.resume.sections.skills);
 
   return (
-    <Section<Skill> section={section} levelKey="level" keywordsKey="keywords">
+    <Section<Skill> section={section} levelKey="level" keywordsKey="keywords" mainIcon="star" sidebarIcon="star">
       {(item) => (
-        <div className="space-y-0.5">
-          <div className="font-bold">{item.name}</div>
-          <div>{item.description}</div>
+        <div className="space-y-2">
+          <div className={cn(
+            "font-semibold uppercase",
+            "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+          )}>{item.name}</div>
+          {item.description && (
+            <div className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}>{item.description}</div>
+          )}
         </div>
       )}
     </Section>
@@ -363,8 +572,13 @@ const Interests = () => {
   const section = useArtboardStore((state) => state.resume.sections.interests);
 
   return (
-    <Section<Interest> section={section} keywordsKey="keywords" className="space-y-0.5">
-      {(item) => <div className="font-bold">{item.name}</div>}
+    <Section<Interest> section={section} keywordsKey="keywords" mainIcon="heart" sidebarIcon="heart">
+      {(item) => (
+        <div className={cn(
+          "font-bold",
+          "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+        )}>{item.name}</div>
+      )}
     </Section>
   );
 };
@@ -373,22 +587,26 @@ const Publications = () => {
   const section = useArtboardStore((state) => state.resume.sections.publications);
 
   return (
-    <Section<Publication> section={section} urlKey="url" summaryKey="summary">
+    <Section<Publication> section={section} urlKey="url" summaryKey="summary" mainIcon="book" sidebarIcon="book">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.name}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.publisher}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-          </div>
+        <div className="space-y-2">
+          <LinkedEntity
+            name={item.name}
+            url={item.url}
+            separateLinks={section.separateLinks}
+            className={cn(
+              "font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
+          />
+          <div className={cn(
+            "text-sm",
+            "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+          )}>{item.publisher}</div>
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -399,23 +617,32 @@ const Volunteer = () => {
   const section = useArtboardStore((state) => state.resume.sections.volunteer);
 
   return (
-    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
+    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary" mainIcon="hand-heart" sidebarIcon="hand-heart">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.organization}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.position}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.location}</div>
-          </div>
+        <div className="space-y-2">
+          <LinkedEntity
+            name={item.organization}
+            url={item.url}
+            separateLinks={section.separateLinks}
+            className={cn(
+              "font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
+          />
+          <div className={cn(
+            "text-sm",
+            "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+          )}>{item.position}</div>
+          {item.location && (
+            <div className={cn(
+              "text-sm text-gray-600",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+            )}>{item.location}</div>
+          )}
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -426,11 +653,19 @@ const Languages = () => {
   const section = useArtboardStore((state) => state.resume.sections.languages);
 
   return (
-    <Section<Language> section={section} levelKey="level">
+    <Section<Language> section={section} levelKey="level" mainIcon="translate" sidebarIcon="translate">
       {(item) => (
-        <div className="space-y-0.5">
-          <div className="font-bold">{item.name}</div>
-          <div>{item.description}</div>
+        <div className="space-y-2">
+          <div className={cn(
+            "font-bold",
+            "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+          )}>{item.name}</div>
+          {item.description && (
+            <div className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}>{item.description}</div>
+          )}
         </div>
       )}
     </Section>
@@ -441,22 +676,28 @@ const Projects = () => {
   const section = useArtboardStore((state) => state.resume.sections.projects);
 
   return (
-    <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords">
+    <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords" mainIcon="code" sidebarIcon="code">
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.name}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.description}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-          </div>
+        <div className="space-y-2">
+          <LinkedEntity
+            name={item.name}
+            url={item.url}
+            separateLinks={section.separateLinks}
+            className={cn(
+              "font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
+          />
+          {item.description && (
+            <div className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}>{item.description}</div>
+          )}
+          <div className={cn(
+            "text-sm font-bold text-primary",
+            "group-[.sidebar]:text-xs"
+          )}>{item.date}</div>
         </div>
       )}
     </Section>
@@ -467,16 +708,24 @@ const References = () => {
   const section = useArtboardStore((state) => state.resume.sections.references);
 
   return (
-    <Section<Reference> section={section} urlKey="url" summaryKey="summary">
+    <Section<Reference> section={section} urlKey="url" summaryKey="summary" mainIcon="user-check" sidebarIcon="user-check">
       {(item) => (
-        <div>
+        <div className="space-y-2">
           <LinkedEntity
             name={item.name}
             url={item.url}
             separateLinks={section.separateLinks}
-            className="font-bold"
+            className={cn(
+              "font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
           />
-          <div>{item.description}</div>
+          {item.description && (
+            <div className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}>{item.description}</div>
+          )}
         </div>
       )}
     </Section>
@@ -492,23 +741,38 @@ const Custom = ({ id }: { id: string }) => {
       urlKey="url"
       summaryKey="summary"
       keywordsKey="keywords"
+      mainIcon="folder"
+      sidebarIcon="folder"
     >
       {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.name}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.description}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.location}</div>
-          </div>
+        <div className="space-y-2">
+          <LinkedEntity
+            name={item.name}
+            url={item.url}
+            separateLinks={section.separateLinks}
+            className={cn(
+              "font-bold",
+              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
+            )}
+          />
+          {item.description && (
+            <div className={cn(
+              "text-sm",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+            )}>{item.description}</div>
+          )}
+          {item.date && (
+            <div className={cn(
+              "text-sm font-bold text-primary",
+              "group-[.sidebar]:text-xs"
+            )}>{item.date}</div>
+          )}
+          {item.location && (
+            <div className={cn(
+              "text-sm text-gray-600",
+              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+            )}>{item.location}</div>
+          )}
         </div>
       )}
     </Section>
@@ -568,17 +832,27 @@ export const Bronzor = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (
-    <div className="p-custom space-y-4">
+    <div className="space-y-0">
       {isFirstPage && <Header />}
 
-      <div className="space-y-4">
-        {main.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
+      <div className="grid grid-cols-3 gap-x-0">
+        {/* Sidebar - Dark Background */}
+        <div className="sidebar group space-y-6 bg-gray-800 p-6">
+          <ContactInfo />
+          {sidebar.map((section) => (
+            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+          ))}
+        </div>
 
-        {sidebar.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
+        {/* Main Content - White Background */}
+        <div className={cn(
+          "main group space-y-6 bg-white p-6",
+          sidebar.length > 0 ? "col-span-2" : "col-span-3"
+        )}>
+          {main.map((section) => (
+            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );

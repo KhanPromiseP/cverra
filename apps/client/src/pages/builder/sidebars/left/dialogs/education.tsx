@@ -95,7 +95,7 @@ export const EducationDialog = () => {
                 })}
               </FormLabel>
               <FormControl>
-                <Input {...field} placeholder="9.2 GPA" />
+                <Input {...field} placeholder="3.2 GPA" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -109,7 +109,7 @@ export const EducationDialog = () => {
             <FormItem className="sm:col-span-2">
               <FormLabel>{t`Date or Date Range`}</FormLabel>
               <FormControl>
-                <Input {...field} placeholder={t`March 2023 - Present`} />
+                <Input {...field} placeholder={t`June 2021 - Present`} />
               </FormControl>
               <FormMessage />
             </FormItem>

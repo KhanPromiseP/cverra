@@ -22,7 +22,7 @@ import { toast } from "../hooks/use-toast";
 import { changeTone } from "../services/openai/change-tone";
 import { fixGrammar } from "../services/openai/fix-grammar";
 import { improveWriting } from "../services/openai/improve-writing";
-import { useOpenAiStore } from "../stores/openai";
+// import { useOpenAiStore } from "../stores/openai";
 
 type Action = "improve" | "fix" | "tone";
 type Mood = "casual" | "professional" | "confident" | "friendly";
@@ -35,9 +35,9 @@ type Props = {
 
 export const AiActions = ({ value, onChange, className }: Props) => {
   const [loading, setLoading] = useState<Action | false>(false);
-  const aiEnabled = useOpenAiStore((state) => !!state.apiKey);
+  // const aiEnabled = useOpenAiStore((state) => !!state.apiKey);
 
-  if (!aiEnabled) return null;
+  // if (!aiEnabled) return null;
 
   const onClick = async (action: Action, mood?: Mood) => {
     try {
@@ -69,30 +69,21 @@ export const AiActions = ({ value, onChange, className }: Props) => {
         className,
       )}
     >
-      <div className="absolute -left-5 z-10">
-        <Badge
-          outline
-          variant="primary"
-          className="-rotate-90 bg-background px-2 text-[10px] leading-[10px]"
-        >
-          <MagicWand size={10} className="mr-1" />
-          {t`AI`}
-        </Badge>
-      </div>
 
-      <Button size="sm" variant="outline" disabled={!!loading} onClick={() => onClick("improve")}>
+
+      <Button size="sm" className=" border border-gray-700" variant="outline" disabled={!!loading} onClick={() => onClick("improve")}>
         {loading === "improve" ? <CircleNotch className="animate-spin" /> : <PenNib />}
-        <span className="ml-2 text-xs">{t`Improve Writing`}</span>
+        <span className="ml-2  text-xs">{t`Improve Writing`}</span>
       </Button>
 
-      <Button size="sm" variant="outline" disabled={!!loading} onClick={() => onClick("fix")}>
+      <Button size="sm" className=" border border-gray-700" variant="outline" disabled={!!loading} onClick={() => onClick("fix")}>
         {loading === "fix" ? <CircleNotch className="animate-spin" /> : <Exam />}
         <span className="ml-2 text-xs">{t`Fix Spelling & Grammar`}</span>
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" disabled={!!loading}>
+          <Button size="sm" className=" border border-gray-700" variant="outline" disabled={!!loading}>
             {loading === "tone" ? <CircleNotch className="animate-spin" /> : <ChatTeardropText />}
             <span className="mx-2 text-xs">{t`Change Tone`}</span>
             <CaretDown />

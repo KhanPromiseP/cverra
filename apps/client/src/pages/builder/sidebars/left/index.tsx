@@ -41,15 +41,15 @@ export const LeftSidebar = () => {
   };
 
   return (
-    <div className="flex bg-secondary-accent/30">
-      <div className="hidden basis-12 flex-col items-center justify-between bg-secondary-accent/30 py-4 sm:flex">
+    <div className="flex bg-secondary-accent/30 border-r border-gray-700 border-l border-gray-700">
+      <div className="hidden basis-12 flex-col items-center justify-between bg-secondary-accent/30 border-r border-gray-700 py-4 sm:flex">
         <Button asChild size="icon" variant="ghost" className="size-8 rounded-full">
           <Link to="/dashboard">
             <Icon size={14} />
           </Link>
         </Button>
 
-        <div className="flex flex-col items-center justify-center gap-y-2">
+        <div className="flex flex-col items-center justify-center gap-y-2 ">
           <SectionIcon
             id="basics"
             name={t({
@@ -60,84 +60,98 @@ export const LeftSidebar = () => {
             onClick={() => {
               scrollIntoView("#basics");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="summary"
             onClick={() => {
               scrollIntoView("#summary");
             }}
+            className="text-green-600 dark:text-green-400"
           />
           <SectionIcon
             id="profiles"
             onClick={() => {
               scrollIntoView("#profiles");
             }}
+            className="text-blue-600 dark:text-blue-400"
           />
           <SectionIcon
             id="experience"
             onClick={() => {
               scrollIntoView("#experience");
             }}
+            className="text-pink-600 dark:text-pink-400"
           />
           <SectionIcon
             id="education"
             onClick={() => {
               scrollIntoView("#education");
             }}
+            className="text-yellow-600 dark:text-yellow-400"
           />
           <SectionIcon
             id="skills"
             onClick={() => {
               scrollIntoView("#skills");
             }}
+            className="text-indigo-600 dark:text-indigo-400"
           />
           <SectionIcon
             id="languages"
             onClick={() => {
               scrollIntoView("#languages");
             }}
+            className="text-orange-600 dark:orange-teal-400"
           />
           <SectionIcon
             id="awards"
             onClick={() => {
               scrollIntoView("#awards");
             }}
+            className="text-red-600 dark:text-red-400"
           />
           <SectionIcon
             id="certifications"
             onClick={() => {
               scrollIntoView("#certifications");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="interests"
             onClick={() => {
               scrollIntoView("#interests");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="projects"
             onClick={() => {
               scrollIntoView("#projects");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="publications"
             onClick={() => {
               scrollIntoView("#publications");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="volunteer"
             onClick={() => {
               scrollIntoView("#volunteer");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
           <SectionIcon
             id="references"
             onClick={() => {
               scrollIntoView("#references");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
 
           <SectionIcon
@@ -150,7 +164,9 @@ export const LeftSidebar = () => {
               // eslint-disable-next-line lingui/no-unlocalized-strings
               scrollIntoView("& > section:last-of-type");
             }}
+            className="text-teal-600 dark:text-teal-400"
           />
+          
         </div>
 
         <UserOptions>

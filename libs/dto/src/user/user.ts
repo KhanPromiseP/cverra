@@ -1,3 +1,4 @@
+// src/user/dto/user.dto.ts
 import { idSchema } from "@reactive-resume/schema";
 import { dateSchema } from "@reactive-resume/utils";
 import { createZodDto } from "nestjs-zod/dto";
@@ -26,6 +27,7 @@ export const userSchema = z.object({
   locale: z.string().default("en-US"),
   emailVerified: z.boolean().default(false),
   twoFactorEnabled: z.boolean().default(false),
+  role: z.enum(["USER", "ADMIN", "SUPER_ADMIN"]).default("USER"), // Add this line
   provider: z.enum(["email", "github", "google", "openid"]).default("email"),
   createdAt: dateSchema,
   updatedAt: dateSchema,

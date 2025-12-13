@@ -6,6 +6,7 @@ import { ThemeSwitch } from "@/client/components/theme-switch";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
+
 export const PrivacyPolicyPage = () => {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();

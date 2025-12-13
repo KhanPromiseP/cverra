@@ -7,7 +7,7 @@ import { ThemeSwitch } from "@/client/components/theme-switch";
 
 export const Header = () => (
   <motion.header
-    className="fixed inset-x-0 top-0 z-20"
+    className="fixed inset-x-0 top-0 z-50"
     initial={{ opacity: 0, y: -50 }}
     animate={{ opacity: 1, y: 0, transition: { delay: 0.3, duration: 0.3 } }}
   >

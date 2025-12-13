@@ -14,7 +14,6 @@
       "url": "https://i.imgur.com/HgwyOuJ.jpg",
       "size": 150,
       "aspectRatio": 1.2,
-      "borderRadius": 4,
       "effects": {
         "hidden": false,
         "border": false,

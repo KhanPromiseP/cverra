@@ -9,6 +9,7 @@ import { configSchema } from "./schema";
       isGlobal: true,
       expandVariables: true,
       validate: (config) => configSchema.parse(config),
+      envFilePath: ['.env'],
     }),
   ],
 })
