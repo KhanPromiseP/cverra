@@ -3089,15 +3089,15 @@ const renderComment = (comment: any, depth = 0) => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <Card 
           className="border-none shadow-none bg-transparent"
           styles={{ body: { padding: 0 } }}
         >
           {/* Article Header */}
-          <div className="mb-10">
+          <div className="mb-4">
             {/* Badges */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-1">
               {article.isFeatured && (
                 <Tag color="gold" icon={<StarOutlined />} className="m-0">
                   Featured
@@ -3197,38 +3197,38 @@ const renderComment = (comment: any, depth = 0) => {
             </div>
           </div>
 
+
           {/* Cover Image */}
-        
-          {article.coverImage && (
-  <div className="mb-10 rounded-2xl overflow-hidden shadow-xl relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-      <Image
-        src={article.coverImage}
-        alt={article.title}
-        className="absolute inset-0 w-full h-full object-cover"
-        fallback={
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center justify-center">
-            <ReadOutlined className="text-6xl text-primary/30" />
-          </div>
-        }
-        placeholder={
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center justify-center">
-            <Spin size="large" />
-          </div>
-        }
-        preview={{
-          src: article.coverImage,
-          visible: false,
-        }}
-        onError={(e) => {
-          console.warn('Cover image failed, using fallback');
-          // Use a simple placeholder
-          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600/cccccc/969696?text=Image+Not+Found';
-        }}
-      />
-    </div>
-  </div>
-)}
+          {/* {article.coverImage && (
+            <div className="mb-10 rounded-2xl overflow-hidden shadow-xl relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <Image
+                  src={article.coverImage}
+                  alt={article.title}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  fallback={
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center justify-center">
+                      <ReadOutlined className="text-6xl text-primary/30" />
+                    </div>
+                  }
+                  placeholder={
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center justify-center">
+                      <Spin size="large" />
+                    </div>
+                  }
+                  preview={{
+                    src: article.coverImage,
+                    visible: false,
+                  }}
+                  onError={(e) => {
+                    console.warn('Cover image failed, using fallback');
+                    // Use a simple placeholder
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600/cccccc/969696?text=Image+Not+Found';
+                  }}
+                />
+              </div>
+            </div>
+          )} */}
 
           {/* Tags */}
           {article.tags && article.tags.length > 0 && (

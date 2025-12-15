@@ -265,6 +265,9 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
+      crypto-js:
+        specifier: ^4.2.0
+        version: 4.2.0
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -307,6 +310,9 @@ importers:
       immer:
         specifier: ^10.1.1
         version: 10.1.3
+      jodit-react:
+        specifier: ^5.2.38
+        version: 5.2.38(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -466,6 +472,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.0
         version: 3.1.1(react@18.3.1)
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
       webfontloader:
         specifier: ^1.6.28
         version: 1.6.28
@@ -8489,6 +8498,15 @@ packages:
   jju@1.4.0:
     resolution: {integrity: sha512-8wb9Yw966OSxApiCt0K3yNJL8pnNeIv+OEq2YMidz4FKP6nonSRoOXc80iXY4JaN2FC11B9qsNmDsm+ZOfMROA==}
 
+  jodit-react@5.2.38:
+    resolution: {integrity: sha512-k98vjch0JWX13Dlf7tWv3wPo6dgO9bpi0NUBC6YrpGLYtRJx8d5Ttz5TLWuydEReedWWyNKobSGIGYQDihP8Vw==}
+    peerDependencies:
+      react: ~0.14 || ^15 || ^16 || ^17 || ^18 || ^19
+      react-dom: ~0.14 || ^15 || ^16 || ^17 || ^18 || ^19
+
+  jodit@4.7.9:
+    resolution: {integrity: sha512-dPlewnu2+vVXELh9BEJTNQoSBL3Cf2E0fNh30yjSEgUtJHYSUYToDjMDEqr0T/L9iNpqPTODy2b4pzyGpPRUog==}
+
   jpeg-exif@1.1.4:
     resolution: {integrity: sha512-a+bKEcCjtuW5WTdgeXFzswSrdqi0jk4XlEtZlx5A94wCoBpFjfFTbo/Tra5SpNCl/YFZPvcV1dJc+TAYeg6ROQ==}
 
@@ -12184,6 +12202,10 @@ packages:
 
   uuid@11.0.3:
     resolution: {integrity: sha512-d0z310fCWv5dJwnX1Y/MncBAqGMKEzlBb1AOf7z9K8ALnd0utBX/msg/fA0+sbyN1ihbMsLhrBlnl1ak7Wa0rg==}
+    hasBin: true
+
+  uuid@13.0.0:
+    resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
     hasBin: true
 
   uuid@8.3.2:
@@ -22439,6 +22461,14 @@ snapshots:
 
   jju@1.4.0: {}
 
+  jodit-react@5.2.38(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      jodit: 4.7.9
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  jodit@4.7.9: {}
+
   jpeg-exif@1.1.4: {}
 
   js-beautify@1.15.4:
@@ -26813,6 +26843,8 @@ snapshots:
 
   uuid@11.0.3:
     optional: true
+
+  uuid@13.0.0: {}
 
   uuid@8.3.2: {}
 

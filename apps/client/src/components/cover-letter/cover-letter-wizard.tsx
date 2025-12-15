@@ -546,43 +546,59 @@ const handleJobDataChange = (field: string, value: any) => {
     ''
   );
 
-  // Update form data with all extracted information
-  setFormData(prev => ({
-    ...prev,
-    userData: {
-      ...prev.userData,
-      // Personal info
-      name: stripHtmlTags(basics.name || prev.userData?.name),
-      email: stripHtmlTags(basics.email || prev.userData?.email),
-      phone: stripHtmlTags(basics.phone || prev.userData?.phone),
-      address: address || prev.userData?.address,
-      
-      // Professional summary
-      professionalSummary: professionalSummary,
-      
-      // Structured professional info
-      structuredSkills,
-      structuredExperience, 
-      structuredAchievements,
-      structuredEducation,
-      
-      // Keep flat arrays for backward compatibility
-      skills: structuredSkills.map(skill => skill.name),
-      experience: structuredExperience.map(exp => 
-        `${exp.position} at ${exp.company} ${exp.period ? `(${exp.period})` : ''}${exp.description ? `: ${exp.description}` : ''}`
-      ),
-      achievements: structuredAchievements.map(ach => {
-        let text = ach.title;
-        if (ach.issuer) text += ` from ${ach.issuer}`;
-        if (ach.date) text += ` (${ach.date})`;
-        if (ach.description) text += `: ${ach.description}`;
-        return text;
-      }),
-      education: structuredEducation.map(edu => 
-        `${edu.institution}${edu.degree ? ` - ${edu.degree}` : ''}${edu.area ? ` in ${edu.area}` : ''} ${edu.period ? `(${edu.period})` : ''}${edu.description ? `: ${edu.description}` : ''}`
-      )
-    }
-  }));
+ // Update form data with all extracted information
+setFormData(prev => ({
+  ...prev,
+  userData: {
+    ...prev.userData,
+    // Personal info
+    name: stripHtmlTags(basics.name || prev.userData?.name || ''),
+    email: stripHtmlTags(basics.email || prev.userData?.email || ''),
+    phone: stripHtmlTags(basics.phone || prev.userData?.phone || ''),
+    address: address || prev.userData?.address || '',
+    
+    // Professional summary
+    professionalSummary: professionalSummary || prev.userData?.professionalSummary || '',
+    
+    // Structured professional info - ensure these are arrays
+    structuredSkills: Array.isArray(structuredSkills) ? structuredSkills : [],
+    structuredExperience: Array.isArray(structuredExperience) ? structuredExperience : [],
+    structuredAchievements: Array.isArray(structuredAchievements) ? structuredAchievements : [],
+    structuredEducation: Array.isArray(structuredEducation) ? structuredEducation : [],
+    
+    // Keep flat arrays for backward compatibility - ensure these are always arrays
+    skills: Array.isArray(structuredSkills) ? structuredSkills.map(skill => skill.name).filter(Boolean) : [],
+    experience: Array.isArray(structuredExperience) ? structuredExperience.map(exp => {
+      const position = exp.position || '';
+      const company = exp.company || '';
+      const period = exp.period ? `(${exp.period})` : '';
+      const description = exp.description ? `: ${exp.description}` : '';
+      return `${position} at ${company} ${period}${description}`.trim();
+    }).filter(Boolean) : [],
+    achievements: Array.isArray(structuredAchievements) ? structuredAchievements.map(ach => {
+      if (!ach || !ach.title) return '';
+      let text = ach.title;
+      if (ach.issuer) text += ` from ${ach.issuer}`;
+      if (ach.date) text += ` (${ach.date})`;
+      if (ach.description) text += `: ${ach.description}`;
+      return text;
+    }).filter(Boolean) : [],
+    education: Array.isArray(structuredEducation) ? structuredEducation.map(edu => {
+      const institution = edu.institution || '';
+      const degree = edu.degree ? ` - ${edu.degree}` : '';
+      const area = edu.area ? ` in ${edu.area}` : '';
+      const period = edu.period ? ` (${edu.period})` : '';
+      const description = edu.description ? `: ${edu.description}` : '';
+      return `${institution}${degree}${area}${period}${description}`.trim();
+    }).filter(Boolean) : [],
+    
+    // Initialize other array fields as empty arrays if not already set
+    relevantCoursework: Array.isArray(prev.userData?.relevantCoursework) ? prev.userData.relevantCoursework : [],
+    academicAchievements: Array.isArray(prev.userData?.academicAchievements) ? prev.userData.academicAchievements : [],
+    negotiationPoints: Array.isArray(prev.userData?.negotiationPoints) ? prev.userData.negotiationPoints : [],
+    keyPoints: Array.isArray(prev.userData?.keyPoints) ? prev.userData.keyPoints : [],
+  }
+}));
 
   setShowImportedData(true);
   
@@ -1059,33 +1075,47 @@ const getFieldConfig = (field: string) => {
     return;
   }
 
-  const formattedData = {
+  // Helper function to convert string to array
+  const stringToArray = (value: any): string[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      // Split by commas or newlines, trim, and filter out empty strings
+      return value.split(/[,;\n]+/).map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  // Process form data to ensure arrays are properly formatted
+  const processedFormData = {
     ...formData,
     category: selectedCategory!,
     selectedResumeId: inputMethod === 'resume' ? selectedResumeId : undefined,
     userData: {
-      ...(formData.userData || {}),
-      skills: Array.isArray(formData.userData?.skills) ? formData.userData.skills : [],
-      experience: Array.isArray(formData.userData?.experience) ? formData.userData.experience : [],
-      achievements: Array.isArray(formData.userData?.achievements) ? formData.userData.achievements : [],
-      relevantCoursework: Array.isArray(formData.userData?.relevantCoursework) ? formData.userData.relevantCoursework : [],
-      academicAchievements: Array.isArray(formData.userData?.academicAchievements) ? formData.userData.academicAchievements : [],
-      negotiationPoints: Array.isArray(formData.userData?.negotiationPoints) ? formData.userData.negotiationPoints : [],
-      keyPoints: Array.isArray(formData.userData?.keyPoints) ? formData.userData.keyPoints : [],
+      ...formData.userData,
+      // Convert string fields to arrays
+      skills: stringToArray(formData.userData?.skills),
+      experience: stringToArray(formData.userData?.experience),
+      achievements: stringToArray(formData.userData?.achievements),
+      relevantCoursework: stringToArray(formData.userData?.relevantCoursework),
+      academicAchievements: stringToArray(formData.userData?.academicAchievements),
+      negotiationPoints: stringToArray(formData.userData?.negotiationPoints),
+      keyPoints: stringToArray(formData.userData?.keyPoints),
     },
     jobData: {
-      ...(formData.jobData || {}),
-      position: formData.jobData?.position || '',
-      company: formData.jobData?.company || '',
-      hiringManager: formData.jobData?.hiringManager || '',
-      jobDescription: formData.jobData?.jobDescription || '',
-      negotiationPoints: Array.isArray(formData.jobData?.negotiationPoints) ? formData.jobData.negotiationPoints : [],
-      keyPoints: Array.isArray(formData.jobData?.keyPoints) ? formData.jobData.keyPoints : [],
-    },
-    customInstructions: formData.customInstructions || '',
+      ...formData.jobData,
+      // Convert string fields to arrays
+      negotiationPoints: stringToArray(formData.jobData?.negotiationPoints),
+      keyPoints: stringToArray(formData.jobData?.keyPoints),
+    }
   };
 
-  onGenerate(formattedData as CreateCoverLetterData);
+  console.log('=== SUBMITTING FORM DATA ===');
+  console.log('Skills:', processedFormData.userData.skills);
+  console.log('Experience:', processedFormData.userData.experience);
+  console.log('Achievements:', processedFormData.userData.achievements);
+  console.log('=== END DEBUG ===');
+
+  onGenerate(processedFormData as CreateCoverLetterData);
 };
 
 
@@ -1098,127 +1128,199 @@ const getFieldConfig = (field: string) => {
     return <IconComponent className="w-6 h-6" />;
   };
 
-  const renderField = (field: string, category: LetterCategory) => {
-    const config = CATEGORY_CONFIG[category];
-    const isUserField = config.fields.user.includes(field);
-    const value = isUserField 
+const renderField = (field: string, category: LetterCategory) => {
+  const config = CATEGORY_CONFIG[category];
+  const isUserField = config.fields.user.includes(field);
+  const value = isUserField 
     ? formData.userData?.[field as keyof typeof formData.userData] || ''
     : formData.jobData?.[field as keyof typeof formData.jobData] || '';
-    const onChange = isUserField ? handleUserDataChange : handleJobDataChange;
+  const onChange = isUserField ? handleUserDataChange : handleJobDataChange;
 
-    const fieldConfig: Record<string, any > = {
+  const fieldConfig: Record<string, any> = {
+    name: {
+      label: 'Your Name *',
+      type: 'text',
+      placeholder: 'John Doe',
+      required: true
+    },
+    email: {
+      label: 'Email Address',
+      type: 'email',
+      placeholder: 'john@example.com'
+    },
+    phone: {
+      label: 'Phone Number',
+      type: 'tel',
+      placeholder: '+1 (555) 123-4567'
+    },
+    address: {
+      label: 'Your Address',
+      type: 'text',
+      placeholder: '123 Main St, City, State 12345'
+    },
+    skills: {
+      label: 'Key Skills & Qualifications',
+      type: 'textarea',
+      placeholder: 'JavaScript, React, Project Management, Leadership...'
+    },
+    experience: {
+      label: 'Professional Experience',
+      type: 'textarea',
+      placeholder: 'Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...'
+    },
+    achievements: {
+      label: 'Achievements & Awards',
+      type: 'textarea',
+      placeholder: 'Employee of the Year 2022, Best Project Award...'
+    },
+    academicLevel: {
+      label: 'Academic Level',
+      type: 'text',
+      placeholder: 'e.g., Undergraduate, Graduate, PhD Candidate'
+    },
+    relevantCoursework: {
+      label: 'Relevant Coursework',
+      type: 'textarea',
+      placeholder: 'List relevant courses separated by commas'
+    },
+    careerGoals: {
+      label: 'Career Goals',
+      type: 'textarea',
+      placeholder: 'Describe your career aspirations and goals'
+    },
+    academicAchievements: {
+      label: 'Academic Achievements',
+      type: 'textarea',
+      placeholder: 'Honors, awards, publications, research experience'
+    },
+    researchInterests: {
+      label: 'Research Interests',
+      type: 'textarea',
+      placeholder: 'Your specific research interests and focus areas'
+    },
+    // Add more field configurations as needed...
+  };
 
-      name: {
-        label: 'Your Name *',
-        type: 'text',
-        placeholder: 'John Doe',
-        required: true
-      },
-      email: {
-        label: 'Email Address',
-        type: 'email',
-        placeholder: 'john@example.com'
-      },
-      phone: {
-        label: 'Phone Number',
-        type: 'tel',
-        placeholder: '+1 (555) 123-4567'
-      },
-      address: {
-        label: 'Your Address',
-        type: 'text',
-        placeholder: '123 Main St, City, State 12345'
-      },
-      skills: {
-        label: 'Key Skills & Qualifications',
-        type: 'textarea',
-        placeholder: 'JavaScript, React, Project Management, Leadership...'
-      },
-      experience: {
-        label: 'Professional Experience',
-        type: 'textarea',
-        placeholder: 'Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...'
-      },
-      achievements: {
-        label: 'Achievements & Awards',
-        type: 'textarea',
-        placeholder: 'Employee of the Year 2022, Best Project Award...'
-      },
-      academicLevel: {
-        label: 'Academic Level',
-        type: 'text',
-        placeholder: 'e.g., Undergraduate, Graduate, PhD Candidate'
-      },
-      relevantCoursework: {
-        label: 'Relevant Coursework',
-        type: 'textarea',
-        placeholder: 'List relevant courses separated by commas'
-      },
-      careerGoals: {
-        label: 'Career Goals',
-        type: 'textarea',
-        placeholder: 'Describe your career aspirations and goals'
-      },
-      academicAchievements: {
-        label: 'Academic Achievements',
-        type: 'textarea',
-        placeholder: 'Honors, awards, publications, research experience'
-      },
-      researchInterests: {
-        label: 'Research Interests',
-        type: 'textarea',
-        placeholder: 'Your specific research interests and focus areas'
-      },
-      // Add more field configurations as needed...
-    };
+  const fieldInfo = fieldConfig[field] || { 
+    label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'), 
+    type: 'text', 
+    placeholder: `Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}` 
+  };
 
-    const fieldInfo = fieldConfig[field] || { label: field, type: 'text', placeholder: `Enter ${field}` };
+  // List of fields that should be treated as arrays
+  const arrayFields = [
+    'skills', 'experience', 'achievements', 
+    'relevantCoursework', 'academicAchievements', 
+    'negotiationPoints', 'keyPoints'
+  ];
 
-    if (fieldInfo.type === 'textarea') {
-  // For fields that should be simple text (not arrays)
-  const isArrayField = ['skills', 'experience', 'achievements', 'relevantCoursework', 'academicAchievements', 'negotiationPoints', 'keyPoints'].includes(field);
-  
-  return (
-    <div key={field}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {fieldInfo.label} {fieldInfo.required && '*'}
-      </label>
-      <textarea
-        value={isArrayField && Array.isArray(value) ? value.join(', ') : (value || '')}
-        onChange={(e) => {
-          if (isArrayField) {
-            // For array fields, split by commas but keep the text as is for editing
-            onChange(field, e.target.value);
-          } else {
-            onChange(field, e.target.value);
-          }
-        }}
-        rows={4}
-        className="w-full text-gray-700 dark:bg-gray-800 dark:text-gray-100 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-        placeholder={fieldInfo.placeholder}
-      />
-    </div>
-  );
-}
-
+  if (fieldInfo.type === 'textarea') {
+    const isArrayField = arrayFields.includes(field);
     
+    // For array fields: display as comma/line-separated string for editing
+    // But store as array in state
+    const displayValue = isArrayField && Array.isArray(value) 
+      ? value.join(', ')  // Show array as comma-separated string
+      : (typeof value === 'string' ? value : '');
 
     return (
       <div key={field}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {fieldInfo.label} {fieldInfo.required && '*'}
+          {isArrayField && (
+            <span className="text-xs text-gray-500 ml-2">
+              (Separate with commas or new lines)
+            </span>
+          )}
         </label>
-        <input
-          type={fieldInfo.type}
-          required={fieldInfo.required}
-          value={Array.isArray(value) ? value.join(', ') : value || ''}
-          onChange={(e) => onChange(field, Array.isArray(value) ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : e.target.value)}
-          className="w-full px-4 py-3 text-gray-700 dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <textarea
+          value={displayValue}
+          onChange={(e) => {
+            if (isArrayField) {
+              // Convert text to array when user types
+              const arrayValue = e.target.value
+                .split(/[,;\n]+/)
+                .map(item => item.trim())
+                .filter(Boolean);
+              onChange(field, arrayValue);
+            } else {
+              onChange(field, e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (isArrayField) {
+              // Clean up the display value on blur
+              const cleanValue = e.target.value
+                .split(/[,;\n]+/)
+                .map(item => item.trim())
+                .filter(Boolean)
+                .join(', ');
+              // Update display value for better UX
+              e.target.value = cleanValue;
+            }
+          }}
+          rows={4}
+          className="w-full text-gray-700 dark:bg-gray-800 dark:text-gray-100 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           placeholder={fieldInfo.placeholder}
         />
+        {isArrayField && Array.isArray(value) && value.length > 0 && (
+          <div className="mt-2 text-xs text-gray-500">
+            {value.length} item{value.length !== 1 ? 's' : ''} entered
+          </div>
+        )}
       </div>
     );
-  };
+  }
+
+  // For regular input fields
+  return (
+    <div key={field}>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {fieldInfo.label} {fieldInfo.required && '*'}
+        {arrayFields.includes(field) && (
+          <span className="text-xs text-gray-500 ml-2">
+            (Separate with commas)
+          </span>
+        )}
+      </label>
+      <input
+        type={fieldInfo.type}
+        required={fieldInfo.required}
+        value={Array.isArray(value) ? value.join(', ') : value || ''}
+        onChange={(e) => {
+          if (arrayFields.includes(field)) {
+            // For array fields, convert comma-separated string to array
+            const arrayValue = e.target.value
+              .split(',')
+              .map(item => item.trim())
+              .filter(Boolean);
+            onChange(field, arrayValue);
+          } else {
+            onChange(field, e.target.value);
+          }
+        }}
+        onBlur={(e) => {
+          if (arrayFields.includes(field)) {
+            // Clean up the display value on blur
+            const cleanValue = e.target.value
+              .split(',')
+              .map(item => item.trim())
+              .filter(Boolean)
+              .join(', ');
+            e.target.value = cleanValue;
+          }
+        }}
+        className="w-full px-4 py-3 text-gray-700 dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder={fieldInfo.placeholder}
+      />
+      {arrayFields.includes(field) && Array.isArray(value) && value.length > 0 && (
+        <div className="mt-1 text-xs text-gray-500">
+          {value.length} item{value.length !== 1 ? 's' : ''} entered
+        </div>
+      )}
+    </div>
+  );
+};
 
  // Step 1: Welcome Screen
 if (currentStep === 'welcome') {

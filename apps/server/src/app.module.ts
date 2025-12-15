@@ -31,10 +31,15 @@ import { UsageModule } from './usage/usage.module';
 import { AdminModule } from './admin/admin.module';
 
 import { ArticleModule } from './articles/article.module';
+import { ResumeTranslationModule } from "./resume/resume-translation.module";
+
+
 
 
 @Module({
-  controllers: [OpenAiController],
+  controllers: [OpenAiController], 
+
+  
   imports: [
     HttpModule,
     // Core Modules
@@ -43,6 +48,8 @@ import { ArticleModule } from './articles/article.module';
     MailModule,
     HealthModule,
     AdminModule,
+
+    ResumeTranslationModule,
 
   // Payments & Subscriptions
     PaymentsModule,

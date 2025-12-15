@@ -121,11 +121,20 @@ model Resume {
   data       Json        @default("{}")
   visibility Visibility  @default(private)
   locked     Boolean     @default(false)
+  metadata   Json?
   statistics Statistics?
   userId     String
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  // Translation relations
+  ResumeTranslation    ResumeTranslation[]
+  ResumeTranslationJob ResumeTranslationJob[]
+
+  // NEW: Relations for translation records
+  originalTranslations ResumeTranslationRecord[] @relation("OriginalResume")
+  translatedCopies     ResumeTranslationRecord[] @relation("TranslatedResume")
 
   @@unique([userId, id])
   @@unique([userId, slug])
@@ -852,4 +861,89 @@ model Achievement {
   @@unique([userId, title])
   @@index([userId])
   @@index([userId, unlocked])
+}
+
+// prisma/schema.prisma - Add these models
+model ResumeTranslation {
+  id           String            @id @default(cuid())
+  resumeId     String
+  language     String
+  data         Json // Translated resume data
+  status       TranslationStatus @default(PENDING)
+  confidence   Float? // AI confidence score 0-1
+  needsReview  Boolean           @default(false)
+  translatedBy String? // 'ai' or 'manual'
+  aiModel      String?
+  attemptCount Int               @default(0)
+  error        String?
+  qualityScore Int? // 1-5 score
+  totalTokens  Int? // For cost tracking
+
+  // Timestamps
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastAccessed DateTime? // For caching optimization
+
+  // Foreign keys
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([resumeId, language])
+  @@index([resumeId])
+  @@index([language])
+  @@index([status])
+  @@index([updatedAt])
+}
+
+model ResumeTranslationJob {
+  id             String            @id @default(cuid())
+  resumeId       String
+  targetLanguage String
+  status         TranslationStatus @default(PENDING)
+  aiModel        String?
+  priority       Int               @default(1) // 1-5, higher is more urgent
+  attemptCount   Int               @default(0)
+  errorMessage   String?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Foreign keys
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([resumeId, targetLanguage])
+  @@index([resumeId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model ResumeTranslationRecord {
+  id                 String  @id @default(cuid())
+  originalResumeId   String
+  translatedResumeId String
+  language           String
+  confidence         Float?
+  needsReview        Boolean @default(false)
+  aiModel            String?
+  totalTokens        Int?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations - UPDATED relation names
+  originalResume   Resume @relation("OriginalResume", fields: [originalResumeId], references: [id], onDelete: Cascade)
+  translatedResume Resume @relation("TranslatedResume", fields: [translatedResumeId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([originalResumeId, translatedResumeId])
+  @@unique([translatedResumeId]) // Each translated resume can only have one original
+  @@index([originalResumeId])
+  @@index([translatedResumeId])
+  @@index([language])
 }

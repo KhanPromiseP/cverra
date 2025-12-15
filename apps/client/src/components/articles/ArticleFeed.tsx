@@ -591,17 +591,17 @@ const fetchAnalyticsData = async () => {
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-6 dark:bg-gray-900 min-h-screen">
+    <div className="p-4 md:p-6 space-y-6 dark:bg-gray-900 max-w-8xl mx-auto">
       {/* Enhanced Hero Section */}
       <div className="relative mb-12 rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-700 shadow-2xl dark:from-indigo-800 dark:via-blue-700 dark:to-indigo-900">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/10 to-transparent"></div>
         <div className="relative z-10 px-6 py-16 md:px-12 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm bg-white/10 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm bg-white/10 mb-8 border border-blue">
             <BookOutlined className="text-white" />
             <span className="text-white font-medium">Welcome to Cverra Articles</span>
           </div>
           
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-3xl md:text-6xl font-bold text-white mb-6 leading-tight">
             Discover Knowledge That Transforms
           </h1>
 

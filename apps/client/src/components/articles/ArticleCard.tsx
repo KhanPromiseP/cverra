@@ -309,7 +309,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <HeartOutlined className="text-gray-500 dark:text-gray-400" />
+                <HeartOutlined className="text-blue-500 dark:text-blue-400" />
                 <span className="text-sm text-muted-foreground dark:text-gray-400">
                   {likeCount.toLocaleString()}
                 </span>
@@ -485,7 +485,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
         {showStats && (
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
-              <EyeOutlined className="text-xs text-muted-foreground dark:text-gray-500" />
+              <EyeOutlined className="text-xs text-muted-foreground text-blue-500 dark:text-blue-500" />
               <span className="text-xs text-muted-foreground dark:text-gray-500">
                 {(article.viewCount || 0).toLocaleString()}
               </span>
@@ -494,7 +494,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
               {isLiked ? (
                 <HeartFilled className="text-xs text-red-500" />
               ) : (
-                <HeartOutlined className="text-xs text-muted-foreground dark:text-gray-500" />
+                <HeartOutlined className="text-xs text-muted-foreground text-red-500 dark:text-red-500" />
               )}
               <span className="text-xs text-muted-foreground dark:text-gray-500">
                 {likeCount.toLocaleString()}
@@ -506,7 +506,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
         <div className="flex items-center gap-2">
           {article.availableLanguages?.length > 1 && (
             <Tooltip title={`Available in ${article.availableLanguages?.length || 0} languages`}>
-              <GlobalOutlined className="text-primary dark:text-blue-400 cursor-pointer" />
+              <GlobalOutlined className="text-blue-400 dark:text-blue-400 cursor-pointer" />
             </Tooltip>
           )}
           {showActions && (

@@ -32,6 +32,8 @@ import {
 import RichTextEditor, { tiptapToHTML, htmlToTiptap } from '../../../../components/article-tiptap-editor/RichTextEditor';
 import ArticleAdminNavbar from '../ArticleAdminSidebar';
 import EditorSwitcher from '../../../../components/article-tiptap-editor/EditorSwitcher';
+
+import SafeJoditWrapper from '../../../../components/article-editor/SafeJoditWrapper';
 import { 
   createArticle, 
   updateArticle, 
@@ -56,7 +58,7 @@ interface Category {
 interface ArticleFormData {
   title: string;
   excerpt: string;
-  content: any;
+  content: string | any;
   categoryId: string;
   tags: string[];
   accessType: 'FREE' | 'PREMIUM';
@@ -120,6 +122,22 @@ const ArticleForm: React.FC = () => {
   const id = getArticleIdFromUrl();
   const isEditMode = !!id;
 
+
+  useEffect(() => {
+  console.log('DEBUG - formValues.content:', formValues.content);
+  console.log('DEBUG - Type of content:', typeof formValues.content);
+  
+  if (formValues.content && typeof formValues.content === 'object') {
+    console.log('DEBUG - Object keys:', Object.keys(formValues.content));
+    console.log('DEBUG - First level structure:', {
+      type: formValues.content.type,
+      hasContent: Array.isArray(formValues.content.content),
+      contentLength: formValues.content.content?.length
+    });
+  }
+}, [formValues.content]);
+
+
   useEffect(() => {
     const initialize = async () => {
       setInitialLoading(true);
@@ -175,71 +193,155 @@ const ArticleForm: React.FC = () => {
     }
   };
 
+  // const fetchArticle = async () => {
+  //   if (!id) {
+  //     console.error('❌ No ID provided for editing');
+  //     message.error('No article ID provided');
+  //     return;
+  //   }
+    
+  //   try {
+  //     console.log('📡 Fetching article with identifier:', id);
+      
+  //     const article = await Promise.race([
+  //       getArticle(id),
+  //       new Promise((_, reject) => 
+  //         setTimeout(() => reject(new Error('Request timeout')), 10000)
+  //       )
+  //     ]);
+      
+  //     if (!article) {
+  //       console.error('❌ Article not found for identifier:', id);
+  //       message.error(`Article not found: ${id}`);
+  //       return;
+  //     }
+      
+  //     const values = {
+  //       title: article.title,
+  //       excerpt: article.excerpt,
+  //       content: article.content || { type: 'doc', content: [] },
+  //       categoryId: article.category?.id || article.categoryId,
+  //       tags: article.tags || [],
+  //       targetLanguages: article.targetLanguages || ['fr'],
+  //       autoTranslate: article.autoTranslate !== false,
+  //       isFeatured: article.isFeatured || false,
+  //       accessType: article.accessType || 'FREE',
+  //       status: article.status || 'DRAFT',
+  //       coinPrice: article.coinPrice || 10,
+  //       coverImage: article.coverImage || '',
+  //       metaTitle: article.metaTitle || '',
+  //       metaDescription: article.metaDescription || '',
+  //     };
+      
+  //     form.setFieldsValue(values);
+  //     setFormValues(values);
+      
+  //     if (article.coverImage) {
+  //       setCoverImageUrl(article.coverImage);
+  //     }
+      
+  //     if (article.status === 'SCHEDULED' && article.scheduledFor) {
+  //       form.setFieldValue('scheduledFor', new Date(article.scheduledFor));
+  //     }
+      
+  //     message.success('Article loaded successfully');
+      
+  //   } catch (error: any) {
+  //     console.error('❌ Error fetching article:', error);
+  //     const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+  //     message.error(`Failed to load article: ${errorMsg}`);
+      
+  //     if (error.response?.status === 404) {
+  //       setTimeout(() => {
+  //         navigateTo('/dashboard/article-admin/articles');
+  //       }, 3000);
+  //     }
+  //   }
+  // };
+
+
   const fetchArticle = async () => {
-    if (!id) {
-      console.error('❌ No ID provided for editing');
-      message.error('No article ID provided');
+  if (!id) {
+    console.error('❌ No ID provided for editing');
+    message.error('No article ID provided');
+    return;
+  }
+  
+  try {
+    console.log('📡 Fetching article with identifier:', id);
+    
+    const article = await Promise.race([
+      getArticle(id),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      )
+    ]);
+    
+    if (!article) {
+      console.error('❌ Article not found for identifier:', id);
+      message.error(`Article not found: ${id}`);
       return;
     }
     
-    try {
-      console.log('📡 Fetching article with identifier:', id);
-      
-      const article = await Promise.race([
-        getArticle(id),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        )
-      ]);
-      
-      if (!article) {
-        console.error('❌ Article not found for identifier:', id);
-        message.error(`Article not found: ${id}`);
-        return;
-      }
-      
-      const values = {
-        title: article.title,
-        excerpt: article.excerpt,
-        content: article.content || { type: 'doc', content: [] },
-        categoryId: article.category?.id || article.categoryId,
-        tags: article.tags || [],
-        targetLanguages: article.targetLanguages || ['fr'],
-        autoTranslate: article.autoTranslate !== false,
-        isFeatured: article.isFeatured || false,
-        accessType: article.accessType || 'FREE',
-        status: article.status || 'DRAFT',
-        coinPrice: article.coinPrice || 10,
-        coverImage: article.coverImage || '',
-        metaTitle: article.metaTitle || '',
-        metaDescription: article.metaDescription || '',
-      };
-      
-      form.setFieldsValue(values);
-      setFormValues(values);
-      
-      if (article.coverImage) {
-        setCoverImageUrl(article.coverImage);
-      }
-      
-      if (article.status === 'SCHEDULED' && article.scheduledFor) {
-        form.setFieldValue('scheduledFor', new Date(article.scheduledFor));
-      }
-      
-      message.success('Article loaded successfully');
-      
-    } catch (error: any) {
-      console.error('❌ Error fetching article:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
-      message.error(`Failed to load article: ${errorMsg}`);
-      
-      if (error.response?.status === 404) {
-        setTimeout(() => {
-          navigateTo('/dashboard/article-admin/articles');
-        }, 3000);
+    // CRITICAL FIX: Convert Tiptap JSON to HTML for Jodit
+    let contentForJodit = '';
+    if (article.content) {
+      // Check if it's Tiptap JSON or already HTML
+      if (typeof article.content === 'object' && article.content.type === 'doc') {
+        // Convert Tiptap JSON to HTML
+        contentForJodit = tiptapToHTML(article.content);
+        console.log('Converted Tiptap JSON to HTML for Jodit');
+      } else if (typeof article.content === 'string') {
+        // Already HTML, use as-is
+        contentForJodit = article.content;
+      } else {
+        // Fallback empty string
+        contentForJodit = '';
       }
     }
-  };
+    
+    const values = {
+      title: article.title,
+      excerpt: article.excerpt,
+      content: contentForJodit, // NOW HTML STRING FOR JODIT
+      categoryId: article.category?.id || article.categoryId,
+      tags: article.tags || [],
+      targetLanguages: article.targetLanguages || ['fr'],
+      autoTranslate: article.autoTranslate !== false,
+      isFeatured: article.isFeatured || false,
+      accessType: article.accessType || 'FREE',
+      status: article.status || 'DRAFT',
+      coinPrice: article.coinPrice || 10,
+      coverImage: article.coverImage || '',
+      metaTitle: article.metaTitle || '',
+      metaDescription: article.metaDescription || '',
+    };
+    
+    form.setFieldsValue(values);
+    setFormValues(values);
+    
+    if (article.coverImage) {
+      setCoverImageUrl(article.coverImage);
+    }
+    
+    if (article.status === 'SCHEDULED' && article.scheduledFor) {
+      form.setFieldValue('scheduledFor', new Date(article.scheduledFor));
+    }
+    
+    message.success('Article loaded successfully');
+    
+  } catch (error: any) {
+    console.error('❌ Error fetching article:', error);
+    const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+    message.error(`Failed to load article: ${errorMsg}`);
+    
+    if (error.response?.status === 404) {
+      setTimeout(() => {
+        navigateTo('/dashboard/article-admin/articles');
+      }, 3000);
+    }
+  }
+};
 
   const handleCoverImageUpload = async (file: RcFile) => {
     try {
@@ -264,57 +366,115 @@ const ArticleForm: React.FC = () => {
   };
 
   // Enhanced content validation
-  const hasActualContent = useCallback((content: any): boolean => {
+//   const hasActualContent = useCallback((content: any): boolean => {
+//   if (!content) return false;
+  
+//   try {
+//     // If content is a string (HTML), check if it has text or structure
+//     if (typeof content === 'string') {
+//       // Remove HTML tags and check for actual text
+//       const textOnly = content.replace(/<[^>]*>/g, '').trim();
+//       return textOnly.length > 0;
+//     }
+    
+//     // If content is Tiptap JSON
+//     if (typeof content === 'object') {
+//       if (content.type === 'doc' && Array.isArray(content.content)) {
+//         // Enhanced check for all content types
+//         const checkForContent = (nodes: any[]): boolean => {
+//           for (const node of nodes) {
+//             // Check for text
+//             if (node.type === 'text' && node.text && node.text.trim().length > 0) {
+//               return true;
+//             }
+            
+//             // Check for visual elements that count as content
+//             if (node.type === 'enhancedHTMLBlock' || 
+//                 node.type === 'customHTMLBlock' ||
+//                 node.type === 'image' ||
+//                 node.type === 'paragraph' ||
+//                 node.type === 'heading' ||
+//                 node.type === 'bulletList' ||
+//                 node.type === 'orderedList' ||
+//                 node.type === 'blockquote' ||
+//                 node.type === 'codeBlock' ||
+//                 node.type === 'horizontalRule') {
+//               return true;
+//             }
+            
+//             // Check nested content
+//             if (node.content && Array.isArray(node.content)) {
+//               if (checkForContent(node.content)) {
+//                 return true;
+//               }
+//             }
+//           }
+//           return false;
+//         };
+        
+//         return checkForContent(content.content);
+//       }
+      
+//       // Check for text property
+//       if (content.text && content.text.trim().length > 0) return true;
+//     }
+    
+//     return false;
+//   } catch (error) {
+//     console.error('Error checking content:', error);
+//     return false;
+//   }
+// }, []);
+
+
+const hasActualContent = useCallback((content: any): boolean => {
   if (!content) return false;
   
   try {
-    // If content is a string (HTML), check if it has text or structure
+    // Handle HTML string from Jodit
     if (typeof content === 'string') {
-      // Remove HTML tags and check for actual text
-      const textOnly = content.replace(/<[^>]*>/g, '').trim();
-      return textOnly.length > 0;
+      // Remove HTML tags, comments, and whitespace
+      const cleanContent = content
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/<!--.*?-->/g, '') // Remove HTML comments
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      // Check for actual text content
+      const hasText = cleanContent.length > 0;
+      
+      // Check for media elements
+      const hasImages = content.includes('<img');
+      const hasVideos = content.includes('<video') || content.includes('<iframe');
+      const hasTables = content.includes('<table');
+      const hasLists = content.includes('<ul>') || content.includes('<ol>');
+      
+      return hasText || hasImages || hasVideos || hasTables || hasLists;
     }
     
-    // If content is Tiptap JSON
-    if (typeof content === 'object') {
-      if (content.type === 'doc' && Array.isArray(content.content)) {
-        // Enhanced check for all content types
-        const checkForContent = (nodes: any[]): boolean => {
-          for (const node of nodes) {
-            // Check for text
-            if (node.type === 'text' && node.text && node.text.trim().length > 0) {
-              return true;
-            }
-            
-            // Check for visual elements that count as content
-            if (node.type === 'enhancedHTMLBlock' || 
-                node.type === 'customHTMLBlock' ||
-                node.type === 'image' ||
-                node.type === 'paragraph' ||
-                node.type === 'heading' ||
-                node.type === 'bulletList' ||
-                node.type === 'orderedList' ||
-                node.type === 'blockquote' ||
-                node.type === 'codeBlock' ||
-                node.type === 'horizontalRule') {
-              return true;
-            }
-            
-            // Check nested content
-            if (node.content && Array.isArray(node.content)) {
-              if (checkForContent(node.content)) {
-                return true;
-              }
-            }
+    // Handle Tiptap JSON (backward compatibility)
+    if (typeof content === 'object' && content.type === 'doc') {
+      const checkNodes = (nodes: any[]): boolean => {
+        return nodes.some((node: any) => {
+          // Text node with content
+          if (node.type === 'text' && node.text?.trim().length > 0) return true;
+          
+          // Visual elements
+          if (['image', 'paragraph', 'heading', 'bulletList', 'orderedList', 
+               'blockquote', 'codeBlock', 'horizontalRule', 'enhancedHTMLBlock'].includes(node.type)) {
+            return true;
           }
+          
+          // Check nested content
+          if (node.content && Array.isArray(node.content)) {
+            return checkNodes(node.content);
+          }
+          
           return false;
-        };
-        
-        return checkForContent(content.content);
-      }
+        });
+      };
       
-      // Check for text property
-      if (content.text && content.text.trim().length > 0) return true;
+      return checkNodes(content.content || []);
     }
     
     return false;
@@ -375,7 +535,101 @@ const ArticleForm: React.FC = () => {
   }, [currentStep, form, hasActualContent]);
 
   // Main submit function
-  const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' = 'DRAFT') => {
+//   const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' = 'DRAFT') => {
+//   try {
+//     console.log('Current form values before submit:', formValues);
+    
+//     // Validate required fields
+//     if (!formValues.title?.trim()) {
+//       setCurrentStep(0);
+//       message.error('Please enter article title');
+//       return;
+//     }
+    
+//     if (!formValues.excerpt?.trim()) {
+//       setCurrentStep(0);
+//       message.error('Please enter article excerpt');
+//       return;
+//     }
+    
+//     if (!formValues.categoryId) {
+//       setCurrentStep(0);
+//       message.error('Please select a category');
+//       return;
+//     }
+    
+//     if (!hasActualContent(formValues.content)) {
+//       setCurrentStep(1);
+//       message.error('Please add some content to the article');
+//       return;
+//     }
+    
+//     // Determine if we should trigger translations
+//     const shouldTriggerTranslations = 
+//       formValues.autoTranslate && 
+//       formValues.targetLanguages && 
+//       formValues.targetLanguages.length > 0 &&
+//       status === 'PUBLISHED'; // Only trigger for published articles
+    
+//     // Prepare data with valid Tiptap structure
+//     const articleData = {
+//       title: formValues.title.trim(),
+//       excerpt: formValues.excerpt.trim(),
+//       content: formValues.content || { type: 'doc', content: [] },
+//       categoryId: formValues.categoryId,
+//       tags: formValues.tags || [],
+//       accessType: formValues.accessType || 'FREE',
+//       coinPrice: formValues.accessType === 'PREMIUM' ? formValues.coinPrice : 0,
+//       coverImage: formValues.coverImage || '',
+//       metaTitle: formValues.metaTitle?.trim(),
+//       metaDescription: formValues.metaDescription?.trim(),
+//       autoTranslate: formValues.autoTranslate ?? true,
+//       targetLanguages: formValues.autoTranslate ? (formValues.targetLanguages || ['fr']) : [],
+//       isFeatured: formValues.isFeatured || false,
+//       status,
+//       publishedAt: status === 'PUBLISHED' ? new Date() : undefined,
+//       scheduledFor: status === 'SCHEDULED' ? formValues.scheduledFor : undefined,
+//     };
+    
+//     console.log('Submitting article data:', articleData);
+    
+//     setLoading(true);
+    
+//     let savedArticle;
+    
+//     if (isEditMode && id) {
+//       savedArticle = await updateArticle(id, articleData);
+//       message.success('Article updated successfully');
+//     } else {
+//       savedArticle = await createArticle(articleData);
+//       message.success('Article created successfully');
+//     }
+    
+    
+    
+//     navigateTo('/dashboard/article-admin/articles');
+//   } catch (error: any) {
+//     console.error('Submit error:', error);
+    
+//     let errorMessage = 'Failed to save article';
+//     if (error.response?.data?.message) {
+//       errorMessage = Array.isArray(error.response.data.message)
+//         ? error.response.data.message.join(', ')
+//         : error.response.data.message;
+//     } else if (error.message) {
+//       errorMessage = error.message;
+//     }
+    
+//     message.error(`Error: ${errorMessage}`);
+//   } finally {
+//     setLoading(false);
+//   }
+// }, [formValues, hasActualContent, isEditMode, id]);
+
+
+
+// Main submit function
+const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' = 'DRAFT') => {
   try {
     console.log('Current form values before submit:', formValues);
     
@@ -411,11 +665,17 @@ const ArticleForm: React.FC = () => {
       formValues.targetLanguages.length > 0 &&
       status === 'PUBLISHED'; // Only trigger for published articles
     
-    // Prepare data with valid Tiptap structure
+    // CRITICAL FIX: Ensure content is string for backend
+    // Jodit already gives us HTML string, but let's be safe
+    const contentForBackend = typeof formValues.content === 'string' 
+      ? formValues.content 
+      : String(formValues.content || '');
+    
+    // Prepare data with HTML string (not Tiptap JSON)
     const articleData = {
       title: formValues.title.trim(),
       excerpt: formValues.excerpt.trim(),
-      content: formValues.content || { type: 'doc', content: [] },
+      content: contentForBackend, // HTML STRING, not Tiptap JSON
       categoryId: formValues.categoryId,
       tags: formValues.tags || [],
       accessType: formValues.accessType || 'FREE',
@@ -445,8 +705,6 @@ const ArticleForm: React.FC = () => {
       message.success('Article created successfully');
     }
     
-    
-    
     navigateTo('/dashboard/article-admin/articles');
   } catch (error: any) {
     console.error('Submit error:', error);
@@ -465,7 +723,6 @@ const ArticleForm: React.FC = () => {
     setLoading(false);
   }
 }, [formValues, hasActualContent, isEditMode, id]);
-
 
 // trigger translations
 const triggerArticleTranslations = async (articleId: string, targetLanguages: string[]) => {
@@ -542,7 +799,7 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
               rows={3} 
               placeholder="Brief summary of your article..."
               showCount 
-              maxLength={300}
+              maxLength={800}
               minLength={100}
               disabled={loading || initialLoading}
               value={formValues.excerpt}
@@ -629,6 +886,32 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
 {
   title: 'Content',
   content: (
+    // <Form.Item
+    //   name="content"
+    //   rules={[{ 
+    //     required: true, 
+    //     message: 'Please add some content to your article',
+    //     validator: (_, value) => {
+    //       if (!hasActualContent(value)) {
+    //         return Promise.reject(new Error('Please add some content to your article'));
+    //       }
+    //       return Promise.resolve();
+    //     }
+    //   }]}
+    // >
+    //   <EditorSwitcher
+    //     value={formValues.content}
+    //     onChange={(content) => {
+    //       form.setFieldValue('content', content);
+    //       setFormValues(prev => ({ ...prev, content }));
+    //     }}
+    //     disabled={loading || initialLoading}
+    //     height={500}
+    //   />
+    // </Form.Item>
+
+
+    // jodit editor
     <Form.Item
       name="content"
       rules={[{ 
@@ -642,14 +925,15 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
         }
       }]}
     >
-      <EditorSwitcher
-        value={formValues.content}
-        onChange={(content) => {
+      <SafeJoditWrapper
+        value={formValues.content} // Can be string, object, or anything
+        onChange={(content: string) => {
           form.setFieldValue('content', content);
           setFormValues(prev => ({ ...prev, content }));
         }}
         disabled={loading || initialLoading}
         height={500}
+        placeholder="Start writing your amazing article..."
       />
     </Form.Item>
   ),
@@ -1021,7 +1305,8 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
           initialValues={{
             title: '',
             excerpt: '',
-            content: { type: 'doc', content: [] },
+            // content: { type: 'doc', content: [] },
+            content: '', // empty string for JODIT, not Tiptap JSON
             categoryId: undefined,
             tags: [],
             accessType: 'FREE',

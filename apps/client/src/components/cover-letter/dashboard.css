@@ -1,0 +1,63 @@
+/* client/components/cover-letter/dashboard.css */
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.line-clamp-4 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Card hover effects */
+.group:hover .group-hover\:text-blue-600 {
+  color: #2563eb;
+}
+
+.dark .group:hover .dark\:group-hover\:text-blue-400 {
+  color: #60a5fa;
+}
+
+/* Truncate for long text */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Smooth shadow transitions */
+.hover\:shadow-xl {
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+/* Better button transitions */
+button {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}

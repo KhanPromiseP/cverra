@@ -15,6 +15,7 @@ import {
   NotFoundException,
   Request,
   Req,
+  Patch,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CategoryService } from './category.service';
@@ -857,6 +858,44 @@ async deleteComment(
     };
   }
 
+
+  @Patch(':id/status')
+@UseGuards(JwtGuard)
+async updateArticleStatus(
+  @Param('id') articleId: string,
+  @Body() body: { status: ArticleStatus },
+  @Request() req: any,
+): Promise<any> {
+  const userId = req.user.id;
+  
+  console.log('Status update requested:', { articleId, status: body.status, userId });
+  
+  // First, get the article to get its slug
+  const article = await this.prisma.article.findUnique({
+    where: { id: articleId },
+    select: { slug: true, authorId: true }
+  });
+  
+  if (!article) {
+    throw new NotFoundException('Article not found');
+  }
+  
+  // Check if user is the author
+  if (article.authorId !== userId) {
+    throw new BadRequestException('You can only update your own articles');
+  }
+  
+  // Create update DTO
+  const updateDto: UpdateArticleDto = {
+    status: body.status,
+  };
+  
+  // Use the existing updateArticle method
+  const result = await this.articleService.updateArticle(article.slug, userId, updateDto);
+  
+  // Transform the response
+  return this.articleResponseTransformer.transform(result);
+}
 
 
   @Get('info/:id')
