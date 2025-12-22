@@ -73,7 +73,6 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
       // Prepare parameters for related articles
       const params: FilterParams = {
         limit,
-        excludeCurrent: excludeCurrent,
         ...(categoryId && { category: categoryId }),
         ...(tags.length > 0 && { tags: tags.slice(0, 3).join(',') }),
       };
@@ -251,7 +250,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
                 backgroundColor: article.category?.color || '#1890ff',
                 cursor: 'pointer'
               }}
-              onClick={(e) => {
+              onClick={(e:any) => {
                 e.stopPropagation();
                 navigate(`/author/${article.author.id}`);
               }}
@@ -458,7 +457,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
                     backgroundColor: article.category?.color || '#1890ff',
                     cursor: 'pointer'
                   }}
-                  onClick={(e) => {
+                  onClick={(e:any) => {
                     e.stopPropagation();
                     navigate(`/author/${article.author.id}`);
                   }}
@@ -576,14 +575,30 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
         ))}
       </Row>
 
+
+      <style>{`
+          @media (max-width: 768px) {
+            .related-articles-mobile-button {
+              display: flex !important;
+            }
+          }
+          @media (min-width: 769px) {
+            .related-articles-mobile-button {
+              display: none !important;
+            }
+          }
+      `}</style>
+
+
       {/* View All Button (for mobile) */}
       {articles.length >= limit && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          marginTop: 24,
-          display: 'none' // Hide on desktop, show on mobile via media query
-        }}>
+        <div 
+            className="related-articles-mobile-button"
+            style={{ 
+              justifyContent: 'center', 
+              marginTop: 24 
+            }}
+          >
           <Button 
             type="primary" 
             onClick={handleViewMore}

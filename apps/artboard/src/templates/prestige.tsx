@@ -906,7 +906,7 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Onyx = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Prestige = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (

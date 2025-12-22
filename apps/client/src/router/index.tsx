@@ -60,6 +60,10 @@ import ArticlePage from "../pages/articles/article/ArticlePage";
 // Add this import
 import UserProfilePage from "../pages/dashboard/profile/page";
 
+import CategoriesPage from "../components/articles/CategoriesPage";
+import AllArticlesPage from '../components/articles/AllArticlesPage';
+
+
 
 
 export const routes = createRoutesFromElements(
@@ -75,6 +79,10 @@ export const routes = createRoutesFromElements(
         {/* Articles Routes - PUBLIC */}
         <Route path="/dashboard/articles" element={<ArticlesPage />} />
         <Route path="/dashboard/article/:slug" element={<ArticlePage />} />
+
+        <Route path="/dashboard/categories" element={<CategoriesPage />} />
+
+        <Route path="/dashboard/articles/all" element={<AllArticlesPage />} />
       </Route>
 
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

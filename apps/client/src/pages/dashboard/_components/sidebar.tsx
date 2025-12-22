@@ -293,6 +293,7 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
     return (
       <TooltipProvider>
         <div className="flex h-full flex-col bg-background">
+          {/* Scrollable content area for mobile */}
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col gap-1 py-4 px-3">
               {/* Regular User Items */}
@@ -322,8 +323,8 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
             </div>
           </div>
 
-          {/* User Section */}
-          <div className="border-t border-border p-4">
+          {/* User Section - Fixed at bottom */}
+          <div className="border-t border-border p-4 bg-background">
             <UserOptions>
               <div className="flex items-center w-full transition-all duration-200 rounded-xl p-3 hover:bg-accent cursor-pointer border border-transparent hover:border-accent-foreground/20">
                 <UserAvatar 
@@ -387,6 +388,7 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
           </Button>
         </div>
 
+        {/* Scrollable content area for desktop */}
         <div className="flex-1 overflow-y-auto">
           <div className={cn("flex flex-col gap-1 py-4", isCollapsed ? "px-1" : "px-3")}>
             {/* Regular User Items */}
@@ -416,8 +418,8 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
           </div>
         </div>
 
-        {/* Enhanced User Section */}
-        <div className={cn("border-t border-border p-4", isCollapsed && "px-3")}>
+        {/* Enhanced User Section - Fixed at bottom */}
+        <div className={cn("border-t border-border p-4 bg-background", isCollapsed && "px-3")}>
           <UserOptions>
             <div className={cn(
               "flex items-center w-full transition-all duration-200 rounded-xl p-3 hover:bg-accent cursor-pointer border border-transparent hover:border-accent-foreground/20",

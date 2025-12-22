@@ -69,28 +69,39 @@ const TranslationManagement: React.FC = () => {
     if (filters.status) params.status = filters.status;
     if (filters.needsReview) params.needsReview = true;
 
-    // Use the correct endpoint
-    const data = await getTranslations(params);
+    // Call the service
+    const result = await getTranslations(params);
     
-    // Map the data to match your interface
-    const translations: Translation[] = data.data.map((item: any) => ({
-      id: item.id,
-      article: {
-        title: item.article?.title || 'Unknown Article',
-        slug: item.article?.slug || '',
-      },
-      language: item.language,
-      status: item.status,
-      confidence: item.confidence,
-      needsReview: item.needsReview,
-      qualityScore: item.qualityScore,
-      lastAccessed: item.lastAccessed,
-      accessCount: item.accessCount,
-      translatedBy: item.translatedBy,
-      createdAt: item.createdAt,
-    }));
+    console.log('Translation data received:', result);
     
-    setTranslations(translations);
+    // Handle response structure
+    if (result && result.data) {
+      // If data is nested inside a data property
+      const translationsData = Array.isArray(result.data.data) ? result.data.data : result.data;
+      
+      const translations: Translation[] = translationsData.map((item: any) => ({
+        id: item.id,
+        article: {
+          title: item.article?.title || 'Unknown Article',
+          slug: item.article?.slug || '',
+          id: item.article?.id || item.id,
+        },
+        language: item.language,
+        status: item.status,
+        confidence: item.confidence,
+        needsReview: item.needsReview,
+        qualityScore: item.qualityScore,
+        lastAccessed: item.lastAccessed,
+        accessCount: item.accessCount,
+        translatedBy: item.translatedBy,
+        createdAt: item.createdAt,
+      }));
+      
+      setTranslations(translations);
+    } else {
+      console.warn('Unexpected response structure:', result);
+      setTranslations([]);
+    }
   } catch (error) {
     console.error('Failed to load translations:', error);
     message.error('Failed to load translations');
@@ -100,37 +111,49 @@ const TranslationManagement: React.FC = () => {
   }
 };
 
-  const handleRegenerate = async (translationId: string, language: string) => {
-    Modal.confirm({
-      title: 'Regenerate Translation',
-      content: `Regenerate ${language.toUpperCase()} translation? This will replace the current translation.`,
-      onOk: async () => {
-        try {
-          await regenerateTranslation(translationId);
-          message.success('Translation regeneration started');
+const handleRegenerate = async (translationId: string, language: string) => {
+  Modal.confirm({
+    title: 'Regenerate Translation',
+    content: `Regenerate ${language.toUpperCase()} translation? This will replace the current translation.`,
+    onOk: async () => {
+      try {
+        const result = await regenerateTranslation(translationId);
+        
+        if (result && result.success !== false) {
+          message.success(result.message || 'Translation regeneration started');
           fetchTranslations();
-        } catch (error) {
-          message.error('Failed to regenerate translation');
+        } else {
+          message.error(result?.error || 'Failed to regenerate translation');
         }
-      },
-    });
-  };
+      } catch (error: any) {
+        console.error('Regenerate error:', error);
+        message.error(error.response?.data?.message || 'Failed to regenerate translation');
+      }
+    },
+  });
+};
 
-  const handleReview = async (translationId: string) => {
-    Modal.confirm({
-      title: 'Mark as Reviewed',
-      content: 'Mark this translation as reviewed?',
-      onOk: async () => {
-        try {
-          await updateTranslation(translationId, { needsReview: false });
+const handleReview = async (translationId: string) => {
+  Modal.confirm({
+    title: 'Mark as Reviewed',
+    content: 'Mark this translation as reviewed?',
+    onOk: async () => {
+      try {
+        const result = await updateTranslation(translationId, { needsReview: false });
+        
+        if (result) {
           message.success('Translation marked as reviewed');
           fetchTranslations();
-        } catch (error) {
+        } else {
           message.error('Failed to update translation');
         }
-      },
-    });
-  };
+      } catch (error: any) {
+        console.error('Review error:', error);
+        message.error(error.response?.data?.message || 'Failed to update translation');
+      }
+    },
+  });
+};
 
   const getLanguageName = (code: string) => {
     const languages: Record<string, string> = {
@@ -290,17 +313,18 @@ const TranslationManagement: React.FC = () => {
                   label: 'Regenerate',
                   onClick: () => handleRegenerate(record.id, record.language),
                 },
-                record.needsReview && {
+                // Conditional item - check if needsReview is true
+                ...(record.needsReview ? [{
                   key: 'review',
                   icon: <CheckCircleOutlined />,
                   label: 'Mark as Reviewed',
                   onClick: () => handleReview(record.id),
-                },
+                }] : []),
                 {
                   key: 'stats',
                   label: 'View Statistics',
                 },
-              ].filter(Boolean),
+              ],
             }}
           >
             <Button type="text" icon={<MoreOutlined />} />

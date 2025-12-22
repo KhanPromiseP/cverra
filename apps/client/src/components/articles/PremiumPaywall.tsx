@@ -55,6 +55,7 @@ interface PremiumPaywallProps {
   onPurchaseSuccess?: () => void;
   onPurchaseError?: (error: string) => void;
   showInline?: boolean;
+  onPurchase?: () => void;
 }
 
 const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
@@ -93,7 +94,12 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
     return Math.round(basePrice * readingTimeMultiplier * popularityMultiplier * premiumMultiplier);
   };
 
-  const coinPrice = article.coinPrice || calculateCoinPrice();
+  interface ArticleWithCoinPrice extends Article {
+    coinPrice?: number;
+  }
+
+  const articleWithPrice = article as ArticleWithCoinPrice;
+  const coinPrice = articleWithPrice.coinPrice || calculateCoinPrice();
   const canAffordPurchase = balance >= coinPrice;
 
   // Generate unique transaction ID
@@ -223,9 +229,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
       }
 
       const errorMessage = error.response?.data?.message || error.message || 'Failed to purchase article';
-      message.error('Purchase failed: ' + errorMessage, {
-        duration: 3000,
-      });
+      message.error('Purchase failed: ' + errorMessage, 3);
 
       onPurchaseError?.(errorMessage);
       setShowCoinPopover(false);
@@ -339,7 +343,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         borderRadius: '12px',
         boxShadow: '0 4px 12px rgba(24, 144, 255, 0.1)'
       }}
-      styles={{ padding: 24 }}
+      bodyStyle={{ padding: 24 }}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div style={{ textAlign: 'center' }}>
@@ -429,7 +433,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         boxShadow: '0 4px 12px rgba(114, 46, 209, 0.1)',
         background: 'linear-gradient(135deg, #f9f0ff 0%, #f0f5ff 100%)'
       }}
-      styles={{ padding: 24 }}
+      bodyStyle={{ padding: 24 }}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div style={{ textAlign: 'center', position: 'relative' }}>
@@ -512,7 +516,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         borderRadius: '12px',
         background: 'linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%)'
       }}
-      styles={{ padding: 16 }}
+      bodyStyle={{ padding: 16 }}
     >
       <Title level={5} style={{ marginBottom: 16, textAlign: 'center' }}>
         Why readers love this article
@@ -558,7 +562,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         borderRadius: '12px',
         background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)'
       }}
-      styles={{ padding: 16 }}
+      bodyStyle={{ padding: 16 }}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -755,7 +759,7 @@ const subscriptionModal = (
           closable={true}
           maskClosable={true}
           style={{ top: 20 }}
-          styles={{ padding: '24px' }}
+          bodyStyle={{ padding: '24px' }}
         >
           {modalContent}
         </Modal>

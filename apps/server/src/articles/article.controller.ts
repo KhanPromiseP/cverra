@@ -277,6 +277,146 @@ async getCategories() {
   });
 }
 
+
+
+@Get('all/filters')
+async getFilterOptions() {
+  try {
+    const [categories, tags, authors, stats] = await Promise.all([
+      this.prisma.articleCategory.findMany({
+        where: { isActive: true },
+        orderBy: { order: 'asc' },
+      }),
+      this.articleService.getAllTags(),
+      this.articleService.getAllAuthors(),
+      this.articleService.getArticleStats(),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        categories,
+        tags,
+        authors,
+        stats,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting filter options:', error);
+    return {
+      success: false,
+      message: 'Failed to load filter options',
+    };
+  }
+}
+@Post('all/filtered')
+async getFilteredArticles(
+  @Body() body: {
+    page?: number;
+    limit?: number;
+    category?: string | string[];
+    tag?: string;
+    accessType?: 'all' | 'free' | 'premium';
+    featured?: boolean;
+    trending?: boolean;
+    search?: string;
+    sort?: string;
+    readingTime?: 'short' | 'medium' | 'long' | 'any';
+    authors?: string[];
+    languages?: string[];
+    tags?: string[];
+    categories?: string[];
+  },
+  @Request() req?: any,
+) {
+  try {
+    const userId = req?.user?.id;
+    
+    // Convert accessType string to ContentAccess enum
+    let accessType: ContentAccess | 'all' = 'all';
+    if (body.accessType === 'free') {
+      accessType = ContentAccess.FREE;
+    } else if (body.accessType === 'premium') {
+      accessType = ContentAccess.PREMIUM;
+    }
+
+    const result = await this.articleService.getArticlesWithAdvancedFilters({
+      page: body.page || 1,
+      limit: body.limit || 24,
+      category: body.category,
+      tag: body.tag,
+      accessType,
+      featured: body.featured,
+      trending: body.trending,
+      search: body.search,
+      sort: body.sort || 'recent',
+      readingTime: body.readingTime,
+      authors: body.authors,
+      languages: body.languages,
+      tags: body.tags,
+      categories: body.categories,
+    });
+
+    // If user is logged in, check premium access for premium articles
+    if (userId && result.articles) {
+      const enhancedArticles = await Promise.all(
+        result.articles.map(async (article: any) => { // Add type annotation
+          if (article.accessType === ContentAccess.PREMIUM) {
+            const hasAccess = await this.articleService.checkArticleAccess(
+              article.id,
+              userId
+            );
+            
+            // If user doesn't have access, return preview version
+            if (!hasAccess.hasAccess) {
+              return this.articleService.getArticlePreview(article);
+            }
+          }
+          return article;
+        })
+      );
+
+      return {
+        success: true,
+        data: {
+          ...result,
+          articles: enhancedArticles,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error('Error getting filtered articles:', error);
+    return {
+      success: false,
+      message: 'Failed to load articles',
+      error: error.message,
+    };
+  }
+}
+
+@Get('stats/overview')
+async getArticleOverviewStats() {
+  try {
+    const stats = await this.articleService.getArticleStats();
+    
+    return {
+      success: true,
+      data: stats,
+    };
+  } catch (error) {
+    console.error('Error getting article stats:', error);
+    return {
+      success: false,
+      message: 'Failed to load article statistics',
+    };
+  }
+}
+
   // ========== AUTHENTICATED USER ROUTES ==========
 
   @Post()

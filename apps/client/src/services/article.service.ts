@@ -2,6 +2,35 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+
+export interface Translation {
+  id: string;
+  article: {
+    id: string;
+    title: string;
+    slug: string;
+  };
+  language: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  confidence?: number;
+  needsReview: boolean;
+  qualityScore?: number;
+  lastAccessed?: string;
+  accessCount: number;
+  translatedBy: 'AI' | 'HUMAN';
+  createdAt: string;
+}
+
+// ensure consistent response handling
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  error?: string;
+}
+
+
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -182,7 +211,8 @@ export const getTopArticles = (): Promise<any> =>
 
 
 // Translation APIs
-export const getTranslations = (params?: {
+// Get translations with proper endpoint
+export const getTranslations = async (params?: {
   language?: string;
   status?: string;
   needsReview?: boolean;
@@ -197,16 +227,50 @@ export const getTranslations = (params?: {
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   
+  // Use the correct endpoint from your controller
   const url = `/articles/translations/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  return api.get(url);
+  
+  console.log('Fetching translations from:', url);
+  
+  try {
+    const response = await api.get(url);
+    console.log('Translations response:', response);
+    
+    // Return the response as-is (the interceptor already returns response.data)
+    return response;
+  } catch (error: any) {
+    console.error('Error fetching translations:', error);
+    throw error;
+  }
 };
 
-export const regenerateTranslation = (id: string): Promise<any> => 
-  api.post(`/articles/translations/${id}/regenerate`);
+// Regenerate translation with proper endpoint
+export const regenerateTranslation = async (id: string): Promise<any> => {
+  console.log('Regenerating translation:', id);
+  
+  try {
+    const response = await api.post(`/articles/translations/${id}/regenerate`);
+    console.log('Regenerate response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error regenerating translation:', error);
+    throw error;
+  }
+};
 
-export const updateTranslation = (id: string, data: { needsReview?: boolean }): Promise<any> => 
-  api.put(`/articles/translations/${id}`, data);
-
+// Update translation with proper endpoint
+export const updateTranslation = async (id: string, data: { needsReview?: boolean }): Promise<any> => {
+  console.log('Updating translation:', { id, data });
+  
+  try {
+    const response = await api.put(`/articles/translations/${id}`, data);
+    console.log('Update translation response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error updating translation:', error);
+    throw error;
+  }
+};
 // Add this new function to trigger translation for an article
 export const triggerArticleTranslation = (articleId: string, targetLanguage: string, force?: boolean): Promise<any> => 
   api.post(`/articles/${articleId}/translate`, { targetLanguage, force });

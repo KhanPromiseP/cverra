@@ -34,7 +34,7 @@ export const ResumesPage = () => {
             animate={{ opacity: 1, x: 0 }}
             className="text-4xl font-bold tracking-tight"
           >
-            {t`Resumes`}
+            {t`Professional Resume Dashboard`}
           </motion.h1>
 
           <TabsList>

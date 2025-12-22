@@ -15,9 +15,12 @@ export const GridView = () => {
     <div className="space-y-8">
       {/* Action Buttons Section - Separated from resumes */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Quick Actions
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Start Building Your Career Success
+          </h2>
+          <p className="text-gray-600 text-lg dark:text-gray-400">
+            Craft standout resumes that get noticed by recruiters in no time. Choose your starting point—create from scratch or import existing resumes to enhance.
+          </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 10 }}

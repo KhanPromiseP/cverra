@@ -26,74 +26,73 @@ import type { TemplateProps } from "../types/template";
 
 const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
-  const borderRadius = useArtboardStore((state) => state.resume.basics.picture.borderRadius);
 
   return (
-    <div
-      className="summary group bg-primary px-6 pb-7 pt-6 text-background"
-      style={{ borderRadius: `calc(${borderRadius}px - 2px)` }}
-    >
-      <div className="col-span-2 space-y-2.5">
-        <div>
-          <h2 className="text-2xl font-bold">{basics.name}</h2>
+    <div className="p-custom relative grid grid-cols-3 space-x-4 pb-0">
+      <Picture className="mx-auto" />
+
+      <div className="relative z-10 col-span-2 text-background">
+        <div className="space-y-0.5">
+          <h2 className="text-3xl font-bold">{basics.name}</h2>
           <p>{basics.headline}</p>
         </div>
 
-        <hr className="border-background opacity-50" />
+        <div className="col-span-2 col-start-2 mt-10 text-foreground">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+            {basics.location && (
+              <>
+                <div className="flex items-center gap-x-1.5">
+                  <i className="ph ph-bold ph-map-pin text-primary" />
+                  <div>{basics.location}</div>
+                </div>
+                <div className="bg-text size-1 rounded-full last:hidden" />
+              </>
+            )}
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-          {basics.location && (
-            <>
-              <div className="flex items-center gap-x-1.5">
-                <i className="ph ph-bold ph-map-pin" />
-                <div>{basics.location}</div>
-              </div>
-              <div className="size-1 rounded-full bg-background last:hidden" />
-            </>
-          )}
-          {basics.phone && (
-            <>
-              <div className="flex items-center gap-x-1.5">
-                <i className="ph ph-bold ph-phone" />
-                <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-                  {basics.phone}
-                </a>
-              </div>
-              <div className="size-1 rounded-full bg-background last:hidden" />
-            </>
-          )}
-          {basics.email && (
-            <>
-              <div className="flex items-center gap-x-1.5">
-                <i className="ph ph-bold ph-at" />
-                <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-                  {basics.email}
-                </a>
-              </div>
-              <div className="size-1 rounded-full bg-background last:hidden" />
-            </>
-          )}
-          {isUrl(basics.url.href) && (
-            <>
-              <Link url={basics.url} />
-              <div className="size-1 rounded-full bg-background last:hidden" />
-            </>
-          )}
-          {basics.customFields.map((item) => (
-            <Fragment key={item.id}>
-              <div className="flex items-center gap-x-1.5">
-                <i className={cn(`ph ph-bold ph-${item.icon}`)} />
-                {isUrl(item.value) ? (
-                  <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
-                    {item.name || item.value}
+            {basics.phone && (
+              <>
+                <div className="flex items-center gap-x-1.5">
+                  <i className="ph ph-bold ph-phone text-primary" />
+                  <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
+                    {basics.phone}
                   </a>
-                ) : (
-                  <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
-                )}
-              </div>
-              <div className="size-1 rounded-full bg-background last:hidden" />
-            </Fragment>
-          ))}
+                </div>
+                <div className="bg-text size-1 rounded-full last:hidden" />
+              </>
+            )}
+            {basics.email && (
+              <>
+                <div className="flex items-center gap-x-1.5">
+                  <i className="ph ph-bold ph-at text-primary" />
+                  <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
+                    {basics.email}
+                  </a>
+                </div>
+                <div className="bg-text size-1 rounded-full last:hidden" />
+              </>
+            )}
+            {isUrl(basics.url.href) && (
+              <>
+                <Link url={basics.url} />
+                <div className="bg-text size-1 rounded-full last:hidden" />
+              </>
+            )}
+            {basics.customFields.map((item) => (
+              <Fragment key={item.id}>
+                <div className="flex items-center gap-x-1.5">
+                  <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
+                  {isUrl(item.value) ? (
+                    <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
+                      {item.name || item.value}
+                    </a>
+                  ) : (
+                    <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+                  )}
+                </div>
+                <div className="bg-text size-1 rounded-full last:hidden" />
+              </Fragment>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -107,7 +106,7 @@ const Summary = () => {
 
   return (
     <section id={section.id}>
-      <h4 className="mb-2 border-b border-primary text-base font-bold">{section.name}</h4>
+      <h4 className="mb-2 text-base font-bold">{section.name}</h4>
 
       <div
         dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
@@ -123,18 +122,10 @@ type RatingProps = { level: number };
 const Rating = ({ level }: RatingProps) => (
   <div className="flex items-center gap-x-1.5">
     {Array.from({ length: 5 }).map((_, index) => (
-      <i
+      <div
         key={index}
-        className={cn(
-          "ph ph-diamond text-primary",
-          level > index && "ph-fill",
-          level <= index && "ph-bold",
-        )}
+        className={cn("h-2 w-4 border border-primary", level > index && "bg-primary")}
       />
-      // <div
-      //   key={index}
-      //   className={cn("h-2 w-4 border border-primary", level > index && "bg-primary")}
-      // />
     ))}
   </div>
 );
@@ -152,10 +143,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
 
   return (
     <div className="flex items-center gap-x-1.5">
-      {!iconOnRight &&
-        (icon ?? (
-          <i className="ph ph-bold ph-link text-primary group-[.summary]:text-background" />
-        ))}
+      {!iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
       <a
         href={url.href}
         target="_blank"
@@ -164,10 +152,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
       >
         {label ?? (url.label || url.href)}
       </a>
-      {iconOnRight &&
-        (icon ?? (
-          <i className="ph ph-bold ph-link text-primary group-[.summary]:text-background" />
-        ))}
+      {iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
     </div>
   );
 };
@@ -184,7 +169,7 @@ const LinkedEntity = ({ name, url, separateLinks, className }: LinkedEntityProps
     <Link
       url={url}
       label={name}
-      icon={<i className="ph ph-bold ph-globe text-primary group-[.summary]:text-background" />}
+      icon={<i className="ph ph-bold ph-globe text-primary" />}
       iconOnRight={true}
       className={className}
     />
@@ -216,7 +201,7 @@ const Section = <T,>({
 
   return (
     <section id={section.id} className="grid">
-      <h4 className="mb-2 border-b border-primary text-base font-bold">{section.name}</h4>
+      <h4 className="mb-2 text-base font-bold">{section.name}</h4>
 
       <div
         className="grid gap-x-6 gap-y-3"
@@ -231,10 +216,17 @@ const Section = <T,>({
             const keywords = (keywordsKey && get(item, keywordsKey, [])) as string[] | undefined;
 
             return (
-              <div key={item.id} className={cn("space-y-2", className)}>
-                <div>
-                  {children?.(item as T)}
-                  {url !== undefined && section.separateLinks && <Link url={url} />}
+              <div
+                key={item.id}
+                className={cn("relative space-y-2 pl-4 group-[.sidebar]:pl-0", className)}
+              >
+                <div className="relative -ml-4 group-[.sidebar]:ml-0">
+                  <div className="pl-4 group-[.sidebar]:pl-0">
+                    {children?.(item as T)}
+                    {url !== undefined && section.separateLinks && <Link url={url} />}
+                  </div>
+
+                  <div className="absolute inset-y-0 -left-px border-l-4 border-primary group-[.sidebar]:hidden" />
                 </div>
 
                 {summary !== undefined && !isEmptyString(summary) && (
@@ -249,6 +241,8 @@ const Section = <T,>({
                 {keywords !== undefined && keywords.length > 0 && (
                   <p className="text-sm">{keywords.join(", ")}</p>
                 )}
+
+                <div className="absolute inset-y-0 left-0 border-l border-primary group-[.sidebar]:hidden" />
               </div>
             );
           })}
@@ -293,7 +287,7 @@ const Experience = () => {
             <div>{item.position}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -321,7 +315,7 @@ const Education = () => {
             <div>{item.score}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
             <div>{item.studyType}</div>
           </div>
@@ -347,7 +341,7 @@ const Awards = () => {
             />
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -368,7 +362,7 @@ const Certifications = () => {
             <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -396,7 +390,7 @@ const Interests = () => {
   const section = useArtboardStore((state) => state.resume.sections.interests);
 
   return (
-    <Section<Interest> section={section} className="space-y-1" keywordsKey="keywords">
+    <Section<Interest> section={section} className="space-y-0" keywordsKey="keywords">
       {(item) => <div className="font-bold">{item.name}</div>}
     </Section>
   );
@@ -419,7 +413,7 @@ const Publications = () => {
             <div>{item.publisher}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -445,7 +439,7 @@ const Volunteer = () => {
             <div>{item.position}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -487,7 +481,7 @@ const Projects = () => {
             <div>{item.description}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -538,7 +532,7 @@ const Custom = ({ id }: { id: string }) => {
             <div>{item.description}</div>
           </div>
 
-          <div className="shrink-0 text-right group-[.sidebar]:text-left">
+          <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -597,25 +591,35 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Pikachu = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Vanguard = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (
-    <div className="p-custom grid grid-cols-3 space-x-6">
-      <div className="sidebar group space-y-4">
-        {isFirstPage && <Picture className="w-full !max-w-none" size={250}/>}
+    <div>
+      {isFirstPage && (
+        <div className="relative">
+          <Header />
+          <div className="absolute inset-x-0 top-0 h-[85px] w-full bg-primary" />
+        </div>
+      )}
 
-        {sidebar.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
-      </div>
+      <div className="grid grid-cols-3">
+        <div className="sidebar p-custom group space-y-4">
+          {sidebar.map((section) => (
+            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+          ))}
+        </div>
 
-      <div className={cn("main group space-y-4", sidebar.length > 0 ? "col-span-2" : "col-span-3")}>
-        {isFirstPage && <Header />}
-
-        {main.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
+        <div
+          className={cn(
+            "main p-custom group space-y-4",
+            sidebar.length > 0 ? "col-span-2" : "col-span-3",
+          )}
+        >
+          {main.map((section) => (
+            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );

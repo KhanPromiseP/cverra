@@ -282,7 +282,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
             if (comment.id === commentId) {
               return {
                 ...comment,
-                likesCount: comment.isLiked ? comment.likesCount - 1 : comment.likesCount + 1,
+                likesCount: (comment.likesCount || 0) + (comment.isLiked ? -1 : 1),
                 isLiked: !comment.isLiked,
               };
             }
@@ -384,74 +384,37 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
     });
   };
 
-  const handleReport = async (commentId: string) => {
-    if (onReportComment) {
-      // Use parent component's handler if provided
-      onReportComment(commentId);
-      return;
-    }
-
-    Modal.confirm({
-      title: 'Report Comment',
-      content: (
-        <div>
-          <p>Please select a reason for reporting:</p>
-          <Select
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder="Select reason"
-            defaultValue="inappropriate"
-            options={[
-              { value: 'spam', label: 'Spam or misleading' },
-              { value: 'harassment', label: 'Harassment or hate speech' },
-              { value: 'inappropriate', label: 'Inappropriate content' },
-              { value: 'copyright', label: 'Copyright violation' },
-              { value: 'other', label: 'Other reason' },
-            ]}
-          />
-        </div>
-      ),
-      onOk: async (reason: string) => {
-        try {
-          const response = await articleApi.reportComment(commentId, reason);
-          
-          if (response.success) {
-            message.success('Comment reported. Thank you for helping maintain our community.');
-          }
-        } catch (error: any) {
-          console.error('Failed to report comment:', error);
-          message.error(error.response?.data?.message || 'Failed to report comment');
-        }
-      },
-    });
-  };
+  
 
   const renderComment = (comment: CommentType, isReply = false) => {
     const isOwnComment = user?.id === comment.author?.id;
     const hasReplies = comment.replies && comment.replies.length > 0;
     const isEditing = editingId === comment.id;
 
-    const commentMenuItems = [
-      isOwnComment && {
-        key: 'edit',
-        icon: <EditOutlined />,
-        label: 'Edit',
-        onClick: () => handleEdit(comment),
-      },
-      isOwnComment && {
-        key: 'delete',
-        icon: <DeleteOutlined />,
-        label: 'Delete',
-        danger: true,
-        onClick: () => handleDelete(comment.id),
-      },
-      !isOwnComment && {
-        key: 'report',
-        icon: <FlagOutlined />,
-        label: 'Report',
-        danger: true,
-        onClick: () => handleReport(comment.id),
-      },
-    ].filter(Boolean);
+    const commentMenuItems = (isOwnComment: boolean) => {
+      const items = [];
+      
+      if (isOwnComment) {
+        items.push(
+          {
+            key: 'edit',
+            icon: <EditOutlined />,
+            label: 'Edit',
+            onClick: () => handleEdit(comment),
+          },
+          {
+            key: 'delete',
+            icon: <DeleteOutlined />,
+            label: 'Delete',
+            danger: true,
+            onClick: () => handleDelete(comment.id),
+          }
+        );
+      }
+      
+      return items;
+    };
+
 
     return (
       <div 
@@ -484,7 +447,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 backgroundColor: comment.author?.isVerified ? '#1890ff' : '#d9d9d9',
                 cursor: 'pointer'
               }}
-              onClick={() => window.open(`/profile/${comment.author?.username}`, '_blank')}
+              // onClick={() => window.open(`/profile/${comment.author?.username}`, '_blank')}
             >
               {comment.author?.name?.charAt(0)}
             </Avatar>
@@ -520,7 +483,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                     fontSize: isReply ? '14px' : '15px',
                     cursor: 'pointer'
                   }}
-                  onClick={() => window.open(`/profile/${comment.author?.username}`, '_blank')}
+                  // onClick={() => window.open(`/profile/${comment.author?.username}`, '_blank')}
                 >
                   {comment.author?.name}
                 </Text>
@@ -562,9 +525,9 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                   </Text>
                 </Tooltip>
                 
-                {commentMenuItems.length > 0 && (
+                {commentMenuItems(isOwnComment).length > 0 && (
                   <Dropdown 
-                    menu={{ items: commentMenuItems }} 
+                    menu={{ items: commentMenuItems(isOwnComment) }} 
                     trigger={['click']}
                     placement="bottomRight"
                   >
@@ -647,7 +610,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 }}
               >
                 <span style={{ marginLeft: 4, fontSize: '12px' }}>
-                  {comment.likesCount > 0 && comment.likesCount}
+                  {comment.likesCount && comment.likesCount > 0 ? comment.likesCount : ''}
                 </span>
               </Button>
               

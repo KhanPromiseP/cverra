@@ -73,29 +73,29 @@ const EnhancedHTMLBlock = {
         attributes: {
           style: {
             default: null,
-            parseHTML: element => element.getAttribute('style') || '',
-            renderHTML: attributes => {
+            parseHTML: (element: any) => element.getAttribute('style') || '',
+            renderHTML: (attributes: any) => {
               return attributes.style ? { style: attributes.style } : {};
             },
           },
           class: {
             default: null,
-            parseHTML: element => element.getAttribute('class') || '',
-            renderHTML: attributes => {
+            parseHTML: (element: any) => element.getAttribute('class') || '',
+            renderHTML: (attributes: any) => {
               return attributes.class ? { class: attributes.class } : {};
             },
           },
           'data-html': {
             default: null,
-            parseHTML: element => element.getAttribute('data-html') || '',
-            renderHTML: attributes => {
+            parseHTML: (element: any) => element.getAttribute('data-html') || '',
+            renderHTML: (attributes: any) => {
               return attributes['data-html'] ? { 'data-html': attributes['data-html'] } : {};
             },
           },
           'data-original-html': {
             default: null,
-            parseHTML: element => element.getAttribute('data-original-html') || '',
-            renderHTML: attributes => {
+            parseHTML: (element: any) => element.getAttribute('data-original-html') || '',
+            renderHTML: (attributes: any) => {
               return attributes['data-original-html'] ? { 'data-original-html': attributes['data-original-html'] } : {};
             },
           },
@@ -115,7 +115,7 @@ const EnhancedHTMLBlock = {
       {
         tag: 'div',
         priority: 50,
-        getAttrs: element => {
+        getAttrs: (element: any) => {
           const style = element.getAttribute('style') || '';
           const className = element.getAttribute('class') || '';
           
@@ -153,7 +153,7 @@ const EnhancedHTMLBlock = {
       {
         tag: 'button',
         priority: 60,
-        getAttrs: element => ({
+        getAttrs: (element: any) => ({
           'data-type': 'enhanced-html',
           style: element.getAttribute('style') || '',
           class: element.getAttribute('class') || '',
@@ -1126,7 +1126,7 @@ const debugContent = useCallback((content: any) => {
       inline: true,
       allowBase64: true,
     }),
-    EnhancedHTMLBlock,
+    // EnhancedHTMLBlock,
   ],
   content: value || { type: 'doc', content: [] },
   onUpdate: ({ editor }) => {

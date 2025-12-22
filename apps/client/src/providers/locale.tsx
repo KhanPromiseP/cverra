@@ -1,3 +1,57 @@
+// import { i18n } from "@lingui/core";
+// import { I18nProvider } from "@lingui/react";
+
+// type Props = {
+//   children: React.ReactNode;
+// };
+
+// export const LocaleProvider = ({ children }: Props) => {
+//   return <I18nProvider i18n={i18n}>{children}</I18nProvider>;
+// };
+
+
+
+
+// import "@/client/libs/dayjs";
+
+// import { i18n } from "@lingui/core";
+// import { I18nProvider } from "@lingui/react";
+// import { languages } from "@reactive-resume/utils";
+// import { useEffect, useRef } from "react";
+
+// import { defaultLocale, dynamicActivate } from "../libs/lingui";
+
+// type Props = {
+//   children: React.ReactNode;
+// };
+
+// export const LocaleProvider = ({ children }: Props) => {
+//   const activatedRef = useRef<string | null>(null);
+
+//   useEffect(() => {
+//     const storedLocale =
+//       localStorage.getItem("locale") || defaultLocale;
+
+//     if (activatedRef.current === storedLocale) return;
+
+//     if (languages.some((l) => l.locale === storedLocale)) {
+//       activatedRef.current = storedLocale;
+//       void dynamicActivate(storedLocale);
+//     } else {
+//       activatedRef.current = defaultLocale;
+//       void dynamicActivate(defaultLocale);
+//     }
+//   }, []);
+
+//   return <I18nProvider i18n={i18n}>{children}</I18nProvider>;
+// };
+
+
+
+
+
+
+
 import "@/client/libs/dayjs";
 
 import { i18n } from "@lingui/core";

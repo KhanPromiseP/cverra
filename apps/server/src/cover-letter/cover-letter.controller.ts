@@ -319,6 +319,52 @@ async regenerateBlock(
     }
   }
 
+@Post(':id/duplicate')
+async duplicateCoverLetter(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string,
+  @Body() body?: { newName?: string } // Add this parameter
+) {
+  try {
+    this.logger.log(`Duplicating cover letter ${id} for user ${req.user.id}`);
+    
+    if (!id) {
+      throw new BadRequestException('Cover letter ID is required');
+    }
+
+    // Pass the newName to the service if provided
+    const duplicate = await this.coverLetterService.duplicateQuick(
+      req.user.id, 
+      id,
+      body?.newName // Pass the custom name
+    );
+    
+    this.logger.log(`Successfully duplicated cover letter ${id} to ${duplicate.id} for user ${req.user.id}`);
+    
+    return {
+      success: true,
+      message: 'Cover letter duplicated successfully',
+      data: duplicate
+    };
+    
+  } catch (error) {
+    this.logger.error(`Failed to duplicate cover letter ${id} for user ${req.user.id}:`, error.stack);
+    
+    if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      throw error;
+    }
+    
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    
+    throw new InternalServerErrorException(
+      error.message || 'Failed to duplicate cover letter. Please try again.'
+    );
+  }
+}
+  
+
  @Post(':id/enhance')
 async enhanceBlock(
   @Request() req: AuthenticatedRequest,

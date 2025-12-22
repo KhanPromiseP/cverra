@@ -78,6 +78,48 @@ export class CreateArticleDto {
   @IsOptional()
   @IsString()
   language?: string = 'en';
+
+  // ADD THESE NEW FIELDS
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  isTrending?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  isEditorPick?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean = false;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  featuredRanking?: number = 3;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  trendingScore?: number = 50;
+
+  @IsOptional()
+  @IsString()
+  contentType?: 'STANDARD' | 'GUIDE' | 'TUTORIAL' | 'CASE_STUDY' | 'RESEARCH' | 'INTERVIEW' = 'STANDARD';
+
+  @IsOptional()
+  @IsString()
+  readingLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT' = 'INTERMEDIATE';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  timeToRead?: number = 5;
 }
 
 // ========== UPDATE ARTICLE DTO ==========
@@ -154,6 +196,39 @@ export class UpdateArticleDto extends PartialType(CreateArticleDto) {
   @IsOptional()
   @IsString()
   slug?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isEditorsPick?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  featuredRanking?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  trendingScore?: number;
+
+  @IsOptional()
+  @IsString()
+  contentType?: 'STANDARD' | 'GUIDE' | 'TUTORIAL' | 'CASE_STUDY' | 'RESEARCH' | 'INTERVIEW';
+
+  @IsOptional()
+  @IsString()
+  readingLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  timeToRead?: number;
 }
 
 // ========== RESPONSE DTOs ==========
@@ -179,6 +254,23 @@ export class AuthorResponseDto {
   email?: string;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export class ArticleListDto {
+  articles: ArticleResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+  filters?: {
+    category?: string;
+    tag?: string;
+    status?: string;
+    accessType?: string;
+    featured?: boolean;
+    trending?: boolean;
+  };
 }
 
 export class ArticleResponseDto {
@@ -262,22 +354,22 @@ export class TrackViewDto {
   language?: string = 'en';
 }
 
-export class ArticleListDto {
-  articles: ArticleResponseDto[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
-  totalPages?: number;
-  filters?: {
-    category?: string;
-    tag?: string;
-    status?: PrismaArticleStatus;
-    accessType?: ContentAccess;
-    featured?: boolean;
-    trending?: boolean;
-  };
-}
+// export class ArticleListDto {
+//   articles: ArticleResponseDto[];
+//   total: number;
+//   page: number;
+//   limit: number;
+//   hasMore: boolean;
+//   totalPages?: number;
+//   filters?: {
+//     category?: string;
+//     tag?: string;
+//     status?: PrismaArticleStatus;
+//     accessType?: ContentAccess;
+//     featured?: boolean;
+//     trending?: boolean;
+//   };
+// }
 
 export class TriggerTranslationDto {
   @IsArray()

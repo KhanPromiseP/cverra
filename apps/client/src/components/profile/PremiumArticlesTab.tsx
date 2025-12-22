@@ -98,26 +98,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
     }
   };
 
-  const handleDownload = async (articleId: string, articleTitle: string) => {
-    try {
-      const response = await apiClient.get(`/articles/${articleId}/export/pdf`, {
-        responseType: 'blob'
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${articleTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download article:', error);
-      // You might want to add a toast notification here
-    }
-  };
-
+  
   // Dark mode class detection (you might want to use a proper theme hook)
   const isDarkMode = document.documentElement.classList.contains('dark');
 
@@ -147,7 +128,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={activeFilter === 'all' ? 'default' : 'outline'}
+          variant={activeFilter === 'all' ? 'primary' : 'outline'}
           size="sm"
           onClick={() => setActiveFilter('all')}
           className={activeFilter === 'all' 
@@ -158,7 +139,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
           All Premium
         </Button>
         <Button
-          variant={activeFilter === 'purchased' ? 'default' : 'outline'}
+          variant={activeFilter === 'purchased' ? 'primary' : 'outline'}
           size="sm"
           onClick={() => setActiveFilter('purchased')}
           className={activeFilter === 'purchased' 
@@ -170,7 +151,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
           Purchased
         </Button>
         <Button
-          variant={activeFilter === 'subscription' ? 'default' : 'outline'}
+          variant={activeFilter === 'subscription' ? 'primary' : 'outline'}
           size="sm"
           onClick={() => setActiveFilter('subscription')}
           className={activeFilter === 'subscription' 
@@ -285,7 +266,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
                   Refresh Access
                 </Button>
                 <Button 
-                  variant="default"
+                  variant="primary"
                   onClick={() => window.location.href = '/dashboard/articles'}
                   className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
                 >

@@ -15,7 +15,7 @@ import type {
   URL,
 } from "@reactive-resume/schema";
 import { Education, Experience, Volunteer } from "@reactive-resume/schema";
-import { cn, hexToRgb, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
+import { cn, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
 import get from "lodash.get";
 import { Fragment } from "react";
 
@@ -26,54 +26,75 @@ import type { TemplateProps } from "../types/template";
 
 const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
+  const borderRadius = useArtboardStore((state) => state.resume.basics.picture.borderRadius);
 
   return (
-    <div className="p-custom space-y-4 bg-primary text-background">
-      <Picture className="border-background" />
+    <div
+      className="summary group bg-primary px-6 pb-7 pt-6 text-background"
+      style={{ borderRadius: `calc(${borderRadius}px - 2px)` }}
+    >
+      <div className="col-span-2 space-y-2.5">
+        <div>
+          <h2 className="text-2xl font-bold">{basics.name}</h2>
+          <p>{basics.headline}</p>
+        </div>
 
-      <div>
-        <h2 className="text-2xl font-bold">{basics.name}</h2>
-        <p>{basics.headline}</p>
-      </div>
+        <hr className="border-background opacity-50" />
 
-      <div className="flex flex-col items-start gap-y-2 text-sm">
-        {basics.location && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-map-pin" />
-            <div>{basics.location}</div>
-          </div>
-        )}
-        {basics.phone && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-phone" />
-            <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-              {basics.phone}
-            </a>
-          </div>
-        )}
-        {basics.email && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-at" />
-            <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-              {basics.email}
-            </a>
-          </div>
-        )}
-        {isUrl(basics.url.href) && <Link url={basics.url} />}
-        {basics.customFields.map((item) => (
-          <Fragment key={item.id}>
-            <div className="flex items-center gap-x-1.5">
-              <i className={cn(`ph ph-bold ph-${item.icon}`)} />
-              {isUrl(item.value) ? (
-                <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
-                  {item.name || item.value}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+          {basics.location && (
+            <>
+              <div className="flex items-center gap-x-1.5">
+                <i className="ph ph-bold ph-map-pin" />
+                <div>{basics.location}</div>
+              </div>
+              <div className="size-1 rounded-full bg-background last:hidden" />
+            </>
+          )}
+          {basics.phone && (
+            <>
+              <div className="flex items-center gap-x-1.5">
+                <i className="ph ph-bold ph-phone" />
+                <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
+                  {basics.phone}
                 </a>
-              ) : (
-                <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
-              )}
-            </div>
-          </Fragment>
-        ))}
+              </div>
+              <div className="size-1 rounded-full bg-background last:hidden" />
+            </>
+          )}
+          {basics.email && (
+            <>
+              <div className="flex items-center gap-x-1.5">
+                <i className="ph ph-bold ph-at" />
+                <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
+                  {basics.email}
+                </a>
+              </div>
+              <div className="size-1 rounded-full bg-background last:hidden" />
+            </>
+          )}
+          {isUrl(basics.url.href) && (
+            <>
+              <Link url={basics.url} />
+              <div className="size-1 rounded-full bg-background last:hidden" />
+            </>
+          )}
+          {basics.customFields.map((item) => (
+            <Fragment key={item.id}>
+              <div className="flex items-center gap-x-1.5">
+                <i className={cn(`ph ph-bold ph-${item.icon}`)} />
+                {isUrl(item.value) ? (
+                  <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
+                    {item.name || item.value}
+                  </a>
+                ) : (
+                  <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+                )}
+              </div>
+              <div className="size-1 rounded-full bg-background last:hidden" />
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -81,32 +102,39 @@ const Header = () => {
 
 const Summary = () => {
   const section = useArtboardStore((state) => state.resume.sections.summary);
-  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   if (!section.visible || isEmptyString(section.content)) return null;
 
   return (
-    <div className="p-custom space-y-4" style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}>
-      <section id={section.id}>
-        <div
-          dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
-          style={{ columns: section.columns }}
-          className="wysiwyg"
-        />
-      </section>
-    </div>
+    <section id={section.id}>
+      <h4 className="mb-2 border-b border-primary text-base font-bold">{section.name}</h4>
+
+      <div
+        dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
+        style={{ columns: section.columns }}
+        className="wysiwyg"
+      />
+    </section>
   );
 };
 
 type RatingProps = { level: number };
 
 const Rating = ({ level }: RatingProps) => (
-  <div className="flex items-center gap-x-1">
+  <div className="flex items-center gap-x-1.5">
     {Array.from({ length: 5 }).map((_, index) => (
-      <div
+      <i
         key={index}
-        className={cn("h-2.5 w-5 border border-primary", level > index && "bg-primary")}
+        className={cn(
+          "ph ph-diamond text-primary",
+          level > index && "ph-fill",
+          level <= index && "ph-bold",
+        )}
       />
+      // <div
+      //   key={index}
+      //   className={cn("h-2 w-4 border border-primary", level > index && "bg-primary")}
+      // />
     ))}
   </div>
 );
@@ -126,7 +154,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
     <div className="flex items-center gap-x-1.5">
       {!iconOnRight &&
         (icon ?? (
-          <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-background" />
+          <i className="ph ph-bold ph-link text-primary group-[.summary]:text-background" />
         ))}
       <a
         href={url.href}
@@ -138,7 +166,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
       </a>
       {iconOnRight &&
         (icon ?? (
-          <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-background" />
+          <i className="ph ph-bold ph-link text-primary group-[.summary]:text-background" />
         ))}
     </div>
   );
@@ -156,7 +184,7 @@ const LinkedEntity = ({ name, url, separateLinks, className }: LinkedEntityProps
     <Link
       url={url}
       label={name}
-      icon={<i className="ph ph-bold ph-globe text-primary group-[.sidebar]:text-primary" />}
+      icon={<i className="ph ph-bold ph-globe text-primary group-[.summary]:text-background" />}
       iconOnRight={true}
       className={className}
     />
@@ -525,6 +553,9 @@ const mapSectionToComponent = (section: SectionKey) => {
     case "profiles": {
       return <Profiles />;
     }
+    case "summary": {
+      return <Summary />;
+    }
     case "experience": {
       return <Experience />;
     }
@@ -566,39 +597,25 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Gengar = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Noble = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
-  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
-
   return (
-    <div className="grid min-h-[inherit] grid-cols-3">
-      <div
-        className={cn(
-          "sidebar group flex flex-col",
-          !(isFirstPage || sidebar.length > 0) && "hidden",
-        )}
-      >
-        {isFirstPage && <Header />}
+    <div className="p-custom grid grid-cols-3 space-x-6">
+      <div className="sidebar group space-y-4">
+        {isFirstPage && <Picture className="w-full !max-w-none" size={250}/>}
 
-        <div
-          className="p-custom flex-1 space-y-4"
-          style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}
-        >
-          {sidebar.map((section) => (
-            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-          ))}
-        </div>
+        {sidebar.map((section) => (
+          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+        ))}
       </div>
 
-      <div className={cn("main group", sidebar.length > 0 ? "col-span-2" : "col-span-3")}>
-        {isFirstPage && <Summary />}
+      <div className={cn("main group space-y-4", sidebar.length > 0 ? "col-span-2" : "col-span-3")}>
+        {isFirstPage && <Header />}
 
-        <div className="p-custom space-y-4">
-          {main.map((section) => (
-            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-          ))}
-        </div>
+        {main.map((section) => (
+          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+        ))}
       </div>
     </div>
   );

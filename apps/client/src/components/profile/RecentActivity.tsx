@@ -15,7 +15,9 @@ import {
   Divider,
   Col,
   Row,
+  notification,
 } from 'antd';
+
 import {
   EyeOutlined,
   HeartOutlined,
@@ -439,7 +441,7 @@ const displayStats = readingStatsData || [];
             <Text strong>Top Categories This Week</Text>
           </Divider>
           <Space wrap>
-            {displayStats.topCategories.map((category, index) => (
+            {displayStats.topCategories.map((category: any, index: any) => (
               <Tag
                 key={index}
                 color={category.color}

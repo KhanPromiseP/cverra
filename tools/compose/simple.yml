@@ -35,6 +35,8 @@ services:
   # Chrome Browser (for printing and previews)
   chrome:
     image: ghcr.io/browserless/chromium:latest
+    ports: ["3001:3000"]
+
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -45,8 +47,13 @@ services:
       PROXY_PORT: 3000
       PROXY_SSL: "false"
 
+  # Application
   app:
-    image: amruthpillai/reactive-resume:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reactive-resume-local
+
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -76,47 +83,23 @@ services:
 
       # -- Emails --
       MAIL_FROM: noreply@localhost
-      # SMTP_URL: smtp://user:pass@smtp:587 # Optional
+      # SMTP_URL: smtp://user:pass@smtp:587
 
       # -- Storage (Minio) --
       STORAGE_ENDPOINT: minio
       STORAGE_PORT: 9000
-      STORAGE_REGION: us-east-1 # Optional
+      STORAGE_REGION: us-east-1
       STORAGE_BUCKET: default
       STORAGE_ACCESS_KEY: minioadmin
       STORAGE_SECRET_KEY: minioadmin
       STORAGE_USE_SSL: "false"
       STORAGE_SKIP_BUCKET_CHECK: "false"
 
-      # -- Crowdin (Optional) --
-      # CROWDIN_PROJECT_ID:
-      # CROWDIN_PERSONAL_TOKEN:
-
-      # -- Email (Optional) --
-      # DISABLE_SIGNUPS: "false"
-      # DISABLE_EMAIL_AUTH: "false"
-
-      # -- GitHub (Optional) --
-      # GITHUB_CLIENT_ID: github_client_id
-      # GITHUB_CLIENT_SECRET: github_client_secret
-      # GITHUB_CALLBACK_URL: http://localhost:3000/api/auth/github/callback
-
-      # -- Google (Optional) --
-      # GOOGLE_CLIENT_ID: google_client_id
-      # GOOGLE_CLIENT_SECRET: google_client_secret
-      # GOOGLE_CALLBACK_URL: http://localhost:3000/api/auth/google/callback
-
-      # -- OpenID (Optional) --
-      # VITE_OPENID_NAME: OpenID
-      # OPENID_AUTHORIZATION_URL:
-      # OPENID_CALLBACK_URL: http://localhost:3000/api/auth/openid/callback
-      # OPENID_CLIENT_ID:
-      # OPENID_CLIENT_SECRET:
-      # OPENID_ISSUER:
-      # OPENID_SCOPE: openid profile email
-      # OPENID_TOKEN_URL:
-      # OPENID_USER_INFO_URL:
-
 volumes:
   minio_data:
   postgres_data:
+
+
+
+
+

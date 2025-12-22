@@ -47,7 +47,7 @@ import CommentsSection from './CommentsSection';
 import LanguageSwitcher from './LanguageSwitcher';
 import PremiumPaywall from './PremiumPaywall';
 import RelatedArticles from './RelatedArticles';
-import ReadingProgress from './ReadingProgress';
+// import ReadingProgress from './ReadingProgress';
 import ClapButton from './ClapButton';
 import { useAuthStore } from '@/client/stores/auth';
 
@@ -169,8 +169,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
     setLoading(true);
     try {
       // Check if articleApi has getArticleBySlug method
-      const response = await articleApi.getArticleBySlug?.(slug!, language) || 
-                       await articleApi.getArticle?.(slug!, language);
+      const response = await articleApi.getArticle?.(slug!, { language });
       
       if (response && response.data) {
         const articleData = response.data;
@@ -184,7 +183,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
         }
         
         // Check if premium content requires access
-        const userHasAccess = user?.subscription?.isActive || false;
+        const userHasAccess = user?.subscription?.status === 'ACTIVE' || false;
         if (articleData.accessType === 'PREMIUM' && !articleData.isPreview && !userHasAccess) {
           setShowPaywall(true);
         }
@@ -423,8 +422,8 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
     }
   };
 
-  const handleAddComment = async (content: string, parentId?: string) => {
-    if (!article || !article.id) return;
+  const handleAddComment = async (content: string, parentId?: string): Promise<boolean> => {
+    if (!article || !article.id) return false; 
     
     try {
       const response = await articleApi.addComment?.(article.id, { content, parentId });
@@ -453,15 +452,15 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
           commentCount: (prev.commentCount || 0) + 1
         } : null);
         
-        return true;
+        return true; // Always return true on success
       }
-      return false;
+      return false; // Return false if response not successful
     } catch (error: any) {
       notification.error({
         message: 'Error',
         description: error.response?.data?.message || 'Failed to add comment',
       });
-      return false;
+      return false; // Always return false on error
     }
   };
 
@@ -518,44 +517,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
     });
   };
 
-  const handleReportComment = async (commentId: string) => {
-    let selectedReason = 'inappropriate';
-    
-    Modal.confirm({
-      title: 'Report Comment',
-      content: (
-        <div>
-          <p>Please select a reason for reporting this comment:</p>
-          <Select
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder="Select reason"
-            defaultValue="inappropriate"
-            onChange={(value: string) => { selectedReason = value; }}
-          >
-            <Option value="spam">Spam or misleading</Option>
-            <Option value="harassment">Harassment or hate speech</Option>
-            <Option value="inappropriate">Inappropriate content</Option>
-            <Option value="other">Other</Option>
-          </Select>
-        </div>
-      ),
-      onOk: async () => {
-        try {
-          await articleApi.reportComment?.(commentId, selectedReason);
-          notification.success({
-            message: 'Comment reported',
-            description: 'Thank you for helping us maintain a safe community.',
-          });
-        } catch (error) {
-          notification.error({
-            message: 'Error',
-            description: 'Failed to report comment',
-          });
-        }
-      },
-    });
-  };
-
+  
   const renderContent = useCallback(() => {
     if (!article?.content) {
       return article?.plainText ? (
@@ -841,7 +803,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
   );
 
   // Check if user has subscription access
-  const userHasSubscriptionAccess = user?.subscription?.isActive || false;
+  const userHasSubscriptionAccess = user?.subscription?.status === 'ACTIVE' || false;
   const showPreviewContent = article.accessType === 'PREMIUM' && article.isPreview && !userHasSubscriptionAccess;
 
   return (
@@ -1079,7 +1041,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
               currentLanguage={language}
               availableLanguages={article.availableLanguages}
               onChange={handleLanguageChange}
-              loading={isTranslating}
+             
             />
           </div>
         )}
@@ -1309,7 +1271,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
             onAddComment={handleAddComment}
             onLikeComment={handleLikeComment}
             onDeleteComment={handleDeleteComment}
-            onReportComment={handleReportComment}
+           
           />
         </div>
       </Card>

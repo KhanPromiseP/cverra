@@ -80,7 +80,7 @@ export function ReadingProfile({ profile, onUpdate }: ReadingProfileProps) {
               {readingLevels.map(level => (
                 <Button
                   key={level.value}
-                  variant={editableProfile.readingLevel === level.value ? 'default' : 'outline'}
+                  variant={editableProfile.readingLevel === level.value ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => setEditableProfile({...editableProfile, readingLevel: level.value})}
                 >
@@ -105,7 +105,7 @@ export function ReadingProfile({ profile, onUpdate }: ReadingProfileProps) {
               {timeOptions.map(time => (
                 <Button
                   key={time.value}
-                  variant={editableProfile.preferredReadingTime === time.value ? 'default' : 'outline'}
+                  variant={editableProfile.preferredReadingTime === time.value ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => setEditableProfile({...editableProfile, preferredReadingTime: time.value})}
                 >

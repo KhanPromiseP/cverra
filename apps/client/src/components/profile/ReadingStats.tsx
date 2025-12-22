@@ -3,7 +3,6 @@ import {
   BookOpen, 
   Clock, 
   Eye, 
-  TrendingUp,
   Calendar,
   Target
 } from "@phosphor-icons/react";

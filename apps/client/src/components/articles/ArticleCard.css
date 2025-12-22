@@ -166,3 +166,129 @@
     height: 200px !important;
   }
 }
+
+
+
+/* components/articles/ArticleFeed.css */
+.article-feed-container {
+  transition: all 0.3s ease;
+}
+
+.article-card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.article-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.category-pill {
+  transition: all 0.2s ease;
+}
+
+.category-pill:hover {
+  transform: scale(1.05);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.featured-carousel .slick-track {
+  display: flex !important;
+}
+
+.featured-carousel .slick-slide {
+  height: inherit !important;
+}
+
+.featured-carousel .slick-slide > div {
+  height: 100%;
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(to right, #f6f7f8 8%, #edeef1 18%, #f6f7f8 33%);
+  background-size: 800px 104px;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .category-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-stats {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .article-card {
+  background: linear-gradient(145deg, #1a202c, #2d3748);
+  border-color: #4a5568;
+}
+
+.dark .category-pill {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.dark .category-pill:hover {
+  background: #4a5568;
+}
+
+/* Custom scrollbar */
+.article-grid-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.article-grid-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.article-grid-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.article-grid-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.dark .article-grid-container::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+
+.dark .article-grid-container::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+.dark .article-grid-container::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}

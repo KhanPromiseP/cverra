@@ -163,10 +163,15 @@ export const coverLetterService = {
     const response = await apiClient.post(`/cover-letter/${id}/enhance`, {
       blockId,
       instructions,
-      metadata // Add metadata to the request
+      metadata 
     });
     return response.data;
   },
+
+
+ duplicate: async (id: string, newName?: string) => {
+  return apiClient.post(`/cover-letter/${id}/duplicate`, { newName });
+},
 
 
   getCurrentUser: async () => {

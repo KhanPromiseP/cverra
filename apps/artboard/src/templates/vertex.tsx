@@ -15,7 +15,7 @@ import type {
   URL,
 } from "@reactive-resume/schema";
 import { Education, Experience, Volunteer } from "@reactive-resume/schema";
-import { cn, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
+import { cn, hexToRgb, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
 import get from "lodash.get";
 import { Fragment } from "react";
 
@@ -28,72 +28,52 @@ const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
 
   return (
-    <div className="p-custom relative grid grid-cols-3 space-x-4 pb-0">
-      <Picture className="mx-auto" />
+    <div className="p-custom space-y-4 bg-primary text-background">
+      <Picture className="border-background" />
 
-      <div className="relative z-10 col-span-2 text-background">
-        <div className="space-y-0.5">
-          <h2 className="text-3xl font-bold">{basics.name}</h2>
-          <p>{basics.headline}</p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold">{basics.name}</h2>
+        <p>{basics.headline}</p>
+      </div>
 
-        <div className="col-span-2 col-start-2 mt-10 text-foreground">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-            {basics.location && (
-              <>
-                <div className="flex items-center gap-x-1.5">
-                  <i className="ph ph-bold ph-map-pin text-primary" />
-                  <div>{basics.location}</div>
-                </div>
-                <div className="bg-text size-1 rounded-full last:hidden" />
-              </>
-            )}
-
-            {basics.phone && (
-              <>
-                <div className="flex items-center gap-x-1.5">
-                  <i className="ph ph-bold ph-phone text-primary" />
-                  <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-                    {basics.phone}
-                  </a>
-                </div>
-                <div className="bg-text size-1 rounded-full last:hidden" />
-              </>
-            )}
-            {basics.email && (
-              <>
-                <div className="flex items-center gap-x-1.5">
-                  <i className="ph ph-bold ph-at text-primary" />
-                  <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-                    {basics.email}
-                  </a>
-                </div>
-                <div className="bg-text size-1 rounded-full last:hidden" />
-              </>
-            )}
-            {isUrl(basics.url.href) && (
-              <>
-                <Link url={basics.url} />
-                <div className="bg-text size-1 rounded-full last:hidden" />
-              </>
-            )}
-            {basics.customFields.map((item) => (
-              <Fragment key={item.id}>
-                <div className="flex items-center gap-x-1.5">
-                  <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
-                  {isUrl(item.value) ? (
-                    <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
-                      {item.name || item.value}
-                    </a>
-                  ) : (
-                    <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
-                  )}
-                </div>
-                <div className="bg-text size-1 rounded-full last:hidden" />
-              </Fragment>
-            ))}
+      <div className="flex flex-col items-start gap-y-2 text-sm">
+        {basics.location && (
+          <div className="flex items-center gap-x-1.5">
+            <i className="ph ph-bold ph-map-pin" />
+            <div>{basics.location}</div>
           </div>
-        </div>
+        )}
+        {basics.phone && (
+          <div className="flex items-center gap-x-1.5">
+            <i className="ph ph-bold ph-phone" />
+            <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
+              {basics.phone}
+            </a>
+          </div>
+        )}
+        {basics.email && (
+          <div className="flex items-center gap-x-1.5">
+            <i className="ph ph-bold ph-at" />
+            <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
+              {basics.email}
+            </a>
+          </div>
+        )}
+        {isUrl(basics.url.href) && <Link url={basics.url} />}
+        {basics.customFields.map((item) => (
+          <Fragment key={item.id}>
+            <div className="flex items-center gap-x-1.5">
+              <i className={cn(`ph ph-bold ph-${item.icon}`)} />
+              {isUrl(item.value) ? (
+                <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
+                  {item.name || item.value}
+                </a>
+              ) : (
+                <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+              )}
+            </div>
+          </Fragment>
+        ))}
       </div>
     </div>
   );
@@ -101,30 +81,31 @@ const Header = () => {
 
 const Summary = () => {
   const section = useArtboardStore((state) => state.resume.sections.summary);
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   if (!section.visible || isEmptyString(section.content)) return null;
 
   return (
-    <section id={section.id}>
-      <h4 className="mb-2 text-base font-bold">{section.name}</h4>
-
-      <div
-        dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
-        style={{ columns: section.columns }}
-        className="wysiwyg"
-      />
-    </section>
+    <div className="p-custom space-y-4" style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}>
+      <section id={section.id}>
+        <div
+          dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
+          style={{ columns: section.columns }}
+          className="wysiwyg"
+        />
+      </section>
+    </div>
   );
 };
 
 type RatingProps = { level: number };
 
 const Rating = ({ level }: RatingProps) => (
-  <div className="flex items-center gap-x-1.5">
+  <div className="flex items-center gap-x-1">
     {Array.from({ length: 5 }).map((_, index) => (
       <div
         key={index}
-        className={cn("h-2 w-4 border border-primary", level > index && "bg-primary")}
+        className={cn("h-2.5 w-5 border border-primary", level > index && "bg-primary")}
       />
     ))}
   </div>
@@ -143,7 +124,10 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
 
   return (
     <div className="flex items-center gap-x-1.5">
-      {!iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
+      {!iconOnRight &&
+        (icon ?? (
+          <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-background" />
+        ))}
       <a
         href={url.href}
         target="_blank"
@@ -152,7 +136,10 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
       >
         {label ?? (url.label || url.href)}
       </a>
-      {iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
+      {iconOnRight &&
+        (icon ?? (
+          <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-background" />
+        ))}
     </div>
   );
 };
@@ -169,7 +156,7 @@ const LinkedEntity = ({ name, url, separateLinks, className }: LinkedEntityProps
     <Link
       url={url}
       label={name}
-      icon={<i className="ph ph-bold ph-globe text-primary" />}
+      icon={<i className="ph ph-bold ph-globe text-primary group-[.sidebar]:text-primary" />}
       iconOnRight={true}
       className={className}
     />
@@ -201,7 +188,7 @@ const Section = <T,>({
 
   return (
     <section id={section.id} className="grid">
-      <h4 className="mb-2 text-base font-bold">{section.name}</h4>
+      <h4 className="mb-2 border-b border-primary text-base font-bold">{section.name}</h4>
 
       <div
         className="grid gap-x-6 gap-y-3"
@@ -216,17 +203,10 @@ const Section = <T,>({
             const keywords = (keywordsKey && get(item, keywordsKey, [])) as string[] | undefined;
 
             return (
-              <div
-                key={item.id}
-                className={cn("relative space-y-2 pl-4 group-[.sidebar]:pl-0", className)}
-              >
-                <div className="relative -ml-4 group-[.sidebar]:ml-0">
-                  <div className="pl-4 group-[.sidebar]:pl-0">
-                    {children?.(item as T)}
-                    {url !== undefined && section.separateLinks && <Link url={url} />}
-                  </div>
-
-                  <div className="absolute inset-y-0 -left-px border-l-4 border-primary group-[.sidebar]:hidden" />
+              <div key={item.id} className={cn("space-y-2", className)}>
+                <div>
+                  {children?.(item as T)}
+                  {url !== undefined && section.separateLinks && <Link url={url} />}
                 </div>
 
                 {summary !== undefined && !isEmptyString(summary) && (
@@ -241,8 +221,6 @@ const Section = <T,>({
                 {keywords !== undefined && keywords.length > 0 && (
                   <p className="text-sm">{keywords.join(", ")}</p>
                 )}
-
-                <div className="absolute inset-y-0 left-0 border-l border-primary group-[.sidebar]:hidden" />
               </div>
             );
           })}
@@ -287,7 +265,7 @@ const Experience = () => {
             <div>{item.position}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -315,7 +293,7 @@ const Education = () => {
             <div>{item.score}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
             <div>{item.studyType}</div>
           </div>
@@ -341,7 +319,7 @@ const Awards = () => {
             />
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -362,7 +340,7 @@ const Certifications = () => {
             <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -390,7 +368,7 @@ const Interests = () => {
   const section = useArtboardStore((state) => state.resume.sections.interests);
 
   return (
-    <Section<Interest> section={section} className="space-y-0" keywordsKey="keywords">
+    <Section<Interest> section={section} className="space-y-1" keywordsKey="keywords">
       {(item) => <div className="font-bold">{item.name}</div>}
     </Section>
   );
@@ -413,7 +391,7 @@ const Publications = () => {
             <div>{item.publisher}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -439,7 +417,7 @@ const Volunteer = () => {
             <div>{item.position}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -481,7 +459,7 @@ const Projects = () => {
             <div>{item.description}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
           </div>
         </div>
@@ -532,7 +510,7 @@ const Custom = ({ id }: { id: string }) => {
             <div>{item.description}</div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right group-[.sidebar]:text-left">
             <div className="font-bold">{item.date}</div>
             <div>{item.location}</div>
           </div>
@@ -546,9 +524,6 @@ const mapSectionToComponent = (section: SectionKey) => {
   switch (section) {
     case "profiles": {
       return <Profiles />;
-    }
-    case "summary": {
-      return <Summary />;
     }
     case "experience": {
       return <Experience />;
@@ -591,31 +566,35 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Ditto = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Vertex = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
-  return (
-    <div>
-      {isFirstPage && (
-        <div className="relative">
-          <Header />
-          <div className="absolute inset-x-0 top-0 h-[85px] w-full bg-primary" />
-        </div>
-      )}
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
-      <div className="grid grid-cols-3">
-        <div className="sidebar p-custom group space-y-4">
+  return (
+    <div className="grid min-h-[inherit] grid-cols-3">
+      <div
+        className={cn(
+          "sidebar group flex flex-col",
+          !(isFirstPage || sidebar.length > 0) && "hidden",
+        )}
+      >
+        {isFirstPage && <Header />}
+
+        <div
+          className="p-custom flex-1 space-y-4"
+          style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}
+        >
           {sidebar.map((section) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}
         </div>
+      </div>
 
-        <div
-          className={cn(
-            "main p-custom group space-y-4",
-            sidebar.length > 0 ? "col-span-2" : "col-span-3",
-          )}
-        >
+      <div className={cn("main group", sidebar.length > 0 ? "col-span-2" : "col-span-3")}>
+        {isFirstPage && <Summary />}
+
+        <div className="p-custom space-y-4">
           {main.map((section) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}

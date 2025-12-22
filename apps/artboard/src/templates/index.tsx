@@ -1,58 +1,58 @@
 import type { Template } from "@reactive-resume/utils";
 
-import { Azurill } from "./azurill";
-import { Bronzor } from "./bronzor";
-import { Chikorita } from "./chikorita";
-import { Ditto } from "./ditto";
-import { Gengar } from "./gengar";
-import { Glalie } from "./glalie";
-import { Kakuna } from "./kakuna";
-import { Leafish } from "./leafish";
-import { Nosepass } from "./nosepass";
-import { Onyx } from "./onyx";
-import { Pikachu } from "./pikachu";
-import { Rhyhorn } from "./rhyhorn";
+import { Apex } from "./apex";
+import { Sovereign } from "./sovereign";
+import { Imperial } from "./imperial";
+import { Vanguard } from "./vanguard";
+import { Vertex } from "./vertex";
+import { Meridian } from "./meridian";
+import { Ascend } from "./ascend";
+import { Clarity } from "./clarity";
+import { Legacy } from "./legacy";
+import { Prestige } from "./prestige";
+import { Noble } from "./noble";
+import { Regal } from "./regal";
 
 export const getTemplate = (template: Template) => {
   switch (template) {
-    case "azurill": {
-      return Azurill;
+    case "apex": {
+      return Apex;
     }
-    case "bronzor": {
-      return Bronzor;
+    case "sovereign": {
+      return Sovereign;
     }
-    case "chikorita": {
-      return Chikorita;
+    case "imperial": {
+      return Imperial;
     }
-    case "ditto": {
-      return Ditto;
+    case "vanguard": {
+      return Vanguard;
     }
-    case "gengar": {
-      return Gengar;
+    case "vertex": {
+      return Vertex;
     }
-    case "glalie": {
-      return Glalie;
+    case "meridian": {
+      return Meridian;
     }
-    case "kakuna": {
-      return Kakuna;
+    case "ascend": {
+      return Ascend;
     }
-    case "leafish": {
-      return Leafish;
+    case "clarity": {
+      return Clarity;
     }
-    case "nosepass": {
-      return Nosepass;
+    case "legacy": {
+      return Legacy;
     }
-    case "onyx": {
-      return Onyx;
+    case "prestige": {
+      return Prestige;
     }
-    case "pikachu": {
-      return Pikachu;
+    case "noble": {
+      return Noble;
     }
-    case "rhyhorn": {
-      return Rhyhorn;
+    case "regal": {
+      return Regal;
     }
     default: {
-      return Onyx;
+      return Prestige;
     }
   }
 };

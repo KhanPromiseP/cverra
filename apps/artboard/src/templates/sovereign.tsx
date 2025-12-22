@@ -29,51 +29,84 @@ const Header = () => {
 
   return (
     <div className="relative grid grid-cols-3 gap-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/80">
-      {/* Decorative curved shapes */}
-      <div className="absolute -right-32 -top-32 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
-      <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-white/5 blur-2xl"></div>
-      <div className="absolute right-1/4 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-white/5 blur-xl"></div>
-
-      {/* Profile Picture Section with curved background */}
-      <div className="relative z-10 flex items-center justify-center p-1">
-        {/* Curved decorative element behind picture */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-48 w-48 rounded-full bg-gradient-to-br from-white/20 to-white/5 blur-xl"></div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-40 w-40 rounded-full bg-white/10"></div>
-        </div>
-        
-        {/* Picture with elegant border */}
-        <div className="relative rounded-full border-4 border-white p-1 shadow-2xl">
-          <Picture size={200} className="rounded-full" />
-        </div>
-      </div>
-
-      {/* Name and Title Section with curved transition */}
-      <div className="relative col-span-2 flex flex-col justify-center space-y-3 bg-white p-10">
-              {/* Curved edge decoration */}
-            <div className="absolute -left-8 top-0 h-full w-19">
-        <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {/* Pentagon */}
-          <path 
-            d="M50,0 L100,35 L80,100 L20,100 L0,35 Z" 
-            fill="white" 
-          />
+      {/* Enhanced geometric shapes with better structure */}
+      <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-white/10 blur-2xl"></div>
+      <div className="absolute -left-16 -bottom-16 h-36 w-36 rounded-full bg-white/5 blur-xl"></div>
+      <div className="absolute right-1/3 top-1/3 h-28 w-28 rounded-full bg-white/8 blur-lg"></div>
+      
+      {/* Floating geometric elements */}
+      <div className="absolute left-1/4 bottom-8 h-6 w-6 rotate-45 bg-white/20"></div>
+      <div className="absolute right-32 top-20 h-4 w-4 rounded-full bg-white/15"></div>
+      
+      {/* Abstract wave patterns */}
+      <div className="absolute inset-0 opacity-[0.03]">
+        <svg className="h-full w-full" viewBox="0 0 1200 400" preserveAspectRatio="none">
+          <path d="M0,200 C300,100 400,300 600,200 C800,100 900,300 1200,200 L1200,400 L0,400 Z" fill="white"/>
+          <path d="M0,250 C200,150 400,350 800,250 C1000,150 1100,350 1200,250 L1200,400 L0,400 Z" fill="white" opacity="0.5"/>
         </svg>
       </div>
 
-        
-        <div className="relative z-10">
-          <div className="text-5xl font-black uppercase tracking-tight text-gray-900">{basics.name}</div>
-          <div className="mt-2 text-xl font-light uppercase tracking-widest text-primary">{basics.headline}</div>
-          
-          {/* Decorative line */}
-          <div className="mt-4 flex items-center gap-2">
-          <div className="h-1 w-20 bg-gradient-to-r from-primary via-primary/70 to-transparent rounded-full"></div>
-          <div className="h-1 w-8 bg-gradient-to-r from-primary/40 to-transparent rounded-full"></div>
+      {/* Profile Picture Section with enhanced background */}
+      <div className="relative z-10 flex items-center justify-center p-6">
+        {/* Multi-layered background effect */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-44 w-44 rounded-full bg-gradient-to-br from-white/25 to-white/5 blur-2xl"></div>
         </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-36 w-36 rounded-full bg-white/15 blur-lg"></div>
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-32 w-32 rounded-full bg-white/10 animate-pulse-slow"></div>
+        </div>
+        
+        {/* Geometric frame around picture */}
+        <div className="relative">
+          {/* Outer glow effect */}
+          <div className="absolute -inset-3 rounded-full bg-white/20 blur-md"></div>
+          {/* Main picture container */}
+          <div className="relative rounded-full border-4 border-white/90 p-1.5 shadow-2xl">
+            <Picture size={160} className="rounded-full" />
+          </div>
+          {/* Floating corner elements */}
+          <div className="absolute -top-2 -left-2 h-5 w-5 rotate-45 bg-primary/80 rounded-sm"></div>
+          <div className="absolute -bottom-2 -right-2 h-5 w-5 rotate-45 bg-white/80 rounded-sm"></div>
+        </div>
+      </div>
 
+      {/* Name and Title Section with improved curved transition */}
+      <div className="relative col-span-2 flex flex-col justify-center space-y-4 bg-white p-8">
+        {/* Enhanced curved edge with gradient */}
+        <div className="absolute -left-6 top-0 h-full w-20">
+          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M0,0 C35,25 40,60 0,100 L100,100 L100,0 Z" fill="white" />
+            <defs>
+              <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                <stop offset="100%" stopColor="white" stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        
+        <div className="relative z-10 space-y-3">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black uppercase tracking-tight text-gray-900 leading-tight">
+              {basics.name}
+            </h1>
+            <div className="inline-block rounded-full bg-primary px-5 py-2 shadow-lg">
+              <p className="text-lg font-semibold uppercase tracking-wide text-white">
+                {basics.headline}
+              </p>
+            </div>
+          </div>
+          
+          {/* Enhanced decorative elements */}
+          <div className="flex items-center gap-3 pt-2">
+            <div className="h-1.5 w-16 rounded-full bg-gradient-to-r from-primary to-primary/70"></div>
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+            <div className="h-1 w-12 rounded-full bg-gradient-to-r from-primary/50 to-primary/30"></div>
+            <div className="h-1.5 w-1.5 rounded-full bg-primary/60"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -88,15 +121,13 @@ const Summary = () => {
   return (
     <section id={section.id}>
       {/* Sidebar Style */}
-      <div className="absolute -right-32 -top-32 h-64 w-64 rounded-xl bg-white/10 blur-3xl"></div>
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
-        
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
         <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
         <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
@@ -110,8 +141,8 @@ const Summary = () => {
           dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
           style={{ columns: section.columns }}
           className={cn(
-            "wysiwyg text-sm",
-            "group-[.main]:text-justify",
+            "wysiwyg text-sm leading-relaxed",
+            "group-[.main]:text-justify group-[.main]:text-gray-700",
             "group-[.sidebar]:text-white"
           )}
         />
@@ -150,7 +181,7 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
         href={url.href}
         target="_blank"
         rel="noreferrer noopener nofollow"
-        className={cn("inline-block", className)}
+        className={cn("inline-block hover:text-primary hover:underline", className)}
       >
         {label ?? (url.label || url.href)}
       </a>
@@ -208,13 +239,13 @@ const Section = <T,>({
   return (
     <section id={section.id} className="grid">
       {/* Sidebar Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
         <i className={cn(`ph ph-bold ph-${sidebarIcon}`, "text-2xl text-primary")} />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
         <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-2xl text-primary")} />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
@@ -242,16 +273,10 @@ const Section = <T,>({
                 )}
               >
                 {/* Timeline dot for main section */}
-               <div className="absolute -left-[9px] top-0 hidden flex flex-col gap-[2px] group-[.main]:block">
-                <div className="size-2 bg-primary"></div>
-                <div className="size-2 bg-primary/60"></div>
-                <div className="size-2 bg-primary/30"></div>
-              </div>
-
+                <div className="absolute -left-[9px] top-0 hidden size-4 rounded-full border-4 border-primary bg-white group-[.main]:block" />
                 
                 {/* Bullet dot for sidebar section */}
-               <div className="absolute left-[-6px] top-1.5 hidden size-2 bg-primary shadow-[0_0_4px] shadow-primary/70 group-[.sidebar]:block" />
-
+                <div className="absolute left-[-6px] top-1.5 hidden size-2 rounded-full bg-primary group-[.sidebar]:block" />
 
                 <div>{children?.(item as T)}</div>
 
@@ -259,8 +284,8 @@ const Section = <T,>({
                   <div
                     dangerouslySetInnerHTML={{ __html: sanitize(summary) }}
                     className={cn(
-                      "wysiwyg text-sm",
-                      "group-[.main]:text-justify",
+                      "wysiwyg text-sm leading-relaxed",
+                      "group-[.main]:text-justify group-[.main]:text-gray-600",
                       "group-[.sidebar]:text-gray-300"
                     )}
                   />
@@ -287,7 +312,6 @@ const Section = <T,>({
 const Profiles = () => {
   const section = useArtboardStore((state) => {
     const profilesSection = state.resume.sections.profiles;
-    // Force 2 columns for profiles
     return {
       ...profilesSection,
       columns: 2
@@ -306,7 +330,7 @@ const Profiles = () => {
             <BrandIcon slug={item.icon} />
           </div>
           {isUrl(item.url.href) ? (
-            <a href={item.url.href} className="text-sm hover:text-primary" target="_blank" rel="noreferrer">
+            <a href={item.url.href} className="text-sm hover:text-primary hover:underline" target="_blank" rel="noreferrer">
               {item.username}
             </a>
           ) : (
@@ -323,8 +347,8 @@ const ContactInfo = () => {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2">
-        <i className="ph ph-bold ph-user text-2xl text-primary" />
+      <div className="flex items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2">
+        <i className="ph ph-bold ph-address-book text-2xl text-primary" />
         <h3 className="text-base font-bold uppercase text-white">Contact</h3>
       </div>
 
@@ -332,7 +356,7 @@ const ContactInfo = () => {
         {basics.phone && (
           <div className="flex items-start gap-x-3">
             <i className="ph ph-bold ph-phone text-xl text-primary" />
-            <a href={`tel:${basics.phone}`} className="text-sm text-white break-words hover:text-primary">
+            <a href={`tel:${basics.phone}`} className="text-sm text-white break-words hover:text-primary hover:underline">
               {basics.phone}
             </a>
           </div>
@@ -340,7 +364,7 @@ const ContactInfo = () => {
         {basics.email && (
           <div className="flex items-start gap-x-3">
             <i className="ph ph-bold ph-at text-xl text-primary" />
-            <a href={`mailto:${basics.email}`} className="text-sm text-white break-words hover:text-primary">
+            <a href={`mailto:${basics.email}`} className="text-sm text-white break-words hover:text-primary hover:underline">
               {basics.email}
             </a>
           </div>
@@ -354,7 +378,7 @@ const ContactInfo = () => {
         {basics.url && isUrl(basics.url.href) && (
           <div className="flex items-start gap-x-3">
             <i className="ph ph-bold ph-link text-xl text-primary" />
-            <a href={basics.url.href} className="text-sm text-white break-words hover:text-primary" target="_blank" rel="noreferrer">
+            <a href={basics.url.href} className="text-sm text-white break-words hover:text-primary hover:underline" target="_blank" rel="noreferrer">
               {basics.url.label || basics.url.href}
             </a>
           </div>
@@ -363,7 +387,7 @@ const ContactInfo = () => {
           <div key={item.id} className="flex items-start gap-x-3">
             <i className={cn(`ph ph-bold ph-${item.icon}`, "text-xl text-primary")} />
             {isUrl(item.value) ? (
-              <a href={item.value} target="_blank" rel="noreferrer noopener nofollow" className="text-sm text-white hover:text-primary">
+              <a href={item.value} target="_blank" rel="noreferrer noopener nofollow" className="text-sm text-white hover:text-primary hover:underline">
                 {item.name || item.value}
               </a>
             ) : (
@@ -382,23 +406,23 @@ const Experience = () => {
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary" mainIcon="briefcase" sidebarIcon="briefcase">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className={cn(
             "flex items-start justify-between gap-x-4",
-            "group-[.sidebar]:flex-col group-[.sidebar]:gap-y-1"
+            "group-[.sidebar]:flex-col group-[.sidebar]:gap-y-2"
           )}>
-            <div className="flex-1 space-y-0.5">
+            <div className="flex-1 space-y-1">
               <LinkedEntity
                 name={item.company}
                 url={item.url}
                 separateLinks={section.separateLinks}
                 className={cn(
-                  "text-base font-bold uppercase",
+                  "text-base font-bold",
                   "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
                 )}
               />
               <div className={cn(
-                "text-sm font-semibold",
+                "text-sm font-semibold text-primary",
                 "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
               )}>{item.position}</div>
               {item.location && (
@@ -425,7 +449,7 @@ const Education = () => {
   return (
     <Section<Education> section={section} urlKey="url" summaryKey="summary" mainIcon="graduation-cap" sidebarIcon="graduation-cap">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.institution}
             url={item.url}
@@ -436,12 +460,12 @@ const Education = () => {
             )}
           />
           <div className={cn(
-            "text-sm",
+            "text-sm font-medium text-primary",
             "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
           )}>{item.area}</div>
           {item.studyType && (
             <div className={cn(
-              "text-sm uppercase text-gray-600",
+              "text-sm text-gray-600",
               "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
             )}>{item.studyType}</div>
           )}
@@ -467,7 +491,7 @@ const Awards = () => {
   return (
     <Section<Award> section={section} urlKey="url" summaryKey="summary" mainIcon="trophy" sidebarIcon="trophy">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className={cn(
             "font-bold",
             "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
@@ -497,7 +521,7 @@ const Certifications = () => {
   return (
     <Section<Certification> section={section} urlKey="url" summaryKey="summary" mainIcon="certificate" sidebarIcon="certificate">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className={cn(
             "font-bold",
             "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
@@ -527,7 +551,7 @@ const Skills = () => {
   return (
     <Section<Skill> section={section} levelKey="level" keywordsKey="keywords" mainIcon="star" sidebarIcon="star">
       {(item) => (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className={cn(
             "font-semibold uppercase",
             "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
@@ -565,7 +589,7 @@ const Publications = () => {
   return (
     <Section<Publication> section={section} urlKey="url" summaryKey="summary" mainIcon="book" sidebarIcon="book">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.name}
             url={item.url}
@@ -595,7 +619,7 @@ const Volunteer = () => {
   return (
     <Section<Volunteer> section={section} urlKey="url" summaryKey="summary" mainIcon="hand-heart" sidebarIcon="hand-heart">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.organization}
             url={item.url}
@@ -631,7 +655,7 @@ const Languages = () => {
   return (
     <Section<Language> section={section} levelKey="level" mainIcon="translate" sidebarIcon="translate">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className={cn(
             "font-bold",
             "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
@@ -654,7 +678,7 @@ const Projects = () => {
   return (
     <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords" mainIcon="code" sidebarIcon="code">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.name}
             url={item.url}
@@ -686,7 +710,7 @@ const References = () => {
   return (
     <Section<Reference> section={section} urlKey="url" summaryKey="summary" mainIcon="user-check" sidebarIcon="user-check">
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.name}
             url={item.url}
@@ -721,7 +745,7 @@ const Custom = ({ id }: { id: string }) => {
       sidebarIcon="folder"
     >
       {(item) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <LinkedEntity
             name={item.name}
             url={item.url}
@@ -804,7 +828,7 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Azurill = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Sovereign = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (

@@ -25,15 +25,55 @@ import './ArticleCard.css';
 
 const { Title, Paragraph } = Typography;
 
+export interface ArticleCardData {
+  // Required fields
+  id: string;
+  title: string;
+  slug: string;
+  
+  // Optional fields with flexible types
+  coverImage?: string;
+  excerpt?: string;
+  content?: any;
+  readingTime?: number;
+  viewCount?: number;
+  likeCount?: number;
+  commentCount?: number;
+  isLiked?: boolean;
+  isSaved?: boolean;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  accessType?: 'FREE' | 'PREMIUM' | 'PAID' | 'SUBSCRIPTION' | string;
+  author?: {
+    name?: string;
+    picture?: string;
+    [key: string]: any; // Allow additional properties
+  };
+  category?: {
+    name?: string;
+    color?: string;
+    id?: string;
+    slug?: string;
+    [key: string]: any; // Allow additional properties
+  };
+  tags?: string[];
+  availableLanguages?: string[];
+  isPreview?: boolean;
+  price?: number;
+  isPremium?: boolean;
+  // Allow any other properties
+  [key: string]: any;
+}
+
 export interface ArticleCardProps {
-  article: Article;
+  article: ArticleCardData;
   variant?: 'default' | 'featured' | 'compact' | 'minimal';
   showActions?: boolean;
   showCategory?: boolean;
   showTags?: boolean;
   showAuthor?: boolean;
   showStats?: boolean;
-  onClick?: (article: Article) => void;
+  onClick?: (article: ArticleCardData) => void;
   onLike?: (articleId: string) => Promise<void>;
   onSave?: (articleId: string) => Promise<void>;
   onShare?: (articleId: string) => void;
@@ -109,8 +149,15 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   const [isSaved, setIsSaved] = useState(article.isSaved || false);
   const [likeCount, setLikeCount] = useState(article.likeCount || 0);
 
+  // Helper function
+const hasActiveSubscription = (user: any): boolean => {
+  return user?.subscription?.status === 'ACTIVE';
+};
+
   const isPremiumAccess = article.accessType === 'PREMIUM' && 
-    (user?.subscription?.status === 'ACTIVE' || article.isPreview === false);
+    (hasActiveSubscription(user) || article.isPreview === false);
+
+    
 
   const readingTimeColor = (article.readingTime || 5) < 3 ? 'text-green-500' :
                           (article.readingTime || 5) < 8 ? 'text-yellow-500' :
@@ -281,15 +328,14 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
             {getExcerpt()}
           </Paragraph>
 
-          {showTags && article.tags?.length > 0 && (
+          {showTags && (article.tags?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
-              {article.tags.slice(0, 4).map((tag: string) => (
+              {(article.tags || []).slice(0, 4).map((tag: string) => (
                 <Tag
                   key={tag}
                   className="cursor-pointer hover:scale-105 transition-transform"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // You can add tag filter logic here
                   }}
                 >
                   #{truncateText(tag, 15)}
@@ -439,9 +485,9 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
       </div>
       
       {/* Tags */}
-      {showTags && article.tags?.length > 0 && variant !== 'minimal' && (
+      {showTags && (article.tags?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
-          {article.tags.slice(0, 3).map((tag: string) => (
+          {(article.tags || []).slice(0, 3).map((tag: string) => (
             <span
               key={tag}
               className="px-2 py-1 rounded-full text-xs cursor-pointer bg-secondary hover:bg-secondary/80 dark:bg-gray-700 dark:hover:bg-gray-600 text-secondary-foreground dark:text-gray-300 transition-colors"
@@ -504,7 +550,10 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
         )}
         
         <div className="flex items-center gap-2">
-          {article.availableLanguages?.length > 1 && (
+          <span className="text-xs text-muted-foreground dark:text-gray-500">
+            {article.readingTime || 5} min read
+          </span>
+          {(article.availableLanguages?.length ?? 0)> 1 && (
             <Tooltip title={`Available in ${article.availableLanguages?.length || 0} languages`}>
               <GlobalOutlined className="text-blue-400 dark:text-blue-400 cursor-pointer" />
             </Tooltip>

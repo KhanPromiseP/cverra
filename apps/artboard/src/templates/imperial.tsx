@@ -682,7 +682,7 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Chikorita = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Imperial = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (

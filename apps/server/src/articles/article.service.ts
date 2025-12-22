@@ -56,6 +56,8 @@ export class ArticleService {
   }
 
   const isPublished = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  
   
   const article = await this.prisma.article.create({
     data: {
@@ -78,6 +80,16 @@ export class ArticleService {
       targetLanguages: dto.targetLanguages || ['fr'],
       status: isPublished ? ArticleStatus.PUBLISHED : ArticleStatus.DRAFT,
       publishedAt: isPublished ? new Date() : null,
+
+      isFeatured: dto.isFeatured || false,
+      isTrending: dto.isTrending || false,
+      isEditorPick: dto.isEditorPick || false,
+      isPopular: dto.isPopular || false,
+      featuredRanking: dto.featuredRanking || 3,
+      trendingScore: dto.trendingScore || 50,
+      contentType: dto.contentType || 'STANDARD',
+      readingLevel: dto.readingLevel || 'INTERMEDIATE',
+      timeToRead: dto.timeToRead || 5,
     },
     include: {
       category: true,
@@ -266,6 +278,8 @@ async updateArticle(slug: string, userId: string, dto: UpdateArticleDto) {
   if (dto.autoTranslate !== undefined && dto.autoTranslate !== article.autoTranslate) {
     updateData.autoTranslate = dto.autoTranslate;
   }
+
+  
   
   // Handle target languages
   let targetLanguagesChanged = false;
@@ -781,6 +795,8 @@ private hashContent(content: any): string {
 //   return { successful, failed, skipped, results };
 // }
 
+
+
 // NEW: Add this method to manually trigger translations
 async triggerManualTranslations(articleId: string, languages: string[], force: boolean = false) {
   const article = await this.prisma.article.findUnique({
@@ -1214,117 +1230,141 @@ async triggerManualTranslations(articleId: string, languages: string[], force: b
 
   //   return updated;
   // }
+// Update the existing listArticles method in article.service.ts
+async listArticles(options: {
+  page?: number;
+  limit?: number;
+  category?: string | string[];
+  tag?: string;
+  status?: ArticleStatus;
+  accessType?: ContentAccess | 'all';
+  featured?: boolean;
+  trending?: boolean;
+  language?: string;
+  authorId?: string;
+  search?: string;
+  sort?: string;
+  readingTime?: 'short' | 'medium' | 'long' | 'any';
+}) {
+  const page = options.page || 1;
+  const limit = Math.min(options.limit || 20, 100);
+  const skip = (page - 1) * limit;
 
-  async listArticles(options: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    tag?: string;
-    status?: ArticleStatus;
-    accessType?: ContentAccess;
-    featured?: boolean;
-    trending?: boolean;
-    language?: string;
-    authorId?: string;
-    search?: string;
-  }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100); // Cap at 100 for performance
-    const skip = (page - 1) * limit;
+  const where: any = {};
 
-    const where: any = {};
+  // Default to published articles unless specified
+  if (options.status !== undefined) {
+    where.status = options.status;
+  } else {
+    where.status = ArticleStatus.PUBLISHED;
+  }
 
-    // Default to published articles unless specified
-    if (options.status !== undefined) {
-      where.status = options.status;
+  // Handle category (could be string or array)
+  if (options.category) {
+    if (Array.isArray(options.category)) {
+      where.category = { slug: { in: options.category } };
     } else {
-      where.status = ArticleStatus.PUBLISHED;
-    }
-
-    if (options.category) {
       where.category = { slug: options.category };
     }
-
-    if (options.tag) {
-      where.tags = { has: options.tag };
-    }
-
-    if (options.accessType) {
-      where.accessType = options.accessType;
-    }
-
-    if (options.featured !== undefined) {
-      where.isFeatured = options.featured;
-    }
-
-    if (options.trending !== undefined) {
-      where.isTrending = options.trending;
-    }
-
-    if (options.authorId) {
-      where.authorId = options.authorId;
-    }
-
-    if (options.search) {
-      where.OR = [
-        { title: { contains: options.search, mode: 'insensitive' } },
-        { excerpt: { contains: options.search, mode: 'insensitive' } },
-        { plainText: { contains: options.search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [articles, total] = await Promise.all([
-      this.prisma.article.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: {
-          publishedAt: 'desc',
-        },
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              icon: true,
-              color: true,
-            },
-          },
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              picture: true,
-            },
-          },
-          _count: {
-            select: {
-              comments: true,
-              likes: true,
-              views: true,
-            },
-          },
-        },
-      }),
-      this.prisma.article.count({ where }),
-    ]);
-
-    return {
-      articles: articles.map(article => ({
-        ...article,
-        commentCount: article._count.comments,
-        likeCount: article._count.likes,
-        viewCount: article._count.views,
-      })),
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-      hasMore: total > skip + limit,
-    };
   }
+
+  // Handle access type
+  if (options.accessType && options.accessType !== 'all') {
+    where.accessType = options.accessType as ContentAccess;
+  }
+
+  // Handle reading time
+  if (options.readingTime && options.readingTime !== 'any') {
+    const readingTimeCondition = this.getReadingTimeCondition(options.readingTime);
+    if (readingTimeCondition) {
+      where.readingTime = readingTimeCondition;
+    }
+  }
+
+  // Other existing filters...
+  if (options.tag) {
+    where.tags = { has: options.tag };
+  }
+
+  if (options.featured !== undefined) {
+    where.isFeatured = options.featured;
+  }
+
+  if (options.trending !== undefined) {
+    where.isTrending = options.trending;
+  }
+
+  if (options.authorId) {
+    where.authorId = options.authorId;
+  }
+
+  if (options.search) {
+    where.OR = [
+      { title: { contains: options.search, mode: 'insensitive' } },
+      { excerpt: { contains: options.search, mode: 'insensitive' } },
+      { plainText: { contains: options.search, mode: 'insensitive' } },
+    ];
+  }
+
+  // Get sort order
+  const orderBy = this.getSortOrder(options.sort || 'recent');
+
+  const [articles, total] = await Promise.all([
+    this.prisma.article.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            icon: true,
+            color: true,
+          },
+        },
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            picture: true,
+          },
+        },
+      },
+    }),
+    this.prisma.article.count({ where }),
+  ]);
+
+  // Get counts for each article
+  const articlesWithCounts = await Promise.all(
+    articles.map(async (article) => {
+      const [commentCount, likeCount, viewCount] = await Promise.all([
+        this.prisma.articleComment.count({ where: { articleId: article.id, status: 'ACTIVE' } }),
+        this.prisma.articleLike.count({ where: { articleId: article.id } }),
+        this.prisma.articleView.count({ where: { articleId: article.id } }),
+      ]);
+
+      return {
+        ...article,
+        commentCount,
+        likeCount,
+        viewCount,
+      };
+    })
+  );
+
+  return {
+    articles: articlesWithCounts,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasMore: total > skip + limit,
+  };
+}
 
   async getDashboardStats(timeRange: string = '7days') {
   const now = new Date();
@@ -3024,7 +3064,7 @@ async getCommentReplies(
     return Math.max(1, Math.ceil(minutes));
   }
 
-  private getPreviewVersion(article: any) {
+  public getPreviewVersion(article: any) {
     return {
       id: article.id,
       slug: article.slug,
@@ -3057,69 +3097,69 @@ async getCommentReplies(
     return article.isPreview === true;
   }
 
-  async getArticleStats(articleId: string) {
-    const article = await this.prisma.article.findUnique({
-      where: { id: articleId },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        status: true,
-      },
-    });
+  // async getArticleStats(articleId: string) {
+  //   const article = await this.prisma.article.findUnique({
+  //     where: { id: articleId },
+  //     select: {
+  //       id: true,
+  //       title: true,
+  //       slug: true,
+  //       status: true,
+  //     },
+  //   });
 
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
+  //   if (!article) {
+  //     throw new NotFoundException('Article not found');
+  //   }
 
-    const [
-      views,
-      likes,
-      comments,
-      shares,
-      saves,
-      claps,
-      translations,
-    ] = await Promise.all([
-      this.prisma.articleView.count({ where: { articleId } }),
-      this.prisma.articleLike.count({ where: { articleId } }),
-      this.prisma.articleComment.count({ where: { articleId } }),
-      this.prisma.articleShare.count({ where: { articleId } }),
-      this.prisma.articleSave.count({ where: { articleId } }),
-      this.prisma.articleClap.aggregate({
-        where: { articleId },
-        _sum: { count: true },
-      }),
-      this.prisma.articleTranslation.count({ 
-        where: { 
-          articleId,
-          status: TranslationStatus.COMPLETED 
-        } 
-      }),
-    ]);
+  //   const [
+  //     views,
+  //     likes,
+  //     comments,
+  //     shares,
+  //     saves,
+  //     claps,
+  //     translations,
+  //   ] = await Promise.all([
+  //     this.prisma.articleView.count({ where: { articleId } }),
+  //     this.prisma.articleLike.count({ where: { articleId } }),
+  //     this.prisma.articleComment.count({ where: { articleId } }),
+  //     this.prisma.articleShare.count({ where: { articleId } }),
+  //     this.prisma.articleSave.count({ where: { articleId } }),
+  //     this.prisma.articleClap.aggregate({
+  //       where: { articleId },
+  //       _sum: { count: true },
+  //     }),
+  //     this.prisma.articleTranslation.count({ 
+  //       where: { 
+  //         articleId,
+  //         status: TranslationStatus.COMPLETED 
+  //       } 
+  //     }),
+  //   ]);
 
-    return {
-      article: {
-        id: article.id,
-        title: article.title,
-        slug: article.slug,
-        status: article.status,
-      },
-      stats: {
-        views,
-        likes,
-        comments,
-        shares,
-        saves,
-        claps: claps._sum.count || 0,
-        translations,
-      },
-      calculated: {
-        engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
-        avgClapsPerUser: likes > 0 ? (claps._sum.count || 0) / likes : 0,
-      },
-    };
-  }
+  //   return {
+  //     article: {
+  //       id: article.id,
+  //       title: article.title,
+  //       slug: article.slug,
+  //       status: article.status,
+  //     },
+  //     stats: {
+  //       views,
+  //       likes,
+  //       comments,
+  //       shares,
+  //       saves,
+  //       claps: claps._sum.count || 0,
+  //       translations,
+  //     },
+  //     calculated: {
+  //       engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
+  //       avgClapsPerUser: likes > 0 ? (claps._sum.count || 0) / likes : 0,
+  //     },
+  //   };
+  // }
 
 
  async purchaseArticle(articleId: string, userId: string, language: string = 'en') {
@@ -4153,6 +4193,406 @@ async getReadingStats(userId: string): Promise<{
       count: cat.count,
       color: colors[index % colors.length]
     }))
+  };
+}
+
+
+async getArticlesWithAdvancedFilters(options: {
+  page?: number;
+  limit?: number;
+  category?: string | string[];
+  tag?: string;
+  status?: ArticleStatus;
+  accessType?: ContentAccess | 'all';
+  featured?: boolean;
+  trending?: boolean;
+  language?: string;
+  authorId?: string;
+  search?: string;
+  sort?: string;
+  readingTime?: 'short' | 'medium' | 'long' | 'any';
+  minRating?: number;
+  minViews?: number;
+  minLikes?: number;
+  contentType?: string;
+  readingLevel?: string;
+  authors?: string[];
+  languages?: string[];
+  tags?: string[];
+  categories?: string[];
+}): Promise<any> { // Change return type to any or create proper interface
+  const page = options.page || 1;
+  const limit = Math.min(options.limit || 24, 100);
+  const skip = (page - 1) * limit;
+
+  const where: any = { status: ArticleStatus.PUBLISHED };
+
+  // Handle category filter (single or array)
+  if (options.category) {
+    if (Array.isArray(options.category)) {
+      where.category = { slug: { in: options.category } };
+    } else {
+      where.category = { slug: options.category };
+    }
+  }
+
+  // Handle access type filter
+  if (options.accessType && options.accessType !== 'all') {
+    where.accessType = options.accessType as ContentAccess;
+  }
+
+  // Handle reading time filter
+  if (options.readingTime && options.readingTime !== 'any') {
+    const readingTimeCondition = this.getReadingTimeCondition(options.readingTime);
+    if (readingTimeCondition) {
+      where.readingTime = readingTimeCondition;
+    }
+  }
+
+  // Handle multiple authors filter
+  if (options.authors && options.authors.length > 0) {
+    where.authorId = { in: options.authors };
+  }
+
+  // Handle multiple languages filter
+  if (options.languages && options.languages.length > 0) {
+    if (options.languages.includes('en')) {
+      // If English is included, we need to include all articles (English original)
+      // and also check translations for other languages
+      const otherLanguages = options.languages.filter(lang => lang !== 'en');
+      if (otherLanguages.length > 0) {
+        where.OR = [
+          { availableLanguages: { hasSome: otherLanguages } },
+          { language: { in: otherLanguages } }
+        ];
+      }
+    } else {
+      where.OR = [
+        { availableLanguages: { hasSome: options.languages } },
+        { language: { in: options.languages } }
+      ];
+    }
+  }
+
+  // Handle multiple tags filter
+  if (options.tags && options.tags.length > 0) {
+    where.tags = { hasSome: options.tags };
+  }
+
+  // Handle multiple categories filter
+  if (options.categories && options.categories.length > 0) {
+    where.category = { slug: { in: options.categories } };
+  }
+
+  // Handle search
+  if (options.search) {
+    where.OR = [
+      { title: { contains: options.search, mode: 'insensitive' } },
+      { excerpt: { contains: options.search, mode: 'insensitive' } },
+      { plainText: { contains: options.search, mode: 'insensitive' } },
+    ];
+  }
+
+  // Handle featured and trending
+  if (options.featured !== undefined) {
+    where.isFeatured = options.featured;
+  }
+
+  if (options.trending !== undefined) {
+    where.isTrending = options.trending;
+  }
+
+  // Handle author filter
+  if (options.authorId) {
+    where.authorId = options.authorId;
+  }
+
+  // Get sort order
+  const orderBy = this.getSortOrder(options.sort || 'recent');
+
+  // First get count
+  const total = await this.prisma.article.count({ where });
+
+  // Then get articles with separate counts
+  const articles = await this.prisma.article.findMany({
+    where,
+    skip,
+    take: limit,
+    orderBy,
+    include: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          icon: true,
+          color: true,
+          description: true,
+        },
+      },
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          picture: true,
+       
+        },
+      },
+    },
+  });
+
+  // Get counts for each article separately
+  const articlesWithCounts = await Promise.all(
+    articles.map(async (article) => {
+      const [commentCount, likeCount, viewCount, saveCount] = await Promise.all([
+        this.prisma.articleComment.count({ where: { articleId: article.id, status: 'ACTIVE' } }),
+        this.prisma.articleLike.count({ where: { articleId: article.id } }),
+        this.prisma.articleView.count({ where: { articleId: article.id } }),
+        this.prisma.articleSave.count({ where: { articleId: article.id } }),
+      ]);
+
+      return {
+        ...article,
+        commentCount,
+        likeCount,
+        viewCount,
+        saveCount,
+        isPremium: article.accessType === ContentAccess.PREMIUM,
+      };
+    })
+  );
+
+  return {
+    articles: articlesWithCounts,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasMore: total > skip + limit,
+  };
+}
+public async getAllAuthors(): Promise<any[]> {
+  try {
+    const authors = await this.prisma.user.findMany({
+      where: {
+        articles: {
+          some: {
+            status: ArticleStatus.PUBLISHED
+          }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        picture: true,
+        // Remove bio if it doesn't exist in your User model
+        _count: {
+          select: {
+            articles: {
+              where: { status: ArticleStatus.PUBLISHED }
+            }
+          }
+        }
+      },
+      orderBy: {
+        articles: {
+          _count: 'desc'
+        }
+      },
+      take: 50,
+    });
+
+    return authors.map(author => ({
+      id: author.id,
+      name: author.name,
+      username: author.username,
+      picture: author.picture,
+      articleCount: author._count.articles,
+    }));
+  } catch (error) {
+    this.logger.error('Error getting authors:', error);
+    return [];
+  }
+}
+
+
+// Add these methods to the ArticleService class
+
+public getReadingTimeCondition(readingTime: string): any {
+  switch (readingTime) {
+    case 'short':
+      return { lte: 10 }; // ≤10 minutes
+    case 'medium':
+      return { gt: 10, lte: 20 }; // 10-20 minutes
+    case 'long':
+      return { gt: 20 }; // 20+ minutes
+    default:
+      return undefined;
+  }
+}
+
+public getSortOrder(sort: string): any {
+  switch (sort) {
+    case 'recent':
+      return { publishedAt: 'desc' };
+    case 'popular':
+      return { viewCount: 'desc' };
+    case 'trending':
+      return { trendingScore: 'desc' };
+    case 'reading_time':
+      return { readingTime: 'asc' };
+    case 'title_asc':
+      return { title: 'asc' };
+    case 'title_desc':
+      return { title: 'desc' };
+    case 'most_commented':
+      return { commentCount: 'desc' };
+    case 'most_saved':
+      return { saveCount: 'desc' };
+    case 'most_liked':
+      return { likeCount: 'desc' };
+    default:
+      return { publishedAt: 'desc' };
+  }
+}
+
+public async getAllTags(): Promise<{ name: string; count: number }[]> {
+  try {
+    // Get all articles with their tags
+    const articles = await this.prisma.article.findMany({
+      where: { status: ArticleStatus.PUBLISHED },
+      select: { tags: true },
+    });
+
+    // Count tag occurrences
+    const tagCounts: Record<string, number> = {};
+    articles.forEach(article => {
+      if (article.tags && Array.isArray(article.tags)) {
+        article.tags.forEach(tag => {
+          if (tag) {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Convert to array and sort by count
+    return Object.entries(tagCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  } catch (error) {
+    this.logger.error('Error getting tags:', error);
+    return [];
+  }
+}
+
+public async getArticleStats(): Promise<any> {
+  const [
+    totalArticles,
+    freeArticles,
+    premiumArticles,
+    featuredArticles,
+    trendingArticles,
+    totalViews,
+    totalLikes,
+    totalComments,
+    totalSaves
+  ] = await Promise.all([
+    // Total articles
+    this.prisma.article.count({ 
+      where: { status: ArticleStatus.PUBLISHED } 
+    }),
+    
+    // Free articles
+    this.prisma.article.count({
+      where: { 
+        status: ArticleStatus.PUBLISHED,
+        accessType: ContentAccess.FREE 
+      },
+    }),
+    
+    // Premium articles
+    this.prisma.article.count({
+      where: { 
+        status: ArticleStatus.PUBLISHED,
+        accessType: ContentAccess.PREMIUM 
+      },
+    }),
+    
+    // Featured articles
+    this.prisma.article.count({
+      where: { 
+        status: ArticleStatus.PUBLISHED,
+        isFeatured: true 
+      },
+    }),
+    
+    // Trending articles
+    this.prisma.article.count({
+      where: { 
+        status: ArticleStatus.PUBLISHED,
+        isTrending: true 
+      },
+    }),
+    
+    // Total views
+    this.prisma.articleView.count(),
+    
+    // Total likes
+    this.prisma.articleLike.count(),
+    
+    // Total comments
+    this.prisma.articleComment.count(),
+    
+    // Total saves
+    this.prisma.articleSave.count(),
+  ]);
+
+  return {
+    totalArticles,
+    freeArticles,
+    premiumArticles,
+    featuredArticles,
+    trendingArticles,
+    totalViews,
+    totalLikes,
+    totalComments,
+    totalSaves,
+    averageRating: 4.5, // You'll need to implement ratings
+  };
+}
+
+
+
+public getArticlePreview(article: any) {
+  // Simple preview version without full content
+  return {
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt,
+    preview: article.excerpt?.substring(0, 200) + (article.excerpt?.length > 200 ? '...' : ''),
+    category: article.category,
+    tags: article.tags,
+    accessType: article.accessType,
+    coinPrice: article.coinPrice,
+    author: article.author,
+    coverImage: article.coverImage,
+    readingTime: article.readingTime,
+    status: article.status,
+    isFeatured: article.isFeatured,
+    isTrending: article.isTrending,
+    viewCount: article.viewCount || 0,
+    likeCount: article.likeCount || 0,
+    commentCount: article.commentCount || 0,
+    publishedAt: article.publishedAt,
+    availableLanguages: article.availableLanguages || [],
+    isPreview: true,
+    requiresPurchase: article.accessType === ContentAccess.PREMIUM,
+    createdAt: article.createdAt,
+    updatedAt: article.updatedAt,
   };
 }
 }

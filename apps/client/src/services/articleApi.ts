@@ -63,6 +63,24 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
+
+export interface ArticleListDto {
+  articles: Article[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  totalPages?: number;
+  filters?: {
+    category?: string;
+    tag?: string;
+    status?: string;
+    accessType?: string;
+    featured?: boolean;
+    trending?: boolean;
+  };
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -109,7 +127,12 @@ export interface FilterParams {
   language?: string;
   author?: string;
   status?: string;
+  featured?: boolean;
+  trending?: boolean;
+  accessType?: 'FREE' | 'PREMIUM' | 'ALL';
+  readingTime?: 'short' | 'medium' | 'long';
 }
+
 
 export interface ClapRequest {
   count: number;
@@ -121,10 +144,20 @@ export interface ShareRequest {
   language?: string;
 }
 
+// Search interfaces
+export interface SearchFilters {
+  category?: string[];
+  tags?: string[];
+  readingTime?: [number, number];
+  publishedDate?: [string, string] | null;
+  accessType?: string[];
+  sortBy?: 'relevance' | 'recent' | 'popular' | 'reading_time';
+}
+
 // Main API object
 export const articleApi = {
   // Get articles with pagination and filters
-  getArticles: (params?: FilterParams): Promise<ApiResponse<PaginatedResponse<Article>>> => 
+ getArticles: (params?: FilterParams): Promise<ApiResponse<ArticleListDto>> => 
     apiClient.get('/articles', { params }),
   
   
@@ -158,6 +191,10 @@ getAnalytics: (timeframe: string) => {
 getArticleAvailableLanguages:(articleId: string): Promise<any> => 
   apiClient.get(`/articles/${articleId}/languages`),
 
+
+// Translate article
+translateArticle: (articleId: string, targetLanguage: string): Promise<any> => 
+  apiClient.post(`/articles/${articleId}/translate`, { targetLanguage }),
 
   // Get single article
   // getArticle: (slug: string, language?: string): Promise<ApiResponse<Article>> => 
@@ -238,8 +275,8 @@ getArticleAvailableLanguages:(articleId: string): Promise<any> =>
 
 
   // Search
-  searchArticles: (query: string, params?: FilterParams): Promise<ApiResponse<PaginatedResponse<Article>>> => 
-    apiClient.get('/search/articles', { params: { q: query, ...params } }),
+  // searchArticles: (query: string, params?: FilterParams): Promise<ApiResponse<PaginatedResponse<Article>>> => 
+  //   apiClient.get('/search/articles', { params: { q: query, ...params } }),
 
   // View tracking
   trackArticleView: (articleId: string, duration?: number): Promise<ApiResponse<{ tracked: boolean }>> =>
@@ -251,6 +288,51 @@ getArticleAvailableLanguages:(articleId: string): Promise<any> =>
 
   bulkSaveArticles: (articleIds: string[]): Promise<ApiResponse<{ success: boolean }>> =>
     apiClient.post('/articles/bulk/save', { articleIds }),
+
+
+   // Search functions (updated without language)
+  searchArticles: async (query: string, filters?: SearchFilters): Promise<ApiResponse<PaginatedResponse<Article>>> => {
+    const params: any = { q: query };
+    
+    if (filters) {
+      if (filters.category?.length) params.category = filters.category.join(',');
+      if (filters.tags?.length) params.tags = filters.tags.join(',');
+      if (filters.readingTime) {
+        params.minReadingTime = filters.readingTime[0];
+        params.maxReadingTime = filters.readingTime[1];
+      }
+      if (filters.publishedDate) {
+        params.publishedFrom = filters.publishedDate[0];
+        params.publishedTo = filters.publishedDate[1];
+      }
+      if (filters.accessType?.length) params.accessType = filters.accessType.join(',');
+      if (filters.sortBy) params.sortBy = filters.sortBy;
+    }
+    
+    return apiClient.get('/search/articles', { params });
+  },
+
+  getSearchSuggestions: async (query: string): Promise<string[]> => {
+    try {
+      const response = await apiClient.get('/search/suggestions', { 
+        params: { q: query, limit: 10 }
+      });
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+      return [];
+    }
+  },
+
+  getTrendingSearches: async (): Promise<string[]> => {
+    try {
+      const response = await apiClient.get('/search/trending');
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Failed to fetch trending searches:', error);
+      return ['productivity tips', 'career growth', 'mindfulness', 'leadership'];
+    }
+  },
 
 
 
@@ -301,6 +383,74 @@ exportArticlePDF: (articleId: string): Promise<Blob> =>
   apiClient.get(`/articles/${articleId}/export/pdf`, { 
     responseType: 'blob' 
   }),
+
+
+  // All articles page endpoints
+getFilterOptions: (): Promise<any> =>
+  apiClient.get('/articles/all/filters'),
+
+getFilteredArticles: (params: {
+  page?: number;
+  limit?: number;
+  category?: string | string[];
+  tag?: string;
+  accessType?: 'all' | 'free' | 'premium';
+  featured?: boolean;
+  trending?: boolean;
+  search?: string;
+  sort?: string;
+  readingTime?: 'short' | 'medium' | 'long' | 'any';
+  authors?: string[];
+  languages?: string[];
+  tags?: string[];
+  categories?: string[];
+}): Promise<any> =>
+  apiClient.post('/articles/all/filtered', params),
+
+getArticleOverviewStats: (): Promise<any> =>
+  apiClient.get('/articles/stats/overview'),
+
+// Bulk operations for All Articles page
+bulkToggleSaveArticles: (articleIds: string[], save: boolean): Promise<any> =>
+  apiClient.post('/articles/bulk/save-toggle', { articleIds, save }),
+
+bulkToggleLikeArticles: (articleIds: string[], like: boolean): Promise<any> =>
+  apiClient.post('/articles/bulk/like-toggle', { articleIds, like }),
+
+// Export functionality
+exportFilteredArticles: (params: any): Promise<Blob> =>
+  apiClient.post('/articles/export/filtered', params, { 
+    responseType: 'blob' 
+  }),
+
+// Advanced search
+advancedSearch: (params: {
+  query: string;
+  categoryIds?: string[];
+  tagIds?: string[];
+  authorIds?: string[];
+  minReadingTime?: number;
+  maxReadingTime?: number;
+  publishedAfter?: string;
+  publishedBefore?: string;
+  sortBy?: string;
+  page?: number;
+  limit?: number;
+}): Promise<any> =>
+  apiClient.post('/articles/search/advanced', params),
+
+// Save/Load filter presets
+saveFilterPreset: (preset: {
+  name: string;
+  filters: any;
+}): Promise<any> =>
+  apiClient.post('/articles/filters/save', preset),
+
+getSavedFilterPresets: (): Promise<any> =>
+  apiClient.get('/articles/filters/saved'),
+
+deleteFilterPreset: (presetId: string): Promise<any> =>
+  apiClient.delete(`/articles/filters/${presetId}`),
 
 
 

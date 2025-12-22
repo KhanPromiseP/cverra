@@ -1,11 +1,22 @@
-// ArticleEditor.tsx
 import React, { useState } from 'react';
 import { Button, Space, message } from 'antd';
 import { CodeOutlined, EditOutlined } from '@ant-design/icons';
-import RichTextEditor, { tiptapToHTML, htmlToTiptap } from './RichTextEditor';
+import RichTextEditor from './RichTextEditor';
+import { tiptapToHTML, htmlToTiptap } from '../../utils/tiptap-converters';
 import CodeEditor from './CodeEditor';
 
-const ArticleEditor = ({ value, onChange, disabled }) => {
+// Define the props interface
+interface ArticleEditorProps {
+  value: any; // You might want to be more specific here (e.g., `TiptapContent`)
+  onChange: (content: any) => void;
+  disabled?: boolean;
+}
+
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ 
+  value, 
+  onChange, 
+  disabled = false 
+}) => {
   const [mode, setMode] = useState<'wysiwyg' | 'code'>('wysiwyg');
   const [htmlCache, setHtmlCache] = useState<string>('');
 

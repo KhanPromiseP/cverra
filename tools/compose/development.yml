@@ -54,13 +54,12 @@ services:
   chrome:
     image: ghcr.io/browserless/chromium:latest
     restart: unless-stopped
-    ports:
-      - ${CHROME_PORT:-8080}:3000
+    ports: ["3001:3000"]
     environment:
       HEALTH: "true"
       TOKEN: ${CHROME_TOKEN:-chrome_token}
       PROXY_HOST: "localhost"
-      PROXY_PORT: ${CHROME_PORT:-8080}
+      PROXY_PORT: 3001
       PROXY_SSL: "false"
     extra_hosts:
       - "host.docker.internal:host-gateway"

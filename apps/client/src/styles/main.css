@@ -24,3 +24,20 @@
 /* .rounded-full {
   border-radius: 50% !important;
 } */ 
+
+
+.sonner-toast {
+  z-index: 100000 !important;
+}
+
+.sonner-toast-wrapper {
+  z-index: 100000 !important;
+}
+
+[data-sonner-toast] {
+  z-index: 100000 !important;
+}
+
+[data-sonner-toaster] {
+  z-index: 100000 !important;
+}

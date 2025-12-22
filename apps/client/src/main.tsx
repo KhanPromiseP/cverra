@@ -14,26 +14,71 @@
 // );
 
 
-// client/app.tsx
+
+// import { StrictMode } from "react";
+// import * as ReactDOM from "react-dom/client";
+// import { RouterProvider } from "react-router";
+// import { Toaster } from 'sonner';
+
+// import { router } from "./router";
+
+// // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+// const root = ReactDOM.createRoot(document.querySelector("#root")!);
+
+// root.render(
+//   <StrictMode>
+//     <RouterProvider router={router} />
+//     <Toaster
+//       position="top-right"
+//       expand={true}
+//       richColors
+//       closeButton
+//       style={{ zIndex: 9999 }}
+//     />
+//   </StrictMode>,
+// );
+
+
+
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router";
-import { Toaster } from 'sonner';
+import { Toaster } from "sonner";
 
 import { router } from "./router";
+import { dynamicActivate } from "./libs/lingui";
+
+// Set English as default locale
+const defaultLocale = "en-US";
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 const root = ReactDOM.createRoot(document.querySelector("#root")!);
 
-root.render(
-  <StrictMode>
-    <RouterProvider router={router} />
-    <Toaster
-      position="top-right"
-      expand={true}
-      richColors
-      closeButton
-      style={{ zIndex: 9999 }}
-    />
-  </StrictMode>,
-);
+async function bootstrap() {
+  const locale = localStorage.getItem("locale") || defaultLocale;
+
+  // Activate the initial locale
+  await dynamicActivate(locale);
+
+  // Preload other locales in background
+  // ["en-US", "fr-FR"].forEach((l) => {
+  //   if (l !== locale) dynamicActivate(l);
+  // });
+
+  root.render(
+    <StrictMode>
+      <RouterProvider router={router} />
+      <Toaster
+        position="top-right"
+        expand
+        richColors
+        closeButton
+        style={{ zIndex: 9999 }}
+      />
+    </StrictMode>
+  );
+}
+
+bootstrap();
+
+

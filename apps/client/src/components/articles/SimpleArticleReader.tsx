@@ -20,7 +20,8 @@ import {
   Rate,
   Badge,
   Spin,
-  Progress
+  Progress,
+  Alert,
 } from 'antd';
 import { 
   HeartOutlined, 
@@ -51,8 +52,12 @@ import {
   LockOutlined,
   LinkOutlined,
   PictureOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  CheckOutlined,
+  
 } from '@ant-design/icons';
+import { Fragment } from "react"; 
+import { Menu, Transition } from "@headlessui/react";
 import articleApi, { Article, Author, Category, Comment } from '../../services/articleApi';
 import { apiClient } from '../../services/api-client';
 import AuthModal from '../common/AuthModal';
@@ -175,18 +180,18 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const handleLanguageChange = async (language: string) => {
   if (!article || language === currentLanguage) return;
   
-  console.log('🌐 Switching language to:', language);
-  console.log('📚 Available languages:', article.availableLanguages);
+  console.log(' Switching language to:', language);
+  console.log(' Available languages:', article.availableLanguages);
   
   if (article.availableLanguages && article.availableLanguages.includes(language)) {
     setCurrentLanguage(language);
     
     setIsTranslating(true);
     try {
-      console.log('📡 Making API request with params:', { language });
+      console.log('Making API request with params:', { language });
       const response = await articleApi.getArticle(article.slug, { language });
       
-      console.log('✅ API Response:', {
+      console.log('API Response:', {
         status: response.status,
         data: response.data,
         isTranslated: response.data?.isTranslated,
@@ -278,11 +283,11 @@ const getTimeAgo = (dateString: string): string => {
 
 // Helper function to get engagement label
 const getEngagementLabel = (score: number): { label: string; color: string } => {
-  if (score >= 80) return { label: '🔥 Hot', color: '#fa541c' };
-  if (score >= 60) return { label: '📈 Trending', color: '#fa8c16' };
-  if (score >= 40) return { label: '👍 Popular', color: '#52c41a' };
-  if (score >= 20) return { label: '📚 Good read', color: '#1890ff' };
-  return { label: '📖 New', color: '#8c8c8c' };
+  if (score >= 80) return { label: ' Hot', color: '#fa541c' };
+  if (score >= 60) return { label: ' Trending', color: '#fa8c16' };
+  if (score >= 40) return { label: ' Popular', color: '#52c41a' };
+  if (score >= 20) return { label: ' Good read', color: '#1890ff' };
+  return { label: ' New', color: '#8c8c8c' };
 };
 
 // Helper function to get reading time text
@@ -399,7 +404,7 @@ const isCurrentUserComment = (comment: any): boolean => {
     if (!user) return false;
     
     // Get current user ID
-    const currentUserId = user.id || user._id;
+    const currentUserId = user.id;
     if (!currentUserId) return false;
     
     // Get author from comment (handles both author and user fields)
@@ -443,25 +448,24 @@ const renderPremiumContentPlaceholder = () => {
 };
 
 
-// Function to save edited comment
 const handleSaveEdit = async (commentId: string) => {
   if (!editCommentText.trim()) return;
   
-  try {
-    // Save original comment for rollback
-    const findOriginalComment = (comments: any[]): any => {
-      for (const comment of comments) {
-        if (comment.id === commentId) return comment;
-        if (comment.replies?.length) {
-          const found = findOriginalComment(comment.replies);
-          if (found) return found;
-        }
+  // Save original comment for rollback - declare it here (outside try-catch)
+  const findOriginalComment = (comments: any[]): any => {
+    for (const comment of comments) {
+      if (comment.id === commentId) return comment;
+      if (comment.replies?.length) {
+        const found = findOriginalComment(comment.replies);
+        if (found) return found;
       }
-      return null;
-    };
-    
-    const originalComment = findOriginalComment(comments);
-    
+    }
+    return null;
+  };
+  
+  const originalComment = findOriginalComment(comments); // ✅ Now accessible in catch block
+  
+  try {
     // OPTIMISTIC UPDATE
     const updateCommentContent = (comments: any[]): any[] => {
       return comments.map(comment => {
@@ -502,7 +506,7 @@ const handleSaveEdit = async (commentId: string) => {
   } catch (error) {
     console.error('Failed to update comment:', error);
     
-    // Revert optimistic update on error
+    // Revert optimistic update on error - ✅ Now originalComment is accessible
     if (originalComment) {
       const revertUpdate = (comments: any[]): any[] => {
         return comments.map(comment => {
@@ -1050,7 +1054,6 @@ const ReadingSettingsModal = React.memo(({
 });
 
 
-
 const LanguageSwitcher: React.FC<{
   availableLanguages: string[];
   currentLanguage: string;
@@ -1065,38 +1068,252 @@ const LanguageSwitcher: React.FC<{
   articleId 
 }) => {
   const [isManualTranslating, setIsManualTranslating] = useState(false);
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
+  const [translationProgress, setTranslationProgress] = useState<number>(0);
+  const [translationStatus, setTranslationStatus] = useState<'idle' | 'progress' | 'complete'>('idle');
+  
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { user } = useUser();
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      cleanupIntervals();
+    };
+  }, []);
+
+  const cleanupIntervals = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+  // Check if translation is already available when modal opens
+  useEffect(() => {
+    const checkIfAlreadyTranslated = async () => {
+      if (isManualTranslating && selectedLanguage && articleId) {
+        try {
+          const alreadyExists = await checkTranslationExists(selectedLanguage);
+          if (alreadyExists) {
+            handleTranslationComplete();
+          }
+        } catch (error) {
+          console.error('Error checking initial translation status:', error);
+        }
+      }
+    };
+    
+    if (isManualTranslating && translationStatus === 'idle') {
+      checkIfAlreadyTranslated();
+    }
+  }, [isManualTranslating, selectedLanguage, articleId, translationStatus]);
+
+  // Handle translation completion when progress reaches 100%
+  useEffect(() => {
+    if (translationProgress === 100 && translationStatus === 'progress') {
+      handleTranslationComplete();
+    }
+  }, [translationProgress, translationStatus]);
+
+  const checkTranslationExists = async (targetLanguage: string): Promise<boolean> => {
+    if (!articleId) return false;
+    
+    try {
+      const languagesResponse = await articleApi.getArticleAvailableLanguages(articleId);
+      const newLanguages = languagesResponse?.languages?.map((lang: any) => lang.language) || [];
+      return newLanguages.includes(targetLanguage);
+    } catch (error) {
+      console.error('Error checking translation existence:', error);
+      return false;
+    }
+  };
+
+  const handleTranslationComplete = () => {
+    setTranslationStatus('complete');
+    cleanupIntervals();
+    
+    // Show completion for 2 seconds before closing and switching
+    setTimeout(() => {
+      if (selectedLanguage) {
+        const userName = user?.name || 'Reader';
+        showTranslationSuccess(userName, selectedLanguage);
+        onLanguageChange(selectedLanguage);
+      }
+      
+      // Reset state
+      setTimeout(() => {
+        setIsManualTranslating(false);
+        setSelectedLanguage(null);
+        setTranslationProgress(0);
+        setTranslationStatus('idle');
+      }, 500);
+    }, 2000);
+  };
+
+  const showTranslationSuccess = (userName: string, language: string) => {
+    notification.success({
+      message: (
+        <div className="flex items-center gap-2">
+          <div className="text-lg">🎉</div>
+          <div>
+            <div className="font-bold">Excellent news, {userName}!</div>
+            <div className="text-sm text-gray-600">Your {getLanguageName(language)} translation is ready</div>
+          </div>
+        </div>
+      ),
+      description: (
+        <div className="space-y-2">
+          <div className="text-sm">
+            You can now enjoy the outstanding knowledge of Cverra in {getLanguageName(language)} for best understanding.
+          </div>
+          <div className="text-xs text-gray-500">
+            Cverra is committed to making knowledge accessible to everyone. Thank you for helping us expand our reach!
+          </div>
+          <div className="mt-2 text-xs text-blue-600">
+            <strong>Note:</strong> Once translated by one person, the language becomes available for everyone!
+          </div>
+        </div>
+      ),
+      duration: 8,
+      placement: 'topRight',
+      className: 'translation-success-notification',
+      style: {
+        background: 'linear-gradient(135deg, #f6ffed 0%, #f0f5ff 100%)',
+        border: '2px solid #52c41a',
+        borderRadius: '8px',
+      }
+    });
+  };
 
   const handleManualTranslate = async (targetLanguage: string) => {
     if (!articleId) return;
     
-    setIsManualTranslating(true);
+    // Check if translation already exists first
     try {
-      // Call backend to generate translation
+      const alreadyTranslated = await checkTranslationExists(targetLanguage);
+      if (alreadyTranslated) {
+        notification.info({
+          message: 'Translation Already Available',
+          description: `The ${getLanguageName(targetLanguage)} translation already exists! Switching now...`,
+          duration: 3,
+        });
+        onLanguageChange(targetLanguage);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking existing translation:', error);
+    }
+    
+    // Start new translation process
+    setSelectedLanguage(targetLanguage);
+    setIsManualTranslating(true);
+    setTranslationProgress(0);
+    setTranslationStatus('progress');
+    
+    // Clear any existing intervals
+    cleanupIntervals();
+  
+    try {
+      // Start the translation
       const response = await articleApi.translateArticle(articleId, targetLanguage);
       
       if (response.success) {
+        // Show initial notification
         notification.success({
-          message: 'Translation Started',
-          description: `${getLanguageName(targetLanguage)} translation is being generated.`,
-          duration: 3,
+          message: 'Translation Requested! 🚀',
+          description: `Our AI is now generating a ${getLanguageName(targetLanguage)} translation.`,
+          duration: 4,
         });
         
-        // Refresh available languages
-        setTimeout(() => {
-          onLanguageChange(targetLanguage);
-        }, 3000);
+        // Start realistic progress simulation
+        let simulatedProgress = 0;
+        progressIntervalRef.current = setInterval(() => {
+          simulatedProgress += Math.random() * 8 + 3; // 3-11% increments
+          if (simulatedProgress >= 95) {
+            setTranslationProgress(95);
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+          } else {
+            setTranslationProgress(Math.floor(simulatedProgress));
+          }
+        }, 1000);
+        
+        // Start polling for translation completion
+        let checkCount = 0;
+        const maxChecks = 60; // Check for up to 3 minutes
+        
+        const pollForCompletion = async () => {
+          if (checkCount >= maxChecks || translationStatus === 'complete') {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            
+            if (checkCount >= maxChecks && translationStatus !== 'complete') {
+              notification.info({
+                message: 'Translation Taking Longer',
+                description: 'Your translation is still being processed. It will appear automatically when ready.',
+                duration: 5,
+              });
+              // Don't close modal - let user see the 95% progress
+            }
+            return;
+          }
+          
+          checkCount++;
+          
+          try {
+            const alreadyTranslated = await checkTranslationExists(targetLanguage);
+            if (alreadyTranslated) {
+              setTranslationProgress(100);
+              return;
+            }
+            
+            // Adjust polling frequency based on check count
+            if (checkCount > 5 && pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = setInterval(pollForCompletion, 3000);
+            }
+          } catch (error) {
+            console.error('Error polling translation status:', error);
+          }
+        };
+        
+        // Start polling immediately and then every 5 seconds
+        pollForCompletion(); // Immediate check
+        pollingIntervalRef.current = setInterval(pollForCompletion, 5000);
+        
+      } else {
+        throw new Error('Translation request failed');
       }
-    } catch (error) {
-      notification.error({
-        message: 'Translation Failed',
-        description: 'Could not generate translation at this time.',
-        duration: 3,
-      });
-    } finally {
+    } catch (error: any) {
+      console.error('Translation request failed:', error);
+      
+      // Reset state
       setIsManualTranslating(false);
+      setSelectedLanguage(null);
+      setTranslationProgress(0);
+      setTranslationStatus('idle');
+      cleanupIntervals();
+      
+      notification.error({
+        message: 'Translation Request Failed',
+        description: error.response?.data?.message || 'Could not request translation. Please try again later.',
+        duration: 4,
+      });
     }
   };
 
+  // Language items for existing translations
   const languageItems = availableLanguages.map(lang => ({
     key: lang,
     label: (
@@ -1113,7 +1330,7 @@ const LanguageSwitcher: React.FC<{
     onClick: () => onLanguageChange(lang),
   }));
 
-  // Add "Translate to..." options for common languages not yet available
+  // Suggested languages for translation
   const suggestedLanguages = ['fr', 'es', 'de', 'pt', 'ar', 'hi', 'zh', 'ja', 'ru']
     .filter(lang => !availableLanguages.includes(lang))
     .map(lang => ({
@@ -1124,42 +1341,376 @@ const LanguageSwitcher: React.FC<{
             <span className="text-lg">{getLanguageFlag(lang)}</span>
             <span>Translate to {getLanguageName(lang)}</span>
           </div>
-          {isManualTranslating && <Spin size="small" />}
+          {isManualTranslating && selectedLanguage === lang && (
+            <Spin size="small" />
+          )}
         </div>
       ),
       onClick: () => handleManualTranslate(lang),
       disabled: isManualTranslating,
     }));
 
-  const allItems = [...languageItems];
-  
-  if (suggestedLanguages.length > 0) {
-    allItems.push({ type: 'divider' });
-    allItems.push(...suggestedLanguages);
-  }
+  // Create menu items with proper structure
+  const menuItems = [
+    // Existing languages
+    ...languageItems,
+    
+    // Divider (if there are suggested languages)
+    ...(suggestedLanguages.length > 0 ? [
+      {
+        type: 'divider' as const,
+        key: 'divider-1',
+      },
+      // Suggested languages for translation
+      ...suggestedLanguages,
+    ] : []),
+    
+    // Divider for "Other Languages" section
+    {
+      type: 'divider' as const,
+      key: 'divider-other',
+    },
+    
+    // Request other languages option
+    // {
+    //   key: 'other-languages',
+    //   label: (
+    //     <div className="flex items-center gap-2">
+    //       <span className="text-lg">🌐</span>
+    //       <span>Request another language</span>
+    //     </div>
+    //   ),
+    //   onClick: () => setShowTranslationModal(true),
+    // }
+  ];
 
   return (
-    <Dropdown
-      menu={{ items: allItems }}
-      trigger={['click']}
-      placement="bottomRight"
-      overlayClassName="w-48"
-    >
-      <Button
-        type="text"
-        icon={<GlobalOutlined />}
-        size="large"
-        className="text-muted-foreground hover:text-primary flex items-center gap-2"
-        loading={isLoading}
+    <>
+      <Dropdown
+        menu={{ items: menuItems }}
+        trigger={['click']}
+        placement="bottomRight"
+        overlayClassName="w-56"
       >
-        <span className="hidden sm:inline">
-          {getLanguageFlag(currentLanguage)} {getLanguageName(currentLanguage)}
-        </span>
-        <span className="sm:hidden">
-          {getLanguageFlag(currentLanguage)}
-        </span>
-      </Button>
-    </Dropdown>
+        <Button
+          type="text"
+          icon={<GlobalOutlined />}
+          size="large"
+          className="text-muted-foreground hover:text-primary flex items-center gap-2"
+          loading={isLoading || isManualTranslating}
+        >
+          <span className="hidden sm:inline">
+            {getLanguageFlag(currentLanguage)} {getLanguageName(currentLanguage)}
+          </span>
+          <span className="sm:hidden">
+            {getLanguageFlag(currentLanguage)}
+          </span>
+          {isManualTranslating && (
+            <span className="animate-pulse text-xs text-blue-500">Translating...</span>
+          )}
+        </Button>
+      </Dropdown>
+
+
+
+    {/* Translation Request Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+              <TranslationOutlined className="text-blue-600 dark:text-blue-300" />
+            </div>
+            <span>Request Translation</span>
+          </div>
+        }
+        open={showTranslationModal}
+        onCancel={() => setShowTranslationModal(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setShowTranslationModal(false)}>
+            Cancel
+          </Button>,
+          <Button 
+            key="close" 
+            type="primary" 
+            onClick={() => setShowTranslationModal(false)}
+          >
+            Got it
+          </Button>
+        ]}
+      >
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-lg">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm">
+                <span className="text-2xl">🌍</span>
+              </div>
+              <div>
+                <Title level={5} className="!mb-2">Make Knowledge Accessible</Title>
+                <Text type="secondary">
+                  Request translations to help make Cverra content available in more languages.
+                </Text>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-green-600 dark:text-green-300 text-sm">1</span>
+              </div>
+              <div>
+                <Text strong>Select a language</Text>
+                <Text type="secondary" className="text-sm">
+                  Choose from the dropdown menu above to request translation
+                </Text>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-blue-600 dark:text-blue-300 text-sm">2</span>
+              </div>
+              <div>
+                <Text strong>AI-powered translation</Text>
+                <Text type="secondary" className="text-sm">
+                  Our advanced AI translates with quality review (1-3 minutes)
+                </Text>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-purple-600 dark:text-purple-300 text-sm">3</span>
+              </div>
+              <div>
+                <Text strong>Quality assurance</Text>
+                <Text type="secondary" className="text-sm">
+                  System verifies it's a real translation, not a mock
+                </Text>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-orange-600 dark:text-orange-300 text-sm">4</span>
+              </div>
+              <div>
+                <Text strong>Available for everyone</Text>
+                <Text type="secondary" className="text-sm">
+                  Once translated, the language is automatically added for all users
+                </Text>
+              </div>
+            </div>
+          </div>
+          
+          <Alert
+            type="info"
+            showIcon
+            message="Community Contribution"
+            description={
+              <div className="space-y-1">
+                <div>Your translation request helps the entire community!</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Cverra is dedicated to outstanding knowledge accessibility for all.
+                </div>
+              </div>
+            }
+          />
+        </div>
+      </Modal>
+
+      {/* Translation Progress Modal - Professionally Corrected */}
+      <Modal
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+              <TranslationOutlined className="text-white" />
+            </div>
+            <span>
+              {translationStatus === 'complete' ? 'Translation Complete!' : 'Generating Translation'}
+            </span>
+          </div>
+        }
+        open={isManualTranslating}
+        closable={translationStatus === 'complete'}
+        onCancel={() => {
+          if (translationStatus === 'complete') {
+            setIsManualTranslating(false);
+            setSelectedLanguage(null);
+            setTranslationProgress(0);
+            setTranslationStatus('idle');
+            cleanupIntervals();
+          }
+        }}
+        footer={translationStatus === 'complete' ? [
+          <Button 
+            key="close" 
+            type="primary" 
+            onClick={() => {
+              setIsManualTranslating(false);
+              setSelectedLanguage(null);
+              setTranslationProgress(0);
+              setTranslationStatus('idle');
+              cleanupIntervals();
+            }}
+          >
+            Close
+          </Button>
+        ] : null}
+        width={500}
+      >
+        <div className="space-y-6">
+          {translationStatus === 'complete' ? (
+            // Success state
+            <div className="text-center animate-fadeIn">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
+                <CheckOutlined className="text-white text-3xl" />
+              </div>
+              <Title level={3} className="!mb-2 text-green-600">
+                Translation Complete!
+              </Title>
+              <Paragraph className="text-lg mb-4">
+                Your article is now available in {getLanguageName(selectedLanguage || '')}
+              </Paragraph>
+              <div className="flex items-center justify-center gap-2 text-lg">
+                <Spin size="small" />
+                <Text type="secondary">
+                  Switching to {getLanguageName(selectedLanguage || '')}...
+                </Text>
+              </div>
+            </div>
+          ) : (
+            // Progress state
+            <>
+              <div className="text-center">
+                <div className="relative inline-block mb-4">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                    <div className="relative">
+                      <Spin size="large" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
+                          {translationProgress}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center animate-pulse">
+                    <span className="text-white text-lg">🚀</span>
+                  </div>
+                </div>
+                
+                <div className="mb-2">
+                  <Title level={3} className="!mb-1">
+                    Translating to {getLanguageName(selectedLanguage || '')}
+                  </Title>
+                  <Text type="secondary">
+                    {translationProgress < 30 ? 'Analyzing content structure...' :
+                     translationProgress < 60 ? 'Processing translation with AI...' :
+                     translationProgress < 85 ? 'Reviewing translation quality...' :
+                     'Finalizing translation...'}
+                  </Text>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Text>Progress</Text>
+                  <Text strong>{translationProgress}%</Text>
+                </div>
+                <Progress 
+                  percent={translationProgress}
+                  status="active"
+                  strokeColor={{
+                    '0%': '#1890ff',
+                    '100%': '#722ed1',
+                  }}
+                  strokeWidth={6}
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 20 ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 20 ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                        {translationProgress > 20 ? '✓' : '1'}
+                      </div>
+                      <Text strong className={translationProgress > 20 ? 'text-green-600' : ''}>
+                        Content Analysis
+                      </Text>
+                    </div>
+                    <Text type="secondary" className="text-xs">
+                      Parsing original structure
+                    </Text>
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 50 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 50 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                        {translationProgress > 50 ? '✓' : '2'}
+                      </div>
+                      <Text strong className={translationProgress > 50 ? 'text-blue-600' : ''}>
+                        AI Translation
+                      </Text>
+                    </div>
+                    <Text type="secondary" className="text-xs">
+                      Advanced LLM processing
+                    </Text>
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 80 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 80 ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                        {translationProgress > 80 ? '✓' : '3'}
+                      </div>
+                      <Text strong className={translationProgress > 80 ? 'text-purple-600' : ''}>
+                        Quality Review
+                      </Text>
+                    </div>
+                    <Text type="secondary" className="text-xs">
+                      Ensuring accuracy
+                    </Text>
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg border transition-all ${translationProgress >= 95 ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress >= 95 ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                        {translationProgress >= 95 ? '✓' : '4'}
+                      </div>
+                      <Text strong className={translationProgress >= 95 ? 'text-orange-600' : ''}>
+                        Finalizing
+                      </Text>
+                    </div>
+                    <Text type="secondary" className="text-xs">
+                      Making available
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg">⏳</span>
+                  </div>
+                  <div>
+                    <Text strong className="block mb-1">
+                      {translationProgress < 50 ? 'Starting translation process...' :
+                       translationProgress < 85 ? 'AI is working on your translation...' :
+                       'Almost done! Finalizing...'}
+                    </Text>
+                    <Text type="secondary" className="text-sm">
+                      Your request helps make this outstanding Cverra knowledge accessible to more people in their preferred language.
+                      Once complete, {getLanguageName(selectedLanguage || '')} will be automatically available for everyone!
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+    </>
   );
 };
   
@@ -1245,12 +1796,12 @@ const loadComments = async (articleId?: string, page = 1, loadAll = false) => {
     if (response.data?.comments) {
       const loadedComments = response.data.comments;
       
-      // Process comments
-      const processedComments = loadedComments.map(comment => ({
+      // Process comments with inline type annotations
+      const processedComments = loadedComments.map((comment: any) => ({
         ...comment,
         isLiked: comment.isLiked || false,
         likesCount: comment.likesCount || comment.likeCount || 0,
-        replies: comment.replies?.map(reply => ({
+        replies: comment.replies?.map((reply: any) => ({
           ...reply,
           isLiked: reply.isLiked || false,
           likesCount: reply.likesCount || reply.likeCount || 0
@@ -1278,6 +1829,8 @@ const loadComments = async (articleId?: string, page = 1, loadAll = false) => {
     setCommentsLoading(false);
   }
 };
+
+
 // Function to show all comments
 const handleShowAllComments = async () => {
   // If we haven't loaded all parent comments yet, load them
@@ -1352,7 +1905,7 @@ const loadRelatedArticles = async (articleId: string) => {
       params: { limit: 3 }
     });
     
-    console.log('📊 Related Articles Response:', {
+    console.log(' Related Articles Response:', {
       identifier: articleId,
       articles: response.data,
       count: response.data?.length
@@ -1424,8 +1977,8 @@ const loadRelatedArticles = async (articleId: string) => {
     // Fallback: Load recent articles
     try {
       const fallbackResponse = await articleApi.getArticles({ limit: 3 });
-      if (fallbackResponse?.data?.data) {
-        const articlesWithScore: RelatedArticle[] = fallbackResponse.data.data.map((article: Article) => ({
+      if (fallbackResponse?.data?.articles) {
+        const articlesWithScore: RelatedArticle[] = fallbackResponse.data.articles.map((article: Article) => ({
           ...article,
           engagementScore: calculateEngagementScore(article)
         }));
@@ -1440,7 +1993,7 @@ const loadRelatedArticles = async (articleId: string) => {
   }
 };
 
-// Enhanced engagement score calculation
+// Engagement score calculation
 const calculateEngagementScore = (article: any): number => {
   const views = article.viewCount || article._count?.views || 0;
   const likes = article.likeCount || article._count?.likes || 0;
@@ -1546,117 +2099,116 @@ const calculateEngagementScore = (article: any): number => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [showReadingProgress]);
 
-  // Handle like
-  const handleLike = async () => {
-    if (article?.accessType === 'PREMIUM' && !userHasAccess) {
-      setShowPaywall(true);
-      return;
-    }
+  // Handle like (simpler version with type assertions)
+const handleLike = async () => {
+  if (article?.accessType === 'PREMIUM' && !userHasAccess) {
+    setShowPaywall(true);
+    return;
+  }
 
-    if (!checkAuth('like')) return;
-    if (!article || !article.id) return;
+  if (!checkAuth('like')) return;
+  if (!article || !article.id) return;
+  
+  const previousState = liked;
+  const previousCount = article.likeCount || 0;
+  
+  // Optimistic update
+  setLiked(!liked);
+  setArticle({
+    ...article,
+    likeCount: liked ? (article.likeCount || 0) - 1 : (article.likeCount || 0) + 1,
+    isLiked: !liked
+  });
+  
+  try {
+    const response = await articleApi.likeArticle(article.id) as any; // Type assertion
     
-    const previousState = liked;
-    const previousCount = article.likeCount || 0;
+    let success = false;
+    if (typeof response === 'object') {
+      if ('success' in response) {
+        success = response.success;
+      } else if ('data' in response && response.data && typeof response.data === 'object' && 'success' in response.data) {
+        success = response.data.success;
+      } else {
+        success = true; // Assume success if response exists
+      }
+    }
     
-    // Optimistic update
-    setLiked(!liked);
+    if (success) {
+      notification.success({
+        message: liked ? 'Article unliked' : 'Article liked!',
+        duration: 2,
+      });
+    } else {
+      throw new Error('Like operation failed');
+    }
+  } catch (error: any) {
+    // Revert on error
+    setLiked(previousState);
     setArticle({
       ...article,
-      likeCount: liked ? (article.likeCount || 0) - 1 : (article.likeCount || 0) + 1,
-      isLiked: !liked
+      likeCount: previousCount,
+      isLiked: previousState
     });
     
-    try {
-      const response = await articleApi.likeArticle(article.id);
-      
-      let success = false;
-      if (typeof response === 'object') {
-        if ('success' in response) {
-          success = response.success;
-        } else if ('data' in response && typeof response.data === 'object' && 'success' in response.data) {
-          success = response.data.success;
-        } else {
-          success = true;
-        }
-      }
-      
-      if (success) {
-        notification.success({
-          message: liked ? 'Article unliked' : 'Article liked!',
-          duration: 2,
-        });
+    notification.error({
+      message: 'Error',
+      description: error.response?.data?.message || error.message || 'Failed to update like status.',
+      duration: 3,
+    });
+  }
+};
+
+// Handle save (simpler version with type assertions)
+const handleSave = async () => {
+  if (!article || !article.id) return;
+  
+  const previousState = saved;
+  
+  // Optimistic update
+  setSaved(!saved);
+  setArticle({
+    ...article,
+    isSaved: !saved
+  });
+  
+  try {
+    const response = await articleApi.saveArticle(article.id) as any; // Type assertion
+    
+    let success = false;
+    if (typeof response === 'object') {
+      if ('success' in response) {
+        success = response.success;
+      } else if ('data' in response && response.data && typeof response.data === 'object' && 'success' in response.data) {
+        success = response.data.success;
       } else {
-        throw new Error('Like operation failed');
+        success = true; // Assume success if response exists
       }
-    } catch (error: any) {
-      // Revert on error
-      setLiked(previousState);
-      setArticle({
-        ...article,
-        likeCount: previousCount,
-        isLiked: previousState
-      });
-      
-      notification.error({
-        message: 'Error',
-        description: error.response?.data?.message || 'Failed to update like status.',
-        duration: 3,
-      });
     }
-
-  };
-
-  // Handle save
-  const handleSave = async () => {
-    if (!article || !article.id) return;
     
-    const previousState = saved;
-    
-    // Optimistic update
-    setSaved(!saved);
+    if (success) {
+      notification.success({
+        message: saved ? 'Removed from saved articles' : 'Article saved!',
+        duration: 2,
+      });
+    } else {
+      throw new Error('Save operation failed');
+    }
+  } catch (error: any) {
+    // Revert on error
+    setSaved(previousState);
     setArticle({
       ...article,
-      isSaved: !saved
+      isSaved: previousState
     });
     
-    try {
-      const response = await articleApi.saveArticle(article.id);
-      
-      let success = false;
-      if (typeof response === 'object') {
-        if ('success' in response) {
-          success = response.success;
-        } else if ('data' in response && typeof response.data === 'object' && 'success' in response.data) {
-          success = response.data.success;
-        } else {
-          success = true;
-        }
-      }
-      
-      if (success) {
-        notification.success({
-          message: saved ? 'Removed from saved articles' : 'Article saved!',
-          duration: 2,
-        });
-      } else {
-        throw new Error('Save operation failed');
-      }
-    } catch (error: any) {
-      // Revert on error
-      setSaved(previousState);
-      setArticle({
-        ...article,
-        isSaved: previousState
-      });
-      
-      notification.error({
-        message: 'Error',
-        description: error.response?.data?.message || 'Failed to save article.',
-        duration: 3,
-      });
-    }
-  };
+    notification.error({
+      message: 'Error',
+      description: error.response?.data?.message || error.message || 'Failed to save article.',
+      duration: 3,
+    });
+  }
+};
 
   // Handle share
   const handleShare = () => {
@@ -1697,7 +2249,7 @@ const calculateEngagementScore = (article: any): number => {
   };
 
   // Handle comment submission
- const handleCommentSubmit = async () => {
+const handleCommentSubmit = async () => {
   if (article?.accessType === 'PREMIUM' && !userHasAccess) {
     setShowPaywall(true);
     return;
@@ -1718,37 +2270,41 @@ const calculateEngagementScore = (article: any): number => {
         placement: 'top'
       });
       
-      // Create the new comment object
-      const newComment = {
+      // Create a properly typed new comment object
+      const newComment: Comment = {
         id: response.data.id || Date.now().toString(),
         content: commentText,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         likesCount: 0,
+        likeCount: 0,
         isLiked: false,
-        author: user ? {
-          id: user.id,
-          name: user.name || user.username,
-          picture: user.picture || user.avatar,
-          username: user.username
-        } : { 
-          id: 'temp-user',
-          name: 'You',
-          username: 'you'
-        },
-        replies: [],
-        replyCount: 0,
         isOwn: true,
         isEdited: false,
         isPinned: false,
         isFeatured: false,
         language: 'en',
+        replyCount: 0,
+        author: user ? {
+          id: user.id,
+          name: user.name || user.username || 'User',
+          picture: user.picture, // ✅ Use only existing property
+          isVerified: false, // Add required properties from Author interface
+          followersCount: 0,
+          bio: '',
+          username: user.username || '' // Add if needed
+        } as Author : undefined, // Or create a minimal Author object
         user: user ? {
           id: user.id,
-          name: user.name || user.username,
-          picture: user.picture || user.avatar,
-          username: user.username
-        } : null
+          name: user.name || user.username || 'User',
+          picture: user.picture,
+          isVerified: false,
+          followersCount: 0,
+          bio: '',
+          username: user.username || ''
+        } as Author : undefined,
+        replies: [],
+        parentId: undefined
       };
       
       // IMMEDIATELY ADD TO COMMENTS STATE
@@ -1799,28 +2355,17 @@ const calculateEngagementScore = (article: any): number => {
   }
 };
 
-  // Replace your handleCommentLike function with this debug version:
-const handleCommentLike = async (commentId: string) => {
+ const handleCommentLike = async (commentId: string) => {
   if (!checkAuth('like')) return;
   
-  console.log('🔵 Like button clicked for comment:', commentId);
-  
-  // Prevent multiple simultaneous requests
-  if (fetchInProgressRef.current) {
-    console.log('⏳ Request already in progress, skipping...');
-    return;
-  }
-  
+  if (fetchInProgressRef.current) return;
   fetchInProgressRef.current = true;
   
   try {
-    // Find the comment to get current like status
     const findComment = (comments: any[]): any => {
       for (const comment of comments) {
-        if (comment.id === commentId) {
-          return comment;
-        }
-        if (comment.replies && comment.replies.length > 0) {
+        if (comment.id === commentId) return comment;
+        if (comment.replies?.length) {
           const found = findComment(comment.replies);
           if (found) return found;
         }
@@ -1829,17 +2374,12 @@ const handleCommentLike = async (commentId: string) => {
     };
     
     const comment = findComment(comments);
-    if (!comment) {
-      console.log('❌ Comment not found:', commentId);
-      return;
-    }
+    if (!comment) return;
     
     const previousLiked = comment.isLiked || false;
     const previousCount = comment.likesCount || comment.likeCount || 0;
     
-    console.log('📊 Previous state:', { previousLiked, previousCount });
-    
-    // OPTIMISTIC UPDATE: Update UI immediately
+    // Optimistic update
     const updateCommentLikes = (comments: any[]): any[] => {
       return comments.map(comment => {
         if (comment.id === commentId) {
@@ -1850,43 +2390,57 @@ const handleCommentLike = async (commentId: string) => {
             isLiked: !previousLiked,
           };
         }
-        
-        // Check replies
-        if (comment.replies && comment.replies.length > 0) {
+        if (comment.replies?.length) {
           return {
             ...comment,
             replies: updateCommentLikes(comment.replies),
           };
         }
-        
         return comment;
       });
     };
     
     setComments(prev => updateCommentLikes(prev));
-    
-    // Update displayed comments as well
     setDisplayedComments(prev => updateCommentLikes(prev));
     
-    console.log('📡 Making API call to like/unlike comment...');
+    // Make API call with proper type handling
+    const response = await articleApi.likeComment(commentId) as any; // Type assertion
     
-    // Make API call - the endpoint should handle both like and unlike
-    const response = await articleApi.likeComment(commentId);
-    
-    console.log('📦 API Response:', response);
-    
-    // Check if response is successful
-    const isSuccess = 
-      response?.success === true || 
-      response?.status === 201 || 
-      response?.status === 200 ||
-      (response?.data && (response.data.success === true || response.data.liked !== undefined));
-    
-    console.log('✅ Is success?', isSuccess);
-    
-    if (!isSuccess) {
-      console.log('❌ API call failed, reverting optimistic update');
+    // Handle different response formats
+    if (response?.success === true || response?.status === 200 || response?.status === 201) {
+      notification.success({
+        message: previousLiked ? 'Comment unliked!' : 'Comment liked!',
+        duration: 1,
+        placement: 'top'
+      });
       
+      // If response has data with liked status, update it
+      if (response.data && typeof response.data === 'object') {
+        if (response.data.liked !== undefined) {
+          const updateWithServerData = (comments: any[]): any[] => {
+            return comments.map(comment => {
+              if (comment.id === commentId) {
+                return {
+                  ...comment,
+                  isLiked: response.data.liked,
+                };
+              }
+              if (comment.replies?.length) {
+                return {
+                  ...comment,
+                  replies: updateWithServerData(comment.replies),
+                };
+              }
+              return comment;
+            });
+          };
+          
+          setComments(prev => updateWithServerData(prev));
+          setDisplayedComments(prev => updateWithServerData(prev));
+        }
+      }
+    } else {
+      // Revert on error
       const revertUpdate = (comments: any[]): any[] => {
         return comments.map(comment => {
           if (comment.id === commentId) {
@@ -1897,14 +2451,12 @@ const handleCommentLike = async (commentId: string) => {
               isLiked: previousLiked,
             };
           }
-          
-          if (comment.replies && comment.replies.length > 0) {
+          if (comment.replies?.length) {
             return {
               ...comment,
               replies: revertUpdate(comment.replies),
             };
           }
-          
           return comment;
         });
       };
@@ -1914,52 +2466,11 @@ const handleCommentLike = async (commentId: string) => {
       
       notification.error({
         message: 'Error',
-        description: response?.error || 'Failed to like comment',
-      });
-    } else {
-      console.log('✅ Action successful!');
-      
-      // Update with server response if available
-      if (response.data?.liked !== undefined || response.data?.isLiked !== undefined) {
-        const serverLiked = response.data.liked || response.data.isLiked;
-        const serverLikesCount = response.data.likesCount || response.data.likeCount;
-        
-        const updateWithServerData = (comments: any[]): any[] => {
-          return comments.map(comment => {
-            if (comment.id === commentId) {
-              return {
-                ...comment,
-                likesCount: serverLikesCount !== undefined ? serverLikesCount : (previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1),
-                likeCount: serverLikesCount !== undefined ? serverLikesCount : (previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1),
-                isLiked: serverLiked,
-              };
-            }
-            
-            if (comment.replies && comment.replies.length > 0) {
-              return {
-                ...comment,
-                replies: updateWithServerData(comment.replies),
-              };
-            }
-            
-            return comment;
-          });
-        };
-        
-        setComments(prev => updateWithServerData(prev));
-        setDisplayedComments(prev => updateWithServerData(prev));
-      }
-      
-      // Show success notification
-      notification.success({
-        message: previousLiked ? 'Comment unliked!' : 'Comment liked!',
-        duration: 1,
-        placement: 'top'
+        description: 'Failed to like comment',
       });
     }
-  } catch (error) {
-    console.error('🚨 Failed to like comment:', error);
-    
+  } catch (error: any) {
+    console.error('Failed to like comment:', error);
     notification.error({
       message: 'Error',
       description: 'Failed to like comment',
@@ -2171,82 +2682,88 @@ const handleCommentLike = async (commentId: string) => {
           );
 
         case 'image':
-  const imageSrc = node.attrs?.src;
-  
-  // Fix the image URL if it's relative
-  const getFullImageUrl = (url: string): string => {
-  if (!url) return '';
-  
-  // Already a full URL
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  
-  // Data URL (base64)
-  if (url.startsWith('data:')) {
-    return url;
-  }
-  
-  // Simple fix: always use localhost:3000 for development
-  // You can also use window.location.origin for production
-  const baseUrl = 'http://localhost:3000';
-  
-  // Clean up the URL
-  let cleanUrl = url;
-  if (cleanUrl.startsWith('/')) {
-    cleanUrl = cleanUrl.substring(1);
-  }
-  
-  // Check if it's already in the correct format
-  if (cleanUrl.includes('localhost:3000')) {
-    return `http://${cleanUrl}`;
-  }
-  
-  // For uploads, use the correct endpoint
-  if (cleanUrl.startsWith('uploads/') || cleanUrl.startsWith('articles/')) {
-    return `${baseUrl}/${cleanUrl}`;
-  }
-  
-  // Default: prepend the base URL
-  return `${baseUrl}/uploads/articles/${cleanUrl}`;
-};
-
-  return (
-    <div key={index} className="my-8 text-center">
-      <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <Image
-          src={getFullImageUrl(imageSrc)}
-          alt={node.attrs?.alt || article?.title}
-          className="w-full h-auto max-h-[600px] object-contain"
-          fallback={
-            <div className="w-full h-64 flex items-center justify-center">
-              <PictureOutlined className="text-4xl text-gray-300" />
-            </div>
-          }
-          placeholder={
-            <div className="w-full h-64 flex items-center justify-center">
-              <Spin size="large" />
-            </div>
-          }
-          preview={{
-            src: getFullImageUrl(imageSrc),
-            visible: false,
-          }}
-          onError={(e) => {
-            console.warn('Image failed to load, using fallback');
+          const imageSrc = node.attrs?.src;
+          
+          const getFullImageUrl = (url: string): string => {
+            if (!url) return '';
             
-            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600/cccccc/969696?text=Image+Not+Found';
-          }}
-        />
-      </div>
-      {(node.attrs?.title || node.attrs?.alt) && (
-        <Text type="secondary" className="block mt-3 text-sm italic text-center">
-          {node.attrs.title || node.attrs.alt}
-        </Text>
-      )}
-    </div>
-  );
+            // Already a full URL
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              return url;
+            }
+            
+            // Data URL (base64)
+            if (url.startsWith('data:')) {
+              return url;
+            }
+            
+            // Always use localhost:3000 for development
+            const baseUrl = 'http://localhost:3000';
+            
+            // Clean up the URL
+            let cleanUrl = url;
+            if (cleanUrl.startsWith('/')) {
+              cleanUrl = cleanUrl.substring(1);
+            }
+            
+            // For uploads, use the correct endpoint
+            if (cleanUrl.includes('uploads/') || cleanUrl.includes('articles/')) {
+              return `${baseUrl}/${cleanUrl}`;
+            }
+            
+            // Default: prepend the base URL
+            return `${baseUrl}/uploads/articles/${cleanUrl}`;
+          };
 
+          return (
+            <div key={index} className="my-8 text-center">
+              <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+                {/* Use a wrapper div for fallback instead of Image component's fallback prop */}
+                <div className="relative w-full h-auto max-h-[600px]">
+                  <Image
+                    src={getFullImageUrl(imageSrc)}
+                    alt={node.attrs?.alt || article?.title}
+                    className="w-full h-auto max-h-[600px] object-contain"
+                    // Remove fallback prop since it expects string URL
+                    placeholder={
+                      <div className="w-full h-64 flex items-center justify-center">
+                        <Spin size="large" />
+                      </div>
+                    }
+                    preview={{
+                      src: getFullImageUrl(imageSrc),
+                      visible: false,
+                    }}
+                    onError={(e) => {
+                      console.warn('Image failed to load, showing fallback');
+                      // Hide the broken image and show fallback via CSS
+                      const imgElement = e.target as HTMLImageElement;
+                      imgElement.style.display = 'none';
+                      
+                      // Create fallback element
+                      const parent = imgElement.parentElement;
+                      if (parent) {
+                        const fallbackDiv = document.createElement('div');
+                        fallbackDiv.className = 'w-full h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-800';
+                        fallbackDiv.innerHTML = `
+                          <div class="text-center">
+                            <PictureOutlined class="text-4xl text-gray-300 mb-2" />
+                            <p class="text-gray-500 text-sm">Image failed to load</p>
+                          </div>
+                        `;
+                        parent.appendChild(fallbackDiv);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              {(node.attrs?.title || node.attrs?.alt) && (
+                <Text type="secondary" className="block mt-3 text-sm italic text-center">
+                  {node.attrs.title || node.attrs.alt}
+                </Text>
+              )}
+            </div>
+          );
 
         case 'bulletList':
         case 'orderedList':
@@ -2298,13 +2815,13 @@ const handleCommentLike = async (commentId: string) => {
           return <Divider key={index} className="my-8" />;
 
         default:
-          // Recursively render nested content
-          if (node.content && Array.isArray(node.content)) {
-            return node.content.map((child: any, childIndex: number) =>
-              renderNode(child, `${index}-${childIndex}`, depth + 1)
-            );
-          }
-          return null;
+        // Recursively render nested content
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map((child: any, childIndex: number) =>
+            renderNode(child, childIndex, depth + 1) 
+          );
+        }
+        return null;
       }
     };
 
@@ -2317,6 +2834,33 @@ const handleCommentLike = async (commentId: string) => {
 
   // Render related article card
 const renderArticleCard = (item: RelatedArticle) => {
+  console.log('Article card data:', {
+    title: item.title,
+    engagementScore: item.engagementScore,
+    viewCount: item.viewCount,
+    likeCount: item.likeCount,
+    commentCount: item.commentCount,
+    publishedAt: item.publishedAt
+  });
+  // Make sure we have valid data for engagement score calculation
+  const calculateEngagementScore = (article: any): number => {
+  const views = article.viewCount || article._count?.views || 0;
+  const likes = article.likeCount || article._count?.likes || 0;
+  const comments = article.commentCount || article._count?.comments || 0;
+  
+  // Simple calculation that always gives a reasonable score
+  let score = 0;
+  
+  if (views > 0) score += Math.min(views * 0.5, 30); // Max 30% from views
+  if (likes > 0) score += Math.min(likes * 3, 40);   // Max 40% from likes
+  if (comments > 0) score += Math.min(comments * 10, 30); // Max 30% from comments
+  
+  // Ensure it's between 10 and 100
+  score = Math.max(10, Math.min(score, 100));
+  
+  return Math.round(score);
+};
+  
   const engagementScore = item.engagementScore || calculateEngagementScore(item);
   const engagementLabel = getEngagementLabel(engagementScore);
   const engagementPercentage = Math.min(Math.round(engagementScore), 100);
@@ -2327,6 +2871,11 @@ const renderArticleCard = (item: RelatedArticle) => {
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
     return count.toString();
   };
+  
+  // Get stats from item, with fallbacks
+  const viewCount = item.viewCount || 0;
+  const likeCount = item.likeCount || 0;
+  const commentCount = item.commentCount || 0;
   
   return (
     <Card
@@ -2344,23 +2893,34 @@ const renderArticleCard = (item: RelatedArticle) => {
         {/* Cover Image */}
         <div className="h-48 rounded-lg overflow-hidden relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-900">
           {item.coverImage ? (
-            <Image
-              src={item.coverImage}
-              alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              fallback={
-                <div className="w-full h-full flex items-center justify-center">
-                  <ReadOutlined className="text-4xl text-gray-300 dark:text-gray-600" />
-                </div>
-              }
-              preview={{
-                visible: false,
-              }}
-              onError={(e) => {
-                console.warn('Related article image failed to load');
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
-              }}
-            />
+            <div className="relative w-full h-full">
+              <Image
+                src={item.coverImage}
+                alt={item.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                // Remove fallback prop - it expects string URL
+                preview={false}
+                onError={(e) => {
+                  console.warn('Related article image failed to load');
+                  const imgElement = e.target as HTMLImageElement;
+                  imgElement.style.display = 'none';
+                  
+                  // Create fallback element
+                  const parent = imgElement.parentElement;
+                  if (parent) {
+                    const fallbackDiv = document.createElement('div');
+                    fallbackDiv.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-900';
+                    fallbackDiv.innerHTML = `
+                      <div class="text-center">
+                        <ReadOutlined class="text-4xl text-gray-300 dark:text-gray-600" />
+                        <p class="text-gray-500 text-sm mt-2">Image not available</p>
+                      </div>
+                    `;
+                    parent.appendChild(fallbackDiv);
+                  }
+                }}
+              />
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
               <ReadOutlined className="text-4xl text-primary/40" />
@@ -2488,33 +3048,39 @@ const renderArticleCard = (item: RelatedArticle) => {
             </div>
             
             {/* Engagement Progress */}
-            {engagementScore > 0 && (
+          {/* Always show engagement progress if we have any stats */}
+            {(viewCount > 0 || likeCount > 0 || commentCount > 0) && (
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Text className="text-xs text-muted-foreground">Engagement</Text>
-                  <Text className="text-xs font-medium" style={{ color: engagementLabel.color }}>
-                    {engagementPercentage}%
-                  </Text>
+                {/* Engagement Progress */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Text className="text-xs text-muted-foreground">Engagement</Text>
+                    <Text className="text-xs font-medium" style={{ color: engagementLabel.color }}>
+                      {engagementPercentage}%
+                    </Text>
+                  </div>
+                  <Progress 
+                    percent={engagementPercentage} 
+                    size="small" 
+                    showInfo={false}
+                    strokeColor={engagementLabel.color}
+                    trailColor="var(--color-border)"
+                  />
                 </div>
-                <Progress 
-                  percent={engagementPercentage} 
-                  size="small" 
-                  showInfo={false}
-                  strokeColor={engagementLabel.color}
-                  trailColor="var(--color-border)"
-                />
+                
+                {/* Time ago */}
+                {item.publishedAt && (
+                  <div className="text-right pt-2">
+                    <Text type="secondary" className="text-xs">
+                      {getTimeAgo(item.publishedAt)}
+                    </Text>
+                  </div>
+                )}
               </div>
             )}
+
           </div>
-          
-          {/* Time ago */}
-          {item.publishedAt && (
-            <div className="text-right">
-              <Text type="secondary" className="text-xs">
-                {getTimeAgo(item.publishedAt)}
-              </Text>
-            </div>
-          )}
+         
         </div>
       </div>
     </Card>
@@ -2586,7 +3152,9 @@ const renderComment = (comment: any, depth = 0) => {
                   {author?.name}
                 </Text>
                 {isOwnComment && (
-                  <Tag color="blue" size="small" className="!text-xs !m-0">You</Tag>
+                  <span className="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full ml-2">
+                    You
+                  </span>
                 )}
                 <Text type="secondary" className="text-xs whitespace-nowrap">
                   {getTimeAgo(comment.createdAt)}
@@ -2829,7 +3397,7 @@ const renderComment = (comment: any, depth = 0) => {
       author: user ? {
         id: user.id,
         name: user.name || user.username,
-        picture: user.picture || user.avatar,
+        picture: user.picture,
         username: user.username
       } : { 
         id: 'temp-user',
@@ -2846,7 +3414,7 @@ const renderComment = (comment: any, depth = 0) => {
       user: user ? {
         id: user.id,
         name: user.name || user.username,
-        picture: user.picture || user.avatar,
+        picture: user.picture,
         username: user.username
       } : null,
       parentId: commentId
@@ -3008,7 +3576,7 @@ const renderComment = (comment: any, depth = 0) => {
     <div className="min-h-screen bg-background">
       {/* Reading Progress Bar */}
       {showReadingProgress && (
-        <div className="fixed top-0 left-0 w-full h-1 z-50">
+        <div className="fixed top-1 left-0 w-full h-1 z-50">
           <div 
             className="h-full bg-gradient-to-r from-primary via-primary/80 to-secondary transition-all duration-300"
             style={{ width: `${readingProgress}%` }}
@@ -3017,76 +3585,173 @@ const renderComment = (comment: any, depth = 0) => {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Button 
-            type="link" 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => window.history.back()}
-            className="text-foreground hover:text-primary hover:no-underline flex items-center gap-2"
-          >
-            Back
-          </Button>
-          
-          <div className="flex items-center gap-2">
-            <Tooltip title={liked ? "Unlike" : "Like"}>
-              <Button
-                type="text"
-                icon={liked ? <HeartFilled className="text-red-500" /> : <HeartOutlined className="text-red-500"/>}
-                onClick={handleLike}
-                className="text-foreground hover:text-red-500"
-              >
-                <span className="ml-1">{article.likeCount || 0}</span>
-              </Button>
-            </Tooltip>
-            
-            <Tooltip title="Comments">
-              <Button
-                type="text"
-                icon={<CommentOutlined />}
-                onClick={scrollToComments}
-                className="text-foreground hover:text-primary"
-              >
-                <span className="ml-1">{article.commentCount || 0}</span>
-              </Button>
-            </Tooltip>
-            
-            <Tooltip title="Share">
-              <Button
-                type="text"
-                icon={<ShareAltOutlined />}
-                onClick={handleShare}
-                className="text-foreground hover:text-primary"
-              >
-                Share
-              </Button>
-            </Tooltip>
+<div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b shadow-sm">
+  <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
 
-            {/* Font Size Controls */}
-            <Tooltip title="Reading Settings">
-              <Button
-                type="text"
-                icon={<ReadOutlined />}
-                onClick={() => setShowReadingSettings(true)}
-                className="text-muted-foreground hover:text-primary"
-              >
-                Fonts
-              </Button>
-            </Tooltip>
-            
-            {/* Language Switcher */}
-            {article && article.availableLanguages && article.availableLanguages.length > 0 && (
-              <LanguageSwitcher
-                availableLanguages={article.availableLanguages}
-                currentLanguage={currentLanguage}
-                onLanguageChange={handleLanguageChange}
-                isLoading={isTranslating}
-                articleId={article.id}
-              />
-            )}
-          </div>
-        </div>
+    {/* Back Button */}
+    <Button 
+      type="link" 
+      icon={<ArrowLeftOutlined />} 
+      onClick={() => window.history.back()}
+      className="text-foreground hover:text-primary hover:no-underline flex items-center gap-2"
+    >
+      Back
+    </Button>
+
+    {/* Controls */}
+    <div className="flex items-center gap-2">
+
+      {/* Desktop: show buttons inline */}
+      <div className="hidden sm:flex items-center gap-2">
+        <Tooltip title={liked ? "Unlike" : "Like"}>
+          <Button
+            type="text"
+            icon={liked ? <HeartFilled className="text-red-500" /> : <HeartOutlined className="text-red-500" />}
+            onClick={handleLike}
+            className="text-foreground hover:text-red-500"
+          >
+            <span className="ml-1">{article.likeCount || 0}</span>
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Comments">
+          <Button
+            type="text"
+            icon={<CommentOutlined />}
+            onClick={scrollToComments}
+            className="text-foreground hover:text-primary"
+          >
+            <span className="ml-1">{article.commentCount || 0}</span>
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Share">
+          <Button
+            type="text"
+            icon={<ShareAltOutlined />}
+            onClick={handleShare}
+            className="text-foreground hover:text-primary"
+          >
+            Share
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Reading Settings">
+          <Button
+            type="text"
+            icon={<ReadOutlined />}
+            onClick={() => setShowReadingSettings(true)}
+            className="text-muted-foreground hover:text-primary"
+          >
+            Fonts
+          </Button>
+        </Tooltip>
+
+        {article?.availableLanguages?.length > 0 && (
+          <LanguageSwitcher
+            availableLanguages={article.availableLanguages}
+            currentLanguage={currentLanguage}
+            onLanguageChange={handleLanguageChange}
+            isLoading={isTranslating}
+            articleId={article.id}
+          />
+        )}
       </div>
+
+      {/* Mobile: collapse buttons into dropdown */}
+      <div className="sm:hidden">
+        <Menu as="div" className="relative inline-block text-left">
+          <Menu.Button className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
+            <MoreOutlined />
+          </Menu.Button>
+
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+              <div className="py-1 flex flex-col gap-1">
+                <Menu.Item>
+                  {({ active }) => (
+                    <Button
+                      type="text"
+                      icon={liked ? <HeartFilled className="text-red-500" /> : <HeartOutlined className="text-red-500"/>}
+                      onClick={handleLike}
+                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+                    >
+                      Like ({article.likeCount || 0})
+                    </Button>
+                  )}
+                </Menu.Item>
+
+                <Menu.Item>
+                  {({ active }) => (
+                    <Button
+                      type="text"
+                      icon={<CommentOutlined />}
+                      onClick={scrollToComments}
+                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+                    >
+                      Comments ({article.commentCount || 0})
+                    </Button>
+                  )}
+                </Menu.Item>
+
+                <Menu.Item>
+                  {({ active }) => (
+                    <Button
+                      type="text"
+                      icon={<ShareAltOutlined />}
+                      onClick={handleShare}
+                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+                    >
+                      Share
+                    </Button>
+                  )}
+                </Menu.Item>
+
+                <Menu.Item>
+                  {({ active }) => (
+                    <Button
+                      type="text"
+                      icon={<ReadOutlined />}
+                      onClick={() => setShowReadingSettings(true)}
+                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+                    >
+                      Fonts
+                    </Button>
+                  )}
+                </Menu.Item>
+
+                {article?.availableLanguages?.length > 0 && (
+                  <Menu.Item>
+                    {({ active }) => (
+                      <LanguageSwitcher
+                        availableLanguages={article.availableLanguages}
+                        currentLanguage={currentLanguage}
+                        onLanguageChange={handleLanguageChange}
+                        isLoading={isTranslating}
+                        articleId={article.id}
+                        // className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+                      />
+                    )}
+                  </Menu.Item>
+                )}
+              </div>
+            </Menu.Items>
+          </Transition>
+        </Menu>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -4100,6 +4765,16 @@ const renderComment = (comment: any, depth = 0) => {
         .ant-btn-text:focus,
         .ant-btn-text:active {
           background-color: transparent !important;
+        }
+
+        /* Fade-in animation for content load */
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-in-out;
         }
       `}</style>
 

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { t, Trans } from "@lingui/macro";
+import { i18n } from '@lingui/core';
 import { useTheme } from "@reactive-resume/hooks";
 import {
   Button,

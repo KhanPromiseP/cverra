@@ -12,11 +12,10 @@
     "customFields": [],
     "picture": {
       "url": "https://i.imgur.com/HgwyOuJ.jpg",
-      "size": 64,
+      "size": 140,
       "aspectRatio": 1,
-      "borderRadius": 0,
       "effects": {
-        "hidden": false,
+        "hidden": true,
         "border": false,
         "grayscale": false
       }
@@ -141,14 +140,29 @@
     },
     "languages": {
       "name": "Languages",
-      "columns": 1,
+      "columns": 2,
       "visible": true,
       "id": "languages",
-      "items": []
+      "items": [
+        {
+          "id": "ey0c353j3apepzqmyl8zd37c",
+          "visible": true,
+          "name": "English",
+          "description": "Native Speaker",
+          "level": 0
+        },
+        {
+          "id": "a4dnf32wyj5phgln2rx97qk2",
+          "visible": true,
+          "name": "Spanish",
+          "description": "Intermediate",
+          "level": 0
+        }
+      ]
     },
     "profiles": {
       "name": "Profiles",
-      "columns": 4,
+      "columns": 3,
       "visible": true,
       "id": "profiles",
       "items": [
@@ -172,6 +186,17 @@
           "url": {
             "label": "",
             "href": "https://github.com/johndoe"
+          }
+        },
+        {
+          "id": "k97vdxzmssmgel79km48kxgg",
+          "visible": true,
+          "network": "StackOverflow",
+          "username": "johndoe",
+          "icon": "stackoverflow",
+          "url": {
+            "label": "",
+            "href": "https://stackoverflow.com/u/johndoe"
           }
         }
       ]
@@ -220,7 +245,7 @@
     "references": {
       "name": "References",
       "columns": 1,
-      "visible": false,
+      "visible": true,
       "id": "references",
       "items": [
         {
@@ -271,20 +296,20 @@
     "custom": {}
   },
   "metadata": {
-    "template": "rhyhorn",
+    "template": "sovereign",
     "layout": [
       [
+        ["profiles", "summary", "experience", "education", "projects"],
         [
-          "profiles",
-          "summary",
-          "experience",
-          "education",
-          "projects",
-          "certifications",
           "skills",
-          "references"
-        ],
-        ["interests", "languages", "awards", "volunteer", "publications"]
+          "certifications",
+          "languages",
+          "references",
+          "interests",
+          "awards",
+          "volunteer",
+          "publications"
+        ]
       ]
     ],
     "css": {
@@ -302,16 +327,16 @@
     "theme": {
       "background": "#ffffff",
       "text": "#000000",
-      "primary": "#ca8a04"
+      "primary": "#059669"
     },
     "typography": {
       "font": {
-        "family": "Merriweather",
+        "family": "IBM Plex Sans",
         "subset": "latin",
-        "variants": ["regular"],
+        "variants": ["regular", "500"],
         "size": 13
       },
-      "lineHeight": 1.75,
+      "lineHeight": 1.5,
       "hideIcons": false,
       "underlineLinks": true
     },

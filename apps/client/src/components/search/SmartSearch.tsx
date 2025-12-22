@@ -9,13 +9,14 @@ import {
   Typography, 
   AutoComplete,
   Dropdown,
-  Modal,
   Slider,
   Select,
   DatePicker,
   Checkbox,
   Divider,
-  Badge
+  Badge,
+  Spin,
+  Empty
 } from 'antd';
 import { 
   SearchOutlined, 
@@ -25,32 +26,31 @@ import {
   HistoryOutlined,
   ClockCircleOutlined,
   CrownOutlined,
-  GlobalOutlined,
   ArrowRightOutlined,
-  DeleteOutlined
+  LoadingOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { searchArticles, getSearchSuggestions, getTrendingSearches } from '../../services/api';
+import { articleApi } from '../../services/articleApi'; // Updated import
+import type { Category } from '../../services/articleApi';
 import debounce from 'lodash/debounce';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+// Update the SearchResult interface to use the Article type
 interface SearchResult {
   id: string;
   title: string;
   excerpt: string;
   slug: string;
-  category: {
-    name: string;
-    color: string;
-  };
+  category: Category;
   tags: string[];
   readingTime: number;
   viewCount: number;
   publishedAt: string;
-  relevance: number;
+  relevance?: number;
   highlights?: {
     title?: string[];
     content?: string[];
@@ -68,47 +68,60 @@ const SmartSearch: React.FC = () => {
   const [filters, setFilters] = useState({
     category: [] as string[],
     tags: [] as string[],
-    readingTime: [0, 60],
+    readingTime: [1, 60] as [number, number],
     publishedDate: null as any,
     accessType: [] as string[],
-    language: 'en',
-    sortBy: 'relevance',
+    sortBy: 'relevance' as 'relevance' | 'recent' | 'popular' | 'reading_time',
   });
   const [quickResults, setQuickResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   const searchInputRef = useRef<any>(null);
 
+  // Load initial data
   useEffect(() => {
-    // Load recent searches from localStorage
+    // Load recent searches
     const saved = localStorage.getItem('recentSearches');
     if (saved) {
-      setRecentSearches(JSON.parse(saved).slice(0, 5));
+      try {
+        setRecentSearches(JSON.parse(saved).slice(0, 5));
+      } catch (error) {
+        console.error('Failed to parse recent searches:', error);
+      }
     }
 
-    // Load trending searches
+    // Fetch dynamic data
+    fetchCategories();
     fetchTrendingSearches();
   }, []);
 
-  // Update search query from URL
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const query = params.get('q');
-    if (query) {
-      setSearchQuery(query);
-      performSearch(query, filters);
+  // Fetch categories dynamically
+  const fetchCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const response = await articleApi.getCategories();
+      const data = response.data || [];
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    } finally {
+      setLoadingCategories(false);
     }
-  }, [location]);
+  };
 
+  // Fetch trending searches
   const fetchTrendingSearches = async () => {
     try {
-      const data = await getTrendingSearches();
+      const data = await articleApi.getTrendingSearches();
       setTrendingSearches(data);
     } catch (error) {
       console.error('Failed to fetch trending searches:', error);
     }
   };
 
+  // Debounced suggestions
   const fetchSuggestions = useCallback(
     debounce(async (query: string) => {
       if (query.length < 2) {
@@ -117,7 +130,7 @@ const SmartSearch: React.FC = () => {
       }
 
       try {
-        const data = await getSearchSuggestions(query);
+        const data = await articleApi.getSearchSuggestions(query);
         setSuggestions(data);
       } catch (error) {
         console.error('Failed to fetch suggestions:', error);
@@ -126,12 +139,24 @@ const SmartSearch: React.FC = () => {
     []
   );
 
+  // Perform search
   const performSearch = async (query: string, currentFilters: typeof filters) => {
     if (!query.trim()) return;
 
     setLoading(true);
     try {
-      const results = await searchArticles(query, currentFilters);
+      // Convert filters to the expected format
+      const searchFilters = {
+        category: currentFilters.category,
+        tags: currentFilters.tags,
+        readingTime: currentFilters.readingTime,
+        publishedDate: currentFilters.publishedDate,
+        accessType: currentFilters.accessType,
+        sortBy: currentFilters.sortBy,
+      };
+
+      const response = await articleApi.searchArticles(query, searchFilters);
+      const results = response.data?.data || [];
       setQuickResults(results.slice(0, 5));
       
       // Save to recent searches
@@ -145,6 +170,7 @@ const SmartSearch: React.FC = () => {
     }
   };
 
+  // Handle search
   const handleSearch = (value: string, navigateToResults = false) => {
     const query = value.trim();
     if (!query) return;
@@ -174,21 +200,20 @@ const SmartSearch: React.FC = () => {
   };
 
   const clearFilters = () => {
-    const clearedFilters = {
-      category: [],
-      tags: [],
-      readingTime: [0, 60],
-      publishedDate: null,
-      accessType: [],
-      language: 'en',
-      sortBy: 'relevance',
-    };
-    setFilters(clearedFilters);
-    
-    if (searchQuery) {
-      performSearch(searchQuery, clearedFilters);
-    }
+  const clearedFilters = {
+    category: [] as string[], // Explicit type
+    tags: [] as string[],
+    readingTime: [1, 60] as [number, number], // Tuple type
+    publishedDate: null,
+    accessType: [] as string[],
+    sortBy: 'relevance' as 'relevance' | 'recent' | 'popular' | 'reading_time',
   };
+  setFilters(clearedFilters);
+  
+  if (searchQuery) {
+    performSearch(searchQuery, clearedFilters);
+  }
+};
 
   const renderHighlightedText = (text: string, highlights: string[] = []) => {
     if (!highlights.length) return text;
@@ -302,20 +327,34 @@ const SmartSearch: React.FC = () => {
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div>
           <Text strong style={{ marginBottom: 8, display: 'block' }}>Category</Text>
-          <Select
-            mode="multiple"
-            placeholder="Select categories"
-            style={{ width: '100%' }}
-            value={filters.category}
-            onChange={(value) => handleFilterChange('category', value)}
-          >
-            <Option value="growth">Growth</Option>
-            <Option value="productivity">Productivity</Option>
-            <Option value="career">Career</Option>
-            <Option value="mindset">Mindset</Option>
-            <Option value="relationships">Relationships</Option>
-            <Option value="purpose">Purpose</Option>
-          </Select>
+          {loadingCategories ? (
+            <Spin size="small" />
+          ) : (
+            <Select
+              mode="multiple"
+              placeholder="Select categories"
+              style={{ width: '100%' }}
+              value={filters.category}
+              onChange={(value) => handleFilterChange('category', value)}
+              loading={loadingCategories}
+            >
+              {categories.map((cat) => (
+                <Option key={cat.id} value={cat.slug}>
+                  <Space>
+                    <div 
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: cat.color || '#666666'
+                      }}
+                    />
+                    <span>{cat.name}</span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          )}
         </div>
 
         <div>
@@ -371,20 +410,6 @@ const SmartSearch: React.FC = () => {
               </Checkbox>
             </Space>
           </Checkbox.Group>
-        </div>
-
-        <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Language</Text>
-          <Select
-            style={{ width: '100%' }}
-            value={filters.language}
-            onChange={(value) => handleFilterChange('language', value)}
-          >
-            <Option value="en">🇺🇸 English</Option>
-            <Option value="fr">🇫🇷 French</Option>
-            <Option value="es">🇪🇸 Spanish</Option>
-            <Option value="de">🇩🇪 German</Option>
-          </Select>
         </div>
 
         <div>
@@ -449,7 +474,10 @@ const SmartSearch: React.FC = () => {
                           {renderHighlightedText(result.excerpt, result.highlights?.content)}
                         </Text>
                         <Space size="small" style={{ marginTop: 4 }}>
-                          <Tag color={result.category.color} style={{ margin: 0, fontSize: '10px' }}>
+                          <Tag 
+                            color={result.category.color || 'blue'} 
+                            style={{ margin: 0, fontSize: '10px' }}
+                          >
                             {result.category.name}
                           </Tag>
                           <Text type="secondary" style={{ fontSize: '10px' }}>

@@ -1941,6 +1941,81 @@ IMPORTANT:
     });
   }
 
+  /**
+   * Quick duplicate without AI regeneration
+   */
+  // In cover-letter.service.ts
+async duplicateQuick(userId: string, coverLetterId: string, newName?: string): Promise<CoverLetter> {
+  try {
+    this.logger.log(`Quick duplicating cover letter ${coverLetterId} for user ${userId}`);
+
+    // 1. Get the original cover letter
+    const original = await this.findOne(userId, coverLetterId);
+    
+    // 2. Determine the duplicate title
+    let duplicateTitle: string;
+    
+    if (newName && newName.trim()) {
+      // Use the custom name provided by the user
+      duplicateTitle = newName.trim();
+    } else {
+      // Generate default duplicate title
+      duplicateTitle = original.title;
+      
+      // Remove any existing "(Copy)" suffix
+      duplicateTitle = duplicateTitle.replace(/\s*\(Copy\)(\s*\(Copy\))*\s*$/, '').trim();
+      
+      // Add single "(Copy)" suffix
+      duplicateTitle = `${duplicateTitle} (Copy)`;
+    }
+    
+    // 3. Extract original content
+    const originalContent = original.content as any;
+    
+    // 4. Create duplicate content with updated metadata
+    const duplicateContent = {
+      ...originalContent,
+      // Update the title in the content as well
+      title: duplicateTitle,
+      originalId: coverLetterId,
+      duplicatedFrom: coverLetterId,
+      duplicatedAt: new Date().toISOString(),
+      lastSaved: new Date().toISOString()
+    };
+
+    // 5. Generate a unique slug for the duplicate
+    const duplicateSlug = this.generateSlug(`copy-of-${original.slug}-${Date.now()}`);
+
+    // 6. Create the duplicate directly in database
+    const duplicate = await this.prisma.coverLetter.create({
+      data: {
+        title: duplicateTitle,
+        slug: duplicateSlug,
+        content: duplicateContent,
+        style: original.style,
+        layout: original.layout,
+        userId,
+        isPublic: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    });
+
+    this.logger.log(`Successfully quick-duplicated cover letter ${coverLetterId} to ${duplicate.id} for user ${userId}`);
+    
+    return duplicate;
+    
+  } catch (error) {
+    this.logger.error(`Failed to quick-duplicate cover letter ${coverLetterId} for user ${userId}:`, error.stack);
+    
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+    
+    throw new Error(`Failed to duplicate cover letter: ${error.message}`);
+  }
+}
+
   async enhanceBlock(userId: string, id: string, enhanceBlockDto: EnhanceBlockDto) {
     const coverLetter = await this.prisma.coverLetter.findFirst({
       where: { id, userId }

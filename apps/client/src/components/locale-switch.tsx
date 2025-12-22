@@ -3,7 +3,7 @@ import { Translate } from "@phosphor-icons/react";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@reactive-resume/ui";
 import { useState } from "react";
 
-import { changeLanguage } from "../providers/locale";
+import { changeLanguage } from "../providers/changeLanguage";
 import { LocaleCombobox } from "./locale-combobox";
 
 export const LocaleSwitch = () => {

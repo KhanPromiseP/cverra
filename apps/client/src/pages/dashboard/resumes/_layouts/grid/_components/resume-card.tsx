@@ -12,6 +12,9 @@ import {
   CircleNotch,
   ArrowSquareOut,
   DotsThreeVertical,
+  Coins,
+  Crown,
+  Sparkle,
 } from "@phosphor-icons/react";
 import type { ResumeDto } from "@reactive-resume/dto";
 import {
@@ -30,21 +33,24 @@ import {
   Input,
   Label,
   Badge,
-  // Tooltip,
   Separator,
 } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef, RefObject } from "react";
 import { useNavigate } from "react-router";
 
 import { useDialog } from "@/client/stores/dialog";
 import { useSaveTranslation } from "@/client/hooks/use-save-translation";
 import { useToast } from "@/client/hooks/use-toast";
 import { useResumeTranslation } from "@/client/hooks/use-resume-translation";
-import * as Tooltip from "@radix-ui/react-tooltip";
+import { useAuthStore } from "@/client/stores/auth";
+import { useWallet } from "@/client/hooks/useWallet";
+import { CoinConfirmPopover } from "@/client/components/modals/coin-confirm-modal";
+import { calculateTranslationCost } from "@/client/libs/resume-pricing";
 
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { BaseCard } from "./base-card";
 
 type Props = {
@@ -56,8 +62,10 @@ export const ResumeCard = ({ resume }: Props) => {
   const { open } = useDialog<ResumeDto>("resume");
   const { open: lockOpen } = useDialog<ResumeDto>("lock");
   const { toast } = useToast();
+  const { user } = useAuthStore();
   
   const [translationDialogOpen, setTranslationDialogOpen] = useState(false);
+  const [showTranslationCoinPopover, setShowTranslationCoinPopover] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("es");
   const [customTitle, setCustomTitle] = useState("");
@@ -65,6 +73,21 @@ export const ResumeCard = ({ resume }: Props) => {
   const [newTranslatedResumeId, setNewTranslatedResumeId] = useState<string | null>(null);
   
   const { availableLanguages, isLoadingLanguages } = useResumeTranslation();
+  
+  // Wallet and coin management
+  const { 
+    balance, 
+    canAfford, 
+    deductCoinsWithRollback, 
+    completeTransaction, 
+    refundTransaction, 
+    fetchBalance 
+  } = useWallet(user?.id || '');
+  
+  // Refs for coin popover
+  const translateButtonRef = useRef<HTMLButtonElement>(null);
+  const translationDropdownRef = useRef<HTMLDivElement>(null);
+  
   const { saveTranslation, isSaving } = useSaveTranslation({
     resumeId: resume.id,
     onSuccess: (data) => {
@@ -85,10 +108,10 @@ export const ResumeCard = ({ resume }: Props) => {
   const template = resume.data?.metadata?.template || "modern";
   const lastUpdated = dayjs().to(resume.updatedAt);
   
-  // Safe metadata access - FIXED (check both locations)
+  // Safe metadata access
   const resumeMetadata = resume.data?.metadata as any;
   const isTranslation = resumeMetadata?.isTranslation || resumeMetadata?.translatedFrom || 
-                        (resume as any).metadata?.isTranslation; // Also check root metadata
+                        (resume as any).metadata?.isTranslation;
 
   const onOpen = () => {
     void navigate(`/builder/${resume.id}`);
@@ -110,14 +133,35 @@ export const ResumeCard = ({ resume }: Props) => {
     open("delete", { id: "resume", item: resume });
   };
 
-  const onTranslate = () => {
+  const onTranslate = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to translate your resume",
+        variant: "error",
+      });
+      return;
+    }
+
     setTranslationDialogOpen(true);
     setTranslationComplete(false);
     setNewTranslatedResumeId(null);
-    setCustomTitle(`${resume.title} (${selectedLanguage.toUpperCase()})`);
+    
+    // Set default title based on selected language
+    const langInfo = availableLanguages.find(l => l.code === selectedLanguage);
+    setCustomTitle(`${resume.title} (${langInfo?.name || selectedLanguage.toUpperCase()})`);
   };
 
   const handleStartTranslation = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to translate your resume",
+        variant: "error",
+      });
+      return;
+    }
+
     if (!customTitle.trim()) {
       toast({
         title: "Title Required",
@@ -127,11 +171,142 @@ export const ResumeCard = ({ resume }: Props) => {
       return;
     }
 
-    try {
-      await saveTranslation(selectedLanguage, customTitle);
-    } catch (error) {
-      // Error handled in hook
+    const translationCost = calculateTranslationCost(resume.data);
+    const affordable = await canAfford(translationCost);
+    
+    if (!affordable) {
+      setShowTranslationCoinPopover(true);
+      return;
     }
+
+    // Proceed with translation
+    await processTranslation();
+  };
+
+  const processTranslation = async () => {
+    const translationCost = calculateTranslationCost(resume.data);
+    const transactionId = generateTransactionId('translation');
+    let transactionSuccess = false;
+
+    // Show loading toast
+    const loadingToast = toast({
+      title: "Translating Resume",
+      description: `Processing AI translation (Cost: ${translationCost} coins)...`,
+      variant: "default",
+    });
+
+    try {
+      // Reserve coins for translation
+      const transactionResult = await deductCoinsWithRollback(
+        translationCost,
+        `AI Translation - ${selectedLanguage.toUpperCase()}`,
+        { 
+          transactionId, 
+          resumeId: resume.id,
+          targetLanguage: selectedLanguage,
+          action: 'ai_translation'
+        }
+      );
+
+      if (!transactionResult.success) {
+        throw new Error('Failed to reserve coins for translation');
+      }
+
+      transactionSuccess = true;
+
+      // Save translation
+      await saveTranslation(selectedLanguage, customTitle);
+      
+      // Dismiss loading toast
+      if (loadingToast && typeof loadingToast.dismiss === 'function') {
+        loadingToast.dismiss();
+      }
+      
+      // Mark transaction as completed
+      await completeTransaction(transactionId, {
+        result: 'success',
+        resumeTitle: customTitle,
+        targetLanguage: selectedLanguage,
+        cost: translationCost,
+        translatedAt: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("Translation failed:", error);
+      
+      // Dismiss loading toast
+      if (loadingToast && typeof loadingToast.dismiss === 'function') {
+        loadingToast.dismiss();
+      }
+      
+      // Refund coins if transaction was successful
+      if (transactionSuccess) {
+        try {
+          await refundTransaction(transactionId, error.message || 'Translation failed');
+          await fetchBalance();
+          
+          toast({
+            title: "Translation Failed",
+            description: `${translationCost} coins refunded`,
+            variant: "info",
+          });
+        } catch (refundError) {
+          console.error('Failed to refund coins:', refundError);
+        }
+      }
+
+      toast({
+        title: "Translation Failed",
+        description: error.message || "Failed to translate resume. Please try again.",
+        variant: "error",
+      });
+    }
+  };
+
+  const confirmTranslation = async () => {
+    try {
+      const translationCost = calculateTranslationCost(resume.data);
+      const affordable = await canAfford(translationCost);
+
+      if (!affordable) {
+        toast({
+          title: "Insufficient Coins",
+          description: "You don't have enough coins for translation",
+          variant: "error",
+        });
+        setShowTranslationCoinPopover(false);
+        return;
+      }
+
+      // Proceed with translation
+      await processTranslation();
+      setShowTranslationCoinPopover(false);
+
+    } catch (error: any) {
+      console.error("Translation preparation failed:", error);
+      toast({
+        title: "Translation Failed",
+        description: "Failed to prepare translation",
+        variant: "error",
+      });
+      setShowTranslationCoinPopover(false);
+    }
+  };
+
+  const handleBuyCoinsForTranslation = (goSubscription = false) => {
+    const translationCost = calculateTranslationCost(resume.data);
+    const shortage = translationCost - balance;
+    
+    setShowTranslationCoinPopover(false);
+    if (goSubscription) {
+      navigate("/dashboard/pricing");
+    } else {
+      navigate(`/dashboard/coins?needed=${shortage > 0 ? shortage : translationCost}`);
+    }
+  };
+
+  const generateTransactionId = (action: string): string => {
+    return `${action}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const openTranslatedResume = () => {
@@ -147,6 +322,11 @@ export const ResumeCard = ({ resume }: Props) => {
     setNewTranslatedResumeId(null);
   };
 
+  // Calculate translation cost for display
+  const getTranslationCost = () => {
+    return calculateTranslationCost(resume.data);
+  };
+
   // Sort languages for dropdown
   const sortedLanguages = [...availableLanguages]
     .filter(lang => !lang.isOriginal)
@@ -155,6 +335,14 @@ export const ResumeCard = ({ resume }: Props) => {
       if (!a.available && b.available) return 1;
       return a.name.localeCompare(b.name);
     });
+
+  // Get current user balance display
+  const userBalance = user ? (
+    <div className="flex items-center gap-1.5 text-xs font-medium text-yellow-700 dark:text-yellow-300">
+      <Coins size={12} />
+      <span>{balance} coins</span>
+    </div>
+  ) : null;
 
   return (
     <>
@@ -177,7 +365,7 @@ export const ResumeCard = ({ resume }: Props) => {
             )}
           </AnimatePresence>
 
-          {/* Translation Badge Overlay - MADE MORE VISIBLE */}
+          {/* Translation Badge Overlay */}
           {isTranslation && (
             <div className="absolute top-60 left-3 z-30">
               <Badge 
@@ -190,7 +378,7 @@ export const ResumeCard = ({ resume }: Props) => {
             </div>
           )}
 
-           {!isTranslation && (
+          {!isTranslation && (
             <div className="absolute top-60 left-3 z-30">
               <Badge 
                 variant="outline" 
@@ -202,7 +390,17 @@ export const ResumeCard = ({ resume }: Props) => {
             </div>
           )}
 
-          {/* Action Button Overlay - Single button for dropdown */}
+          {/* User Balance Display */}
+          {/* {user && (
+            <div className="absolute top-2 left-2 z-30">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 dark:bg-yellow-900/30 rounded-full border border-yellow-200 dark:border-yellow-800">
+                <Coins size={12} className="text-yellow-600 dark:text-yellow-400" />
+                <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300">{balance}</span>
+              </div>
+            </div>
+          )} */}
+
+          {/* Action Button Overlay */}
           <div className="absolute top-60 right-3 z-30">
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
@@ -278,21 +476,32 @@ export const ResumeCard = ({ resume }: Props) => {
                   <span className="font-medium">{t`Duplicate`}</span>
                 </DropdownMenuItem>
 
-                {/* Translate Option with special styling */}
+                {/* Translate Option with Coin Cost - Fixed with button inside */}
                 <DropdownMenuItem 
                   onClick={(e) => {
                     e.stopPropagation();
                     onTranslate();
                   }}
-                  className="px-3 py-2.5 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-accent-foreground transition-colors duration-200 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20"
+                  className="p-0"
                 >
-                  <Translate size={16} className="mr-3 text-purple-500 dark:text-purple-400" />
-                  <div className="flex items-center justify-between flex-1">
-                    <span className="font-medium">{t`Translate`}</span>
-                    <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
-                      AI
-                    </Badge>
-                  </div>
+                  <button
+                    ref={translateButtonRef}
+                    className="w-full px-3 py-2.5 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-accent-foreground transition-colors duration-200 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-left flex items-center justify-between"
+                  >
+                    <div className="flex items-center">
+                      <Translate size={16} className="mr-3 text-purple-500 dark:text-purple-400" />
+                      <span className="font-medium">{t`Translate`}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                        AI
+                      </Badge>
+                      <div className="flex items-center gap-0.5 text-xs text-yellow-600 dark:text-yellow-400">
+                        <Coins size={10} />
+                        {getTranslationCost()}
+                      </div>
+                    </div>
+                  </button>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator className="my-2 bg-border" />
@@ -333,7 +542,7 @@ export const ResumeCard = ({ resume }: Props) => {
             </DropdownMenu>
           </div>
 
-          {/* Card Content Overlay - Improved for both themes */}
+          {/* Card Content Overlay */}
           <div
             className={cn(
               "absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-4 pt-16",
@@ -381,13 +590,12 @@ export const ResumeCard = ({ resume }: Props) => {
             {/* Hover effect overlay */}
             <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300" />
           </div>
-             
         </BaseCard>
       </div>
 
-      {/* Translation Dialog with improved styling */}
+      {/* Translation Dialog */}
       <Dialog open={translationDialogOpen} onOpenChange={closeDialog}>
-        <DialogContent className="sm:max-w-md rounded-2xl border-border bg-background dark:bg-background shadow-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl border-border bg-background dark:bg-background shadow-2xl style={{ zIndex: 50 }}">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30">
@@ -395,12 +603,12 @@ export const ResumeCard = ({ resume }: Props) => {
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold text-foreground dark:text-foreground">
-                  {translationComplete ? "Translation Complete!" : "Translate Resume"}
+                  {translationComplete ? "Translation Complete!" : "AI Translation"}
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground dark:text-muted-foreground">
                   {translationComplete 
                     ? "Your resume has been successfully translated."
-                    : "Select a language and translate your resume."
+                    : `Translate "${resume.title}" to another language`
                   }
                 </DialogDescription>
               </div>
@@ -411,6 +619,27 @@ export const ResumeCard = ({ resume }: Props) => {
 
           {!translationComplete ? (
             <>
+              {/* User Balance Display */}
+              {user && (
+                <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                        <Coins size={16} className="text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Your Balance</p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400">Available coins for translation</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{balance}</p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400">coins</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Language Selection */}
               <div className="space-y-5 py-4">
                 <div className="space-y-3">
@@ -424,7 +653,11 @@ export const ResumeCard = ({ resume }: Props) => {
                     <select
                       id="language"
                       value={selectedLanguage}
-                      onChange={(e) => setSelectedLanguage(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedLanguage(e.target.value);
+                        const langInfo = availableLanguages.find(l => l.code === e.target.value);
+                        setCustomTitle(`${resume.title} (${langInfo?.name || e.target.value.toUpperCase()})`);
+                      }}
                       className="w-full h-12 pl-10 pr-10 rounded-xl border-2 border-input bg-background dark:bg-background text-foreground dark:text-foreground text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary transition-all appearance-none"
                       disabled={isSaving}
                     >
@@ -470,28 +703,44 @@ export const ResumeCard = ({ resume }: Props) => {
                   </p>
                 </div>
 
-                {/* Features Card */}
-                <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 border border-blue-100 dark:border-blue-800/30">
+                {/* Cost and Features Card */}
+                <div className="rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 p-4 border border-purple-100 dark:border-purple-800/30">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 flex-shrink-0">
-                      <Globe size={16} className="text-blue-600 dark:text-blue-400" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
+                      <Sparkle size={16} className="text-purple-600 dark:text-purple-400" />
                     </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">AI Translation Features</h4>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-purple-800 dark:text-purple-300">AI Translation Cost</h4>
+                        <div className="flex items-center gap-1 text-lg font-bold text-purple-700 dark:text-purple-300">
+                          <Coins size={16} />
+                          {getTranslationCost()}
+                        </div>
+                      </div>
+                      
                       <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                        <li className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                           <CheckCircle size={14} className="text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span>Preserves all formatting and structure</span>
                         </li>
-                        <li className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                        <li className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                           <CheckCircle size={14} className="text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span>Professional tone and cultural adaptation</span>
                         </li>
-                        <li className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                        <li className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                           <CheckCircle size={14} className="text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span>Saves as a new resume for easy editing</span>
                         </li>
                       </ul>
+                      
+                      <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800/30">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-purple-600 dark:text-purple-400">Cost breakdown:</span>
+                          <span className="font-medium text-purple-700 dark:text-purple-300">
+                            Based on resume length
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -509,8 +758,9 @@ export const ResumeCard = ({ resume }: Props) => {
                   Cancel
                 </Button>
                 <Button
+                  ref={translateButtonRef}
                   onClick={handleStartTranslation}
-                  disabled={isSaving || !customTitle.trim()}
+                  disabled={isSaving || !customTitle.trim() || !user}
                   className="flex-1 h-12 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 gap-3 shadow-lg hover:shadow-xl transition-all"
                 >
                   {isSaving ? (
@@ -521,11 +771,29 @@ export const ResumeCard = ({ resume }: Props) => {
                   ) : (
                     <>
                       <Translate size={18} />
-                      <span className="font-semibold">Start Translation</span>
+                      <span className="font-semibold">
+                        Translate
+                      </span>
                     </>
                   )}
                 </Button>
               </DialogFooter>
+
+              {!user && (
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-100 dark:border-amber-800/30">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                      <Coins size={20} className="text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Sign in Required</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                        Please sign in to purchase coins and use AI translation
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {isSaving && (
                 <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/30">
@@ -634,6 +902,30 @@ export const ResumeCard = ({ resume }: Props) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Translation Coin Confirmation Popover */}
+      <CoinConfirmPopover
+        open={showTranslationCoinPopover}
+        onClose={() => setShowTranslationCoinPopover(false)}
+        required={getTranslationCost()}
+        balance={balance}
+        onConfirm={confirmTranslation}
+        onBuyCoins={handleBuyCoinsForTranslation}
+        title={`Translation to ${selectedLanguage.toUpperCase()}`}
+        description={`Translate "${resume.title}" to ${availableLanguages.find(l => l.code === selectedLanguage)?.name || selectedLanguage.toUpperCase()} using advanced AI model. The translation will be saved as a new resume in your workspace.`}
+        actionType="enhance"
+        triggerRef={translateButtonRef as RefObject<HTMLElement>}
+        userId={user?.id}
+        metadata={{
+          targetLanguage: selectedLanguage,
+          languageName: availableLanguages.find(l => l.code === selectedLanguage)?.name,
+          cost: getTranslationCost(),
+          costBreakdown: `AI Translation: ${getTranslationCost()} coins`,
+          resumeLength: calculateTranslationCost(resume.data) === 20 ? "Short" : 
+                        calculateTranslationCost(resume.data) === 35 ? "Medium" : 
+                        calculateTranslationCost(resume.data) === 50 ? "Long" : "Premium",
+        }}
+      />
     </>
   );
 };

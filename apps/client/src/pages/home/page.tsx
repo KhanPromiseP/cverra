@@ -7,6 +7,8 @@ import { FeaturesSection } from "./sections/features";
 import { HeroSection } from "./sections/hero";
 import { LogoCloudSection } from "./sections/logo-cloud";
 import { TemplatesSection } from "./sections/templates";
+import { KnowledgeHubSection } from "./sections/knowledgeHub";
+import { PlatformManifestoSection } from "./sections/platformManifesto";
 import { ResumeSection } from "./sections/resume";
 import { LettersSection } from "./sections/letters";
 
@@ -29,8 +31,10 @@ export const HomePage = () => {
       </Helmet>
 
       <HeroSection />
+      <PlatformManifestoSection />
       <ResumeSection />
       <LettersSection />
+      <KnowledgeHubSection />
       <LogoCloudSection />
       <FeaturesSection />
       {/* <TemplatesSection /> */}

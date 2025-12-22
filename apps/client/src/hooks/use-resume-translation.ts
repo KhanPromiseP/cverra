@@ -63,7 +63,7 @@ export const useResumeTranslation = () => {
       toast({
         title: 'Translation Failed',
         description: `Failed to translate to ${variables.language.toUpperCase()}: ${error.message}`,
-        variant: 'destructive',
+        variant: 'default',
       });
     },
   });

@@ -1,6 +1,6 @@
 // components/article-editor/JoditWrapper.tsx
 import React, { useMemo, useState, useRef } from 'react';
-import JoditEditor, { IJoditEditorProps } from 'jodit-react';
+import JoditEditor from 'jodit-react';
 import { message, Upload, Button, Row, Col, Space, Modal } from 'antd';
 import { 
   UploadOutlined, 
@@ -13,6 +13,7 @@ import {
   GifOutlined,
   IeOutlined
 } from '@ant-design/icons';
+import { useTemporalResumeStore } from '@/client/stores/resume';
 
 interface JoditWrapperProps {
   value: string;
@@ -353,7 +354,7 @@ textLeftImageRight: () => `
   };
 
   // Advanced configuration with custom styling
-  const config = useMemo<IJoditEditorProps['config']>(() => ({
+ const config = useMemo(() => ({
     readonly: disabled,
     placeholder,
     minHeight: height,
@@ -387,16 +388,16 @@ textLeftImageRight: () => `
     // Custom upload handler
     uploader: {
       url: uploadEndpoint,
-      isSuccess: (resp) => resp.success,
-      getMessage: (resp) => resp.message || '',
-      process: (resp) => ({
+      isSuccess: (resp: any) => resp.success,
+      getMessage: (resp: any) => resp.message || '',
+      process: (resp: any) => ({
         files: resp.files || [],
         path: resp.path || '',
         baseurl: resp.baseurl || '',
         error: resp.error || 0,
         message: resp.message || ''
       }),
-      defaultHandlerSuccess: (data) => {
+      defaultHandlerSuccess: (data: any) => {
         const editor = editorRef.current;
         if (editor && data.files && data.files.length > 0) {
           data.files.forEach((filename: string) => {
@@ -405,7 +406,7 @@ textLeftImageRight: () => `
           });
         }
       },
-      error: (e) => {
+      error: (e:any) => {
         message.error(`Upload error: ${e.message}`);
       }
     },
@@ -418,11 +419,11 @@ textLeftImageRight: () => `
     showTooltipDelay: 500,
     
     // Advanced table options
-    table: {
-      allowCellSelection: true,
-      allowCellResize: true,
-      useExtraClasses: true,
-    },
+    // table: {
+    //   allowCellSelection: true,
+    //   allowCellResize: true,
+    //   useExtraClasses: true,
+    // },
     
     // Link options
     link: {

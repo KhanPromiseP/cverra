@@ -18,7 +18,12 @@ import {
   Steps,
   Tabs,
   Breadcrumb,
-  Spin
+  Spin,
+  Tag,
+  Tooltip,
+  Badge, 
+  Radio,
+  Rate,
 } from 'antd';
 import { 
   SaveOutlined, 
@@ -27,8 +32,15 @@ import {
   EyeOutlined,
   UploadOutlined,
   DollarOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  FireOutlined,
+  StarOutlined,
+  WarningOutlined,
+  CrownOutlined,
+  RocketOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import RichTextEditor, { tiptapToHTML, htmlToTiptap } from '../../../../components/article-tiptap-editor/RichTextEditor';
 import ArticleAdminNavbar from '../ArticleAdminSidebar';
 import EditorSwitcher from '../../../../components/article-tiptap-editor/EditorSwitcher';
@@ -43,6 +55,23 @@ import {
 } from '../../../../services/article.service';
 import { RcFile } from 'antd/es/upload';
 import { languages } from 'unique-names-generator';
+
+
+const CONTENT_TYPES = [
+  { value: 'STANDARD', label: 'Standard Article', icon: '📝', description: 'Regular informative article' },
+  { value: 'GUIDE', label: 'Comprehensive Guide', icon: '📚', description: 'In-depth guide or manual' },
+  { value: 'TUTORIAL', label: 'Step-by-Step Tutorial', icon: '🔧', description: 'Practical how-to guide' },
+  { value: 'CASE_STUDY', label: 'Case Study', icon: '📊', description: 'Real-world analysis' },
+  { value: 'RESEARCH', label: 'Research Paper', icon: '🔬', description: 'Data-driven research' },
+  { value: 'INTERVIEW', label: 'Expert Interview', icon: '🎤', description: 'Q&A with professionals' },
+];
+
+const READING_LEVELS = [
+  { value: 'BEGINNER', label: 'Beginner', color: 'green', description: 'Introductory, easy to understand' },
+  { value: 'INTERMEDIATE', label: 'Intermediate', color: 'blue', description: 'Some prior knowledge helpful' },
+  { value: 'ADVANCED', label: 'Advanced', color: 'purple', description: 'Deep technical knowledge required' },
+  { value: 'EXPERT', label: 'Expert', color: 'red', description: 'Specialized, professional-level' },
+];
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -68,10 +97,21 @@ interface ArticleFormData {
   metaDescription?: string;
   autoTranslate: boolean;
   targetLanguages: string[];
-  isFeatured: boolean;
   status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED';
   publishedAt?: Date;
   scheduledFor?: Date;
+
+   // Content Flags (ADD THESE)
+  isFeatured: boolean;
+  isTrending: boolean;
+  isEditorPick: boolean;
+  isPopular: boolean;
+  featuredRanking: number; // 1-5 star rating
+  trendingScore: number; // 1-100
+  
+  contentType: 'STANDARD' | 'GUIDE' | 'TUTORIAL' | 'CASE_STUDY' | 'RESEARCH' | 'INTERVIEW';
+  readingLevel: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+  timeToRead: number; // minutes
 }
 
 // Navigation helper functions
@@ -261,54 +301,32 @@ const ArticleForm: React.FC = () => {
 
 
   const fetchArticle = async () => {
-  if (!id) {
-    console.error('❌ No ID provided for editing');
-    message.error('No article ID provided');
-    return;
-  }
+  if (!id) return;
   
   try {
-    console.log('📡 Fetching article with identifier:', id);
-    
-    const article = await Promise.race([
-      getArticle(id),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
-      )
-    ]);
-    
-    if (!article) {
-      console.error('❌ Article not found for identifier:', id);
-      message.error(`Article not found: ${id}`);
-      return;
-    }
-    
-    // CRITICAL FIX: Convert Tiptap JSON to HTML for Jodit
-    let contentForJodit = '';
-    if (article.content) {
-      // Check if it's Tiptap JSON or already HTML
-      if (typeof article.content === 'object' && article.content.type === 'doc') {
-        // Convert Tiptap JSON to HTML
-        contentForJodit = tiptapToHTML(article.content);
-        console.log('Converted Tiptap JSON to HTML for Jodit');
-      } else if (typeof article.content === 'string') {
-        // Already HTML, use as-is
-        contentForJodit = article.content;
-      } else {
-        // Fallback empty string
-        contentForJodit = '';
-      }
-    }
+    const article = await getArticle(id);
+    if (!article) return;
     
     const values = {
       title: article.title,
       excerpt: article.excerpt,
-      content: contentForJodit, // NOW HTML STRING FOR JODIT
+      content: article.content || '',
       categoryId: article.category?.id || article.categoryId,
       tags: article.tags || [],
       targetLanguages: article.targetLanguages || ['fr'],
       autoTranslate: article.autoTranslate !== false,
+      
+      // ADD THESE (with fallbacks)
       isFeatured: article.isFeatured || false,
+      isTrending: article.isTrending || false,
+      isEditorPick: article.isEditorPick || false,
+      isPopular: article.isPopular || false,
+      featuredRanking: article.featuredRanking || 3,
+      trendingScore: article.trendingScore || 50,
+      contentType: article.contentType || 'STANDARD',
+      readingLevel: article.readingLevel || 'INTERMEDIATE',
+      timeToRead: article.timeToRead || 5,
+      
       accessType: article.accessType || 'FREE',
       status: article.status || 'DRAFT',
       coinPrice: article.coinPrice || 10,
@@ -324,22 +342,11 @@ const ArticleForm: React.FC = () => {
       setCoverImageUrl(article.coverImage);
     }
     
-    if (article.status === 'SCHEDULED' && article.scheduledFor) {
-      form.setFieldValue('scheduledFor', new Date(article.scheduledFor));
-    }
-    
     message.success('Article loaded successfully');
     
   } catch (error: any) {
-    console.error('❌ Error fetching article:', error);
-    const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
-    message.error(`Failed to load article: ${errorMsg}`);
-    
-    if (error.response?.status === 404) {
-      setTimeout(() => {
-        navigateTo('/dashboard/article-admin/articles');
-      }, 3000);
-    }
+    console.error('Error fetching article:', error);
+    message.error(`Failed to load article: ${error.message}`);
   }
 };
 
@@ -672,10 +679,10 @@ const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDUL
       : String(formValues.content || '');
     
     // Prepare data with HTML string (not Tiptap JSON)
-    const articleData = {
+     const articleData = {
       title: formValues.title.trim(),
       excerpt: formValues.excerpt.trim(),
-      content: contentForBackend, // HTML STRING, not Tiptap JSON
+      content: formValues.content || '',
       categoryId: formValues.categoryId,
       tags: formValues.tags || [],
       accessType: formValues.accessType || 'FREE',
@@ -685,11 +692,23 @@ const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDUL
       metaDescription: formValues.metaDescription?.trim(),
       autoTranslate: formValues.autoTranslate ?? true,
       targetLanguages: formValues.autoTranslate ? (formValues.targetLanguages || ['fr']) : [],
+      
+      // ADD THESE FIELDS
       isFeatured: formValues.isFeatured || false,
+      isTrending: formValues.isTrending || false,
+      isEditorPick: formValues.isEditorPick || false,
+      isPopular: formValues.isPopular || false,
+      featuredRanking: formValues.featuredRanking || 3,
+      trendingScore: formValues.trendingScore || 50,
+      contentType: formValues.contentType || 'STANDARD',
+      readingLevel: formValues.readingLevel || 'INTERMEDIATE',
+      timeToRead: formValues.timeToRead || 5,
+      
       status,
       publishedAt: status === 'PUBLISHED' ? new Date() : undefined,
       scheduledFor: status === 'SCHEDULED' ? formValues.scheduledFor : undefined,
     };
+    
     
     console.log('Submitting article data:', articleData);
     
@@ -1150,6 +1169,244 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
             />
           </Form.Item>
 
+          <Divider orientation="left" style={{ marginTop: 24 }}>
+          <Space>
+            <FireOutlined />
+            <span>Content Flags & Classification</span>
+          </Space>
+        </Divider>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label="Content Type"
+              name="contentType"
+            >
+              <Select 
+                placeholder="Select content type"
+                disabled={loading || initialLoading}
+                value={formValues.contentType}
+                onChange={(value) => {
+                  form.setFieldValue('contentType', value);
+                  setFormValues(prev => ({ ...prev, contentType: value }));
+                }}
+              >
+                {CONTENT_TYPES.map((type) => (
+                  <Option key={type.value} value={type.value}>
+                    <Space>
+                      <span>{type.icon}</span>
+                      <span>{type.label}</span>
+                      <Tooltip title={type.description}>
+                        <span style={{ color: '#999', fontSize: '12px' }}>ℹ️</span>
+                      </Tooltip>
+                    </Space>
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="Reading Level"
+              name="readingLevel"
+            >
+              <Select 
+                placeholder="Select reading level"
+                disabled={loading || initialLoading}
+                value={formValues.readingLevel}
+                onChange={(value) => {
+                  form.setFieldValue('readingLevel', value);
+                  setFormValues(prev => ({ ...prev, readingLevel: value }));
+                }}
+              >
+                {READING_LEVELS.map((level) => (
+                  <Option key={level.value} value={level.value}>
+                    <Badge color={level.color} text={level.label} />
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label="Estimated Reading Time"
+              name="timeToRead"
+            >
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                placeholder="Minutes"
+                addonAfter="minutes"
+                disabled={loading || initialLoading}
+                value={formValues.timeToRead}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  form.setFieldValue('timeToRead', value);
+                  setFormValues(prev => ({ ...prev, timeToRead: value }));
+                }}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider orientation="left" style={{ marginTop: 16 }}>
+          <Space>
+            <StarOutlined />
+            <span>Featured & Trending Settings</span>
+          </Space>
+        </Divider>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Card size="small" style={{ background: '#fafafa' }}>
+              <Form.Item
+                label={
+                  <Space>
+                    <StarOutlined style={{ color: '#faad14' }} />
+                    <span>Featured Status</span>
+                  </Space>
+                }
+                name="isFeatured"
+                valuePropName="checked"
+              >
+                <Switch 
+                  checkedChildren="Featured" 
+                  unCheckedChildren="Not Featured"
+                  disabled={loading || initialLoading}
+                  checked={formValues.isFeatured}
+                  onChange={(checked) => {
+                    form.setFieldValue('isFeatured', checked);
+                    setFormValues(prev => ({ ...prev, isFeatured: checked }));
+                  }}
+                />
+              </Form.Item>
+              
+              {formValues.isFeatured && (
+                <Form.Item
+                  label="Featured Ranking"
+                  name="featuredRanking"
+                  extra="How prominently should this be featured?"
+                >
+                  <Rate 
+                    count={5}
+                    value={formValues.featuredRanking}
+                    onChange={(value: any) => {
+                      form.setFieldValue('featuredRanking', value);
+                      setFormValues(prev => ({ ...prev, featuredRanking: value }));
+                    }}
+                    disabled={loading || initialLoading}
+                  />
+                </Form.Item>
+              )}
+            </Card>
+          </Col>
+          
+          <Col span={12}>
+            <Card size="small" style={{ background: '#fafafa' }}>
+              <Form.Item
+                label={
+                  <Space>
+                    <FireOutlined style={{ color: '#ff4d4f' }} />
+                    <span>Trending Status</span>
+                  </Space>
+                }
+                name="isTrending"
+                valuePropName="checked"
+              >
+                <Switch 
+                  checkedChildren="Trending" 
+                  unCheckedChildren="Not Trending"
+                  disabled={loading || initialLoading}
+                  checked={formValues.isTrending}
+                  onChange={(checked) => {
+                    form.setFieldValue('isTrending', checked);
+                    setFormValues(prev => ({ ...prev, isTrending: checked }));
+                  }}
+                />
+              </Form.Item>
+              
+              {formValues.isTrending && (
+                <Form.Item
+                  label="Trending Score"
+                  name="trendingScore"
+                  extra="Higher score = more prominent in trending"
+                >
+                  <Input
+                    type="range"
+                    min={1}
+                    max={100}
+                    style={{ width: '100%' }}
+                    value={formValues.trendingScore}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      form.setFieldValue('trendingScore', value);
+                      setFormValues(prev => ({ ...prev, trendingScore: value }));
+                    }}
+                    disabled={loading || initialLoading}
+                  />
+                  <div style={{ textAlign: 'center', marginTop: 8 }}>
+                    <Tag color="red">{formValues.trendingScore || 50}/100</Tag>
+                  </div>
+                </Form.Item>
+              )}
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={12}>
+            <Form.Item
+              label={
+                <Space>
+                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                  <span>Editor's Pick</span>
+                </Space>
+              }
+              name="isEditorPick"
+              valuePropName="checked"
+            >
+              <Switch 
+                checkedChildren="Editor's Choice" 
+                unCheckedChildren="Standard"
+                disabled={loading || initialLoading}
+                checked={formValues.isEditorPick}
+                onChange={(checked) => {
+                  form.setFieldValue('isEditorPick', checked);
+                  setFormValues(prev => ({ ...prev, isEditorPick: checked }));
+                }}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={
+                <Space>
+                  <WarningOutlined
+               style={{ color: '#722ed1' }} />
+                  <span>Mark as Popular</span>
+                </Space>
+              }
+              name="isPopular"
+              valuePropName="checked"
+            >
+              <Switch 
+                checkedChildren="Popular" 
+                unCheckedChildren="Standard"
+                disabled={loading || initialLoading}
+                checked={formValues.isPopular}
+                onChange={(checked) => {
+                  form.setFieldValue('isPopular', checked);
+                  setFormValues(prev => ({ ...prev, isPopular: checked }));
+                }}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+
           <Tabs
             defaultActiveKey="publish"
             items={[
@@ -1163,6 +1420,7 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
                     showIcon
                   />
                 ),
+                disabled: loading || initialLoading,
               },
               {
                 key: 'schedule',
@@ -1177,7 +1435,7 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
                       format="YYYY-MM-DD HH:mm"
                       style={{ width: '100%' }}
                       disabledDate={(current) => 
-                        current && current < Date.now()
+                        current && current.isBefore(dayjs().startOf('day'))
                       }
                       disabled={loading || initialLoading}
                       value={formValues.scheduledFor}
@@ -1188,9 +1446,9 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
                     />
                   </Form.Item>
                 ),
+                disabled: loading || initialLoading,
               },
             ]}
-            disabled={loading || initialLoading}
           />
         </>
       ),
@@ -1317,6 +1575,14 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
             autoTranslate: true,
             targetLanguages: ['fr'],
             isFeatured: false,
+            isTrending: false,
+            isEditorPick: false,
+            isPopular: false,
+            featuredRanking: 3,
+            trendingScore: 50,
+            contentType: 'STANDARD',
+            readingLevel: 'INTERMEDIATE',
+            timeToRead: 5,
             status: 'DRAFT',
             publishedAt: undefined,
             scheduledFor: undefined,
@@ -1325,6 +1591,8 @@ const triggerArticleTranslations = async (articleId: string, targetLanguages: st
           <div style={{ minHeight: '400px' }}>
             {steps[currentStep].content}
           </div>
+
+          
 
           <Divider />
 

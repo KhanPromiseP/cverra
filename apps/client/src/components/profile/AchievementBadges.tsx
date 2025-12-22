@@ -318,11 +318,24 @@ const AchievementBadges: React.FC = () => {
     return `${baseUrl}/dashboard/profile`;
   };
 
-  const generateShareText = (achievement?: Achievement) => {
+  const generateShareText = (achievement?: Achievement): string => {
+    let baseText: string;
+    
     if (achievement) {
-      return `${achievement.shareText}\n\nCheck out Cverra for life-changing articles that transform your career and mindset! 🚀\n\n${generateShareUrl(achievement)}`;
+      // Use achievement's shareText or create a default
+      baseText = achievement.shareText || `I just unlocked "${achievement.title}" achievement on Cverra! 🏆`;
+      
+      return `${baseText}\n\nCheck out Cverra for life-changing articles that transform your career and mindset! 🚀\n\n${generateShareUrl(achievement)}`;
     }
-    // return `I've unlocked ${mockStats.unlockedAchievements} achievements with ${mockStats.totalPoints} points on Cverra! 📚\n\nJoin me in exploring amazing articles that can change your life! ✨\n\n${generateShareUrl()}`;
+    
+    // Profile sharing text
+    if (statsData) {
+      baseText = `I've unlocked ${statsData.unlockedAchievements} achievements with ${statsData.totalPoints} points on Cverra! 📚`;
+    } else {
+      baseText = 'Check out my achievement profile on Cverra! 📚';
+    }
+    
+    return `${baseText}\n\nJoin me in exploring amazing articles that can change your life! ✨\n\n${generateShareUrl()}`;
   };
 
   const copyToClipboard = (text: string) => {
@@ -338,21 +351,21 @@ const AchievementBadges: React.FC = () => {
   };
 
   const shareOnPlatform = (platform: string) => {
-    const shareText = generateShareText(selectedAchievement || undefined);
-    const shareUrl = generateShareUrl(selectedAchievement || undefined);
-    
-    const urls: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText)}`,
-      instagram: `https://www.instagram.com/`
-    };
-
-    if (urls[platform]) {
-      window.open(urls[platform], '_blank', 'width=600,height=400');
-    }
+  const shareText = generateShareText(selectedAchievement || undefined) || 'Check out Cverra for amazing articles!';
+  const shareUrl = generateShareUrl(selectedAchievement || undefined);
+  
+  const urls: Record<string, string> = {
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+    instagram: `https://www.instagram.com/`
   };
+
+  if (urls[platform]) {
+    window.open(urls[platform], '_blank', 'width=600,height=400');
+  }
+};
 
   const renderAchievementBadge = (achievement: Achievement) => (
     <Col xs={12} sm={8} md={6} lg={6} xl={4} key={achievement.id}>
@@ -631,7 +644,7 @@ const displayStats = statsData || [];
         <div style={{ marginTop: 24, marginBottom: 24 }}>
           <Title level={5}>Progress by Category</Title>
           <Row gutter={[18, 18]}>
-            {displayStats.topCategories.map((cat, index) => (
+            {displayStats.topCategories.map((cat: any, index: any) => (
               <Col xs={8} key={index}>
                 <div className="category-item">
                   <div 
@@ -655,7 +668,7 @@ const displayStats = statsData || [];
           <div style={{ marginBottom: 24 }}>
             <Title level={5}>Recently Unlocked</Title>
             <Row gutter={[16, 16]}>
-              {displayStats.recentUnlocks.map((achievement) => (
+              {displayStats.recentUnlocks.map((achievement: any) => (
                 <Col xs={24} sm={12} md={8} key={achievement.id}>
                   <Card size="small" hoverable>
                     <Space>

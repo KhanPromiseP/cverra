@@ -75,7 +75,7 @@ export function SavedArticlesTab({ articles = [], onRefresh }: SavedArticlesTabP
         </div>
         
         {selectedIds.length > 0 && (
-          <Button variant="destructive" size="sm" onClick={handleUnsaveSelected}>
+          <Button variant="ghost" size="sm" onClick={handleUnsaveSelected}>
             <Trash className="mr-2" size={16} />
             Remove Selected ({selectedIds.length})
           </Button>
@@ -95,17 +95,17 @@ export function SavedArticlesTab({ articles = [], onRefresh }: SavedArticlesTabP
             </div>
             <ArticleCard article={item.article} />
             <div className="absolute top-[165px] right-6 opacity-0 group-hover:opacity-100 transition-opacity">
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      handleUnsave(item.id);
-    }}
-    className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg"
-    title="Remove from saved"
-  >
-    <Trash size={16} />
-  </button>
-</div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUnsave(item.id);
+            }}
+            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg"
+            title="Remove from saved"
+          >
+            <Trash size={16} />
+          </button>
+        </div>
         </div>
         ))}
       </div>

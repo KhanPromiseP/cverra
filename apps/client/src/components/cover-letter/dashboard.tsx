@@ -1,16 +1,21 @@
 // client/components/cover-letter/dashboard.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Plus, FileText, Edit, Download, Trash2, Clock, Calendar, ChevronRight, Eye, Copy } from 'lucide-react';
+import { Plus, FileText, Edit, Download, Trash2, Clock, Calendar, ChevronRight, Eye, Copy, X } from 'lucide-react';
 import { Button } from '@reactive-resume/ui';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@reactive-resume/ui';
 import { Badge } from '@reactive-resume/ui';
+import { Input } from '@reactive-resume/ui';
 import { coverLetterService } from '../../services/cover-letter.service';
 
 export const CoverLetterDashboard = () => {
   const [coverLetters, setCoverLetters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateName, setDuplicateName] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState<any>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     fetchCoverLetters();
@@ -50,15 +55,48 @@ export const CoverLetterDashboard = () => {
     }
   };
 
-  const duplicateLetter = async (letter: any) => {
-    try {
-      const duplicated = await coverLetterService.duplicate(letter.id);
-      setCoverLetters(letters => [duplicated, ...letters]);
-    } catch (error) {
-      console.error('Failed to duplicate letter:', error);
-      alert('Failed to duplicate letter. Please try again.');
-    }
+  const openDuplicateModal = (letter: any) => {
+    setSelectedLetter(letter);
+    setDuplicateName(`${letter.title || 'Untitled Letter'} (Copy)`);
+    setShowDuplicateModal(true);
   };
+
+  const closeDuplicateModal = () => {
+    setShowDuplicateModal(false);
+    setSelectedLetter(null);
+    setDuplicateName('');
+    setDuplicating(false);
+  };
+
+
+const duplicateLetter = async () => {
+  if (!selectedLetter || !duplicateName.trim()) return;
+
+  setDuplicating(true);
+  try {
+    // Pass the custom name to the backend
+    const response = await coverLetterService.duplicate(
+      selectedLetter.id, 
+      duplicateName.trim()
+    );
+    
+    // Extract the duplicate from the response
+    const duplicated = response.data; // Assuming response has { success, message, data }
+    
+    // Add the duplicated letter to the list
+    setCoverLetters(letters => [duplicated, ...letters]);
+    
+    // Show success message
+    alert(`Letter duplicated successfully as "${duplicateName}"`);
+    
+    closeDuplicateModal();
+  } catch (error) {
+    console.error('Failed to duplicate letter:', error);
+    alert('Failed to duplicate letter. Please try again.');
+  } finally {
+    setDuplicating(false);
+  }
+};
 
   // Function to safely truncate text
   const truncateText = (text: any, maxLength: number = 120) => {
@@ -168,263 +206,364 @@ export const CoverLetterDashboard = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-white to-blue-50 dark:from-gray-900 dark:to-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 to-blue-700 dark:from-white dark:to-blue-300 bg-clip-text text-transparent">
-                  Letters
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Professional correspondence and communications
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 animate-pulse"></div>
-                <span className="text-sm font-medium">
-                  {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
-                <Calendar className="w-3 h-3 mr-2 text-gray-500" />
-                <span className="text-sm">
-                  Updated {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <div className="flex items-center">
-                  <div className="mr-3 p-1 bg-white/20 rounded-lg group-hover:rotate-90 transition-transform">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    
-                    <div className="text-sm opacity-80">Create a new letter</div>
-                  </div>
-                </div>
-              </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              className="border-2 px-6 py-3 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all"
-              onClick={fetchCoverLetters}
-            >
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      {coverLetters.length === 0 ? (
-        <div className="max-w-2xl mx-auto">
-          <Card className="border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 overflow-hidden">
-            <CardContent className="p-12 text-center">
-              <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-2xl opacity-50"></div>
-                <div className="relative w-32 h-32 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl">
-                  <FileText className="w-16 h-16 text-white" />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No letters created yet</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-lg">
-                Start by creating your first professional letter. Our AI will help you craft the perfect message.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all">
-                    Create First Letter
-                    <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Button variant="outline" className="px-8 py-3 text-lg">
-                  View Templates
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <>
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3">
-                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+    <>
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-white to-blue-50 dark:from-gray-900 dark:to-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{coverLetters.length}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Total Letters</div>
+                  <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 to-blue-700 dark:from-white dark:to-blue-300 bg-clip-text text-transparent">
+                    Letters
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Professional correspondence and communications
+                  </p>
                 </div>
               </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-3">
-                  <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 animate-pulse"></div>
+                  <span className="text-sm font-medium">
+                    {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {coverLetters.filter(l => new Date(l.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Updated this week</div>
+                <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
+                  <Calendar className="w-3 h-3 mr-2 text-gray-500" />
+                  <span className="text-sm">
+                    Updated {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
+                  </span>
                 </div>
               </div>
             </div>
             
-          </div>
-
-          {/* Letters Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {coverLetters.map((letter) => (
-              <Card 
-                key={letter.id} 
-                className="group hover:shadow-2xl transition-all duration-500 border border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden relative"
-              >
-                {/* Card Header */}
-                <CardHeader className="pb-4 relative z-10">
-                  <div className="flex justify-between items-start mb-3">
-                    <Badge className={`text-xs font-semibold px-3 py-1 ${getStyleBadgeColor(letter.style)}`}>
-                      {letter.style || 'Custom'}
-                    </Badge>
-                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {formatDate(letter.updatedAt)}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
+                <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                  <div className="flex items-center">
+                    <div className="mr-3 p-1 bg-white/20 rounded-lg group-hover:rotate-90 transition-transform">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      
+                      <div className="text-sm opacity-80">Create a new letter</div>
                     </div>
                   </div>
-                  <CardTitle className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
-                    {letter.title || 'Untitled Letter'}
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-                    {truncateText(letter.content, 100)}
-                  </CardDescription>
-                </CardHeader>
-                
-                {/* Card Content */}
-                <CardContent className="pb-4">
-                  <div className="space-y-4">
-                    {/* Meta Info */}
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-4">
-                        {letter.company && (
-                          <div className="flex items-center">
-                            <span className="text-gray-500 dark:text-gray-400 mr-2">For:</span>
-                            <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px]">
-                              {letter.company}
-                            </span>
+                </Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="border-2 px-6 py-3 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all"
+                onClick={fetchCoverLetters}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        {coverLetters.length === 0 ? (
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 overflow-hidden">
+              <CardContent className="p-12 text-center">
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-2xl opacity-50"></div>
+                  <div className="relative w-32 h-32 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl">
+                    <FileText className="w-16 h-16 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No letters created yet</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-lg">
+                  Start by creating your first professional letter. Our AI will help you craft the perfect message.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all">
+                      Create First Letter
+                      <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                  <Button variant="outline" className="px-8 py-3 text-lg">
+                    View Templates
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <>
+            {/* Stats Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3">
+                    <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{coverLetters.length}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Total Letters</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-3">
+                    <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {coverLetters.filter(l => new Date(l.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Updated this week</div>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+
+            {/* Letters Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {coverLetters.map((letter) => (
+                <Card 
+                  key={letter.id} 
+                  className="group hover:shadow-2xl transition-all duration-500 border border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden relative"
+                >
+                  {/* Card Header */}
+                  <CardHeader className="pb-4 relative z-10">
+                    <div className="flex justify-between items-start mb-3">
+                      <Badge className={`text-xs font-semibold px-3 py-1 ${getStyleBadgeColor(letter.style)}`}>
+                        {letter.style || 'Custom'}
+                      </Badge>
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {formatDate(letter.updatedAt)}
+                      </div>
+                    </div>
+                    <CardTitle className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
+                      {letter.title || 'Untitled Letter'}
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
+                      {truncateText(letter.content, 100)}
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  {/* Card Content */}
+                  <CardContent className="pb-4">
+                    <div className="space-y-4">
+                      {/* Meta Info */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-4">
+                          {letter.company && (
+                            <div className="flex items-center">
+                              <span className="text-gray-500 dark:text-gray-400 mr-2">For:</span>
+                              <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px]">
+                                {letter.company}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {letter.wordCount && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {letter.wordCount} words
                           </div>
                         )}
                       </div>
-                      {letter.wordCount && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {letter.wordCount} words
+
+                      {/* Letter Preview */}
+                      {letter.content && (
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
+                          <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800 max-h-32 overflow-y-auto">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                              {truncateText(letter.content, 200)}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Letter Preview */}
-                    {letter.content && (
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
-                        <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800 max-h-32 overflow-y-auto">
-                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {truncateText(letter.content, 200)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-                
-                {/* Card Footer */}
-                <CardFooter className="pt-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
-                  <div className="flex w-full space-x-2">
-                    <Link 
-                      to={`/builder/cover-letter/${letter.id}/edit`} 
-                      className="flex-1"
-                    >
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all group"
+                  </CardContent>
+                  
+                  {/* Card Footer */}
+                  <CardFooter className="pt-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
+                    <div className="flex w-full space-x-2">
+                      <Link 
+                        to={`/builder/cover-letter/${letter.id}/edit`} 
+                        className="flex-1"
                       >
-                        <Edit className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                        Edit
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all group"
+                        >
+                          <Edit className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                          Edit
+                        </Button>
+                      </Link>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-green-50 hover:text-green-600 hover:border-green-300 dark:hover:bg-green-900/20 dark:hover:text-green-400 transition-all group"
+                        onClick={() => openDuplicateModal(letter)}
+                      >
+                        <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />
                       </Button>
-                    </Link>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover:bg-green-50 hover:text-green-600 hover:border-green-300 dark:hover:bg-green-900/20 dark:hover:text-green-400 transition-all group"
-                      onClick={() => duplicateLetter(letter)}
-                    >
-                      <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all group"
-                    >
-                      <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all group"
-                      onClick={() => deleteCoverLetter(letter.id)}
-                    >
-                      <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </Button>
-                  </div>
-                </CardFooter>
-                
-                {/* Hover Effect Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-100/0 to-indigo-50/0 dark:from-blue-900/0 dark:via-blue-800/0 dark:to-indigo-900/0 group-hover:from-blue-50/20 group-hover:via-blue-100/10 group-hover:to-indigo-50/20 dark:group-hover:from-blue-900/10 dark:group-hover:via-blue-800/5 dark:group-hover:to-indigo-900/10 transition-all duration-500 pointer-events-none"></div>
-              </Card>
-            ))}
-          </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all group"
+                      >
+                        <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all group"
+                        onClick={() => deleteCoverLetter(letter.id)}
+                      >
+                        <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      </Button>
+                    </div>
+                  </CardFooter>
+                  
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-100/0 to-indigo-50/0 dark:from-blue-900/0 dark:via-blue-800/0 dark:to-indigo-900/0 group-hover:from-blue-50/20 group-hover:via-blue-100/10 group-hover:to-indigo-50/20 dark:group-hover:from-blue-900/10 dark:group-hover:via-blue-800/5 dark:group-hover:to-indigo-900/10 transition-all duration-500 pointer-events-none"></div>
+                </Card>
+              ))}
+            </div>
 
-          {/* Footer Stats */}
-          <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''} • 
-                Sorted by recent • 
-                <span className="ml-2 text-blue-600 dark:text-blue-400 font-medium">
-                  Last updated: {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
-                  Need help?
-                </Button>
-                <Link to="/dashboard/cover-letters/wizard">
-                  <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Another
+            {/* Footer Stats */}
+            <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Showing {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''} • 
+                  Sorted by recent • 
+                  <span className="ml-2 text-blue-600 dark:text-blue-400 font-medium">
+                    Last updated: {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                    Need help?
                   </Button>
-                </Link>
+                  <Link to="/dashboard/cover-letters/wizard">
+                    <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Another
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Duplicate Modal */}
+      {showDuplicateModal && selectedLetter && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-800">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <Copy className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Duplicate Letter</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Create a copy of "{selectedLetter.title || 'Untitled Letter'}"</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeDuplicateModal}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    New Letter Name
+                  </label>
+                  <Input
+                    type="text"
+                    value={duplicateName}
+                    onChange={(e) => setDuplicateName(e.target.value)}
+                    placeholder="Enter a name for the duplicate"
+                    className="w-full"
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    The duplicate will contain all content from the original letter.
+                  </p>
+                </div>
+
+                {/* Original Info */}
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Original Letter</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">
+                        {selectedLetter.title || 'Untitled Letter'}
+                      </p>
+                    </div>
+                    <Badge className={`${getStyleBadgeColor(selectedLetter.style)}`}>
+                      {selectedLetter.style || 'Custom'}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Created: {formatDate(selectedLetter.createdAt)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 rounded-b-2xl">
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={closeDuplicateModal}
+                  disabled={duplicating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                  onClick={duplicateLetter}
+                  disabled={!duplicateName.trim() || duplicating}
+                >
+                  {duplicating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                      Duplicating...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </>
   );
 };

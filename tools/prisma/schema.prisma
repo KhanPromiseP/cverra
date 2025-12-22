@@ -389,6 +389,13 @@ model Article {
   isFeatured   Boolean       @default(false)
   isTrending   Boolean       @default(false)
   isEditorPick Boolean       @default(false)
+  isPopular    Boolean       @default(false)
+
+  featuredRanking  Int      @default(3)
+  trendingScore    Int      @default(50)
+  contentType      String   @default("STANDARD")
+  readingLevel     String   @default("INTERMEDIATE")
+  timeToRead       Int      @default(5)
 
   // Engagement Metrics (Updated in real-time)
   viewCount       Int @default(0)
