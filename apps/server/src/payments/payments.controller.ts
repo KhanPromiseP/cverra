@@ -22,6 +22,12 @@ interface AuthRequest extends Request {
   user: { id: string; [key: string]: any };
 }
 
+interface ProviderStatus {
+  enabled: boolean;
+  name: string;
+  error?: string;
+}
+
 @Controller('payments')
 export class PaymentsController {
   private readonly logger = new Logger(PaymentsController.name);
@@ -394,5 +400,30 @@ export class PaymentsController {
       this.logger.error('Failed to get user invoices:', error);
       throw new BadRequestException('Failed to retrieve user invoices');
     }
+  }
+  
+
+  @Get('providers/status')
+  async getProviderStatus() {
+    const providers = ['STRIPE', 'TRANZAK', 'MOCK'];
+    const status: { [key: string]: ProviderStatus } = {};
+    
+    for (const provider of providers) {
+      try {
+        const driver = (this.payments as any).getDriver?.(provider);
+        status[provider] = {
+          enabled: !!driver,
+          name: provider,
+        };
+      } catch (error) {
+        status[provider] = {
+          enabled: false,
+          name: provider,
+          error: (error as Error).message,
+        };
+      }
+    }
+    
+    return { success: true, data: status };
   }
 }

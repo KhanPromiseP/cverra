@@ -96,10 +96,73 @@ export class WalletService {
     });
   }
 
-  async canAfford(userId: string, amount: number) {
-    const wallet = await this.ensureWallet(userId);
-    return wallet.balance >= amount;
+  // In your wallet.service.ts, update this method:
+async deductCoinsWithRollback(
+  amount: number,
+  description: string,
+  metadata?: any
+): Promise<{ success: boolean; newBalance: number; transactionId?: string }> {
+  try {
+    const userId = metadata?.userId;
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+    
+    // Generate a transaction ID if not provided
+    const transactionId = metadata?.transactionId || `ai_build_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const result = await this.tryDeductWithRollback(
+      userId,
+      amount,
+      transactionId,
+      description,
+      {
+        ...metadata,
+        transactionId,
+        action: metadata.action || 'ai_resume_builder',
+        status: 'pending'
+      }
+    );
+
+    return {
+      success: true,
+      newBalance: result.wallet?.balance || 0,
+      transactionId: transactionId,
+    };
+  } catch (error) {
+    this.logger.error(`Deduction with rollback failed: ${error.message}`);
+    return {
+      success: false,
+      newBalance: 0,
+    };
   }
+}
+
+async completeTransaction(
+  transactionId: string,
+  resultData: any
+): Promise<void> {
+  try {
+    await this.markTransactionComplete(
+      resultData.userId || 'unknown',
+      transactionId,
+      {
+        ...resultData,
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      }
+    );
+    this.logger.log(`Transaction ${transactionId} completed successfully`);
+  } catch (error) {
+    this.logger.error(`Failed to complete transaction ${transactionId}: ${error.message}`);
+    throw error;
+  }
+}
+
+  // async canAfford(userId: string, amount: number) {
+  //   const wallet = await this.ensureWallet(userId);
+  //   return wallet.balance >= amount;
+  // }
 
   async transactions(userId: string, limit = 50) {
     return this.prisma.walletTransaction.findMany({
@@ -109,11 +172,28 @@ export class WalletService {
     });
   }
 
+  // Add this helper method to match the controller signature better
+async canAfford(userId: string, amount: number): Promise<boolean> {
+  try {
+    const wallet = await this.ensureWallet(userId);
+    return wallet.balance >= amount;
+  } catch (error) {
+    this.logger.error(`CanAfford check failed: ${error.message}`);
+    return false;
+  }
+}
+
+// Add this method to get the current balance for response
+async getCurrentBalance(userId: string): Promise<number> {
+  const wallet = await this.ensureWallet(userId);
+  return wallet.balance;
+}
+
 
   async tryDeductWithRollback(
   userId: string,
   amount: number,
-  transactionId: string, // USE THIS from frontend
+  transactionId: string,
   description?: string,
   metadata?: any
 ) {
@@ -128,7 +208,26 @@ export class WalletService {
   });
 
   if (existingTransaction) {
-    throw new BadRequestException('Transaction already processed');
+    // Check if already completed
+    const existingMetadata = existingTransaction.metadata as WalletTransactionMetadata | null;
+    if (existingMetadata?.status === 'completed') {
+      this.logger.log(`Transaction ${transactionId} already completed`);
+      return {
+        success: true,
+        transactionId,
+        wallet: await this.prisma.wallet.findUnique({ where: { userId } })
+      };
+    }
+    
+    // If pending, check if we should retry or return existing
+    if (existingMetadata?.status === 'pending') {
+      this.logger.log(`Transaction ${transactionId} already pending, returning existing`);
+      return {
+        success: true,
+        transactionId,
+        wallet: await this.prisma.wallet.findUnique({ where: { userId } })
+      };
+    }
   }
 
   try {
@@ -145,34 +244,75 @@ export class WalletService {
         data: { balance: { decrement: amount } },
       });
 
-      // Create transaction record - USE THE transactionId FROM FRONTEND
+      // Create transaction record
       const transactionRecord = await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           userId,
           amount,
           type: 'DEBIT' as TransactionType,
-          source: TransactionSource.SYSTEM,
+          source: TransactionSource.AI_BUILDER || TransactionSource.SYSTEM, // Use AI_BUILDER if available
           description: description || `Deducted ${amount} coins for AI processing`,
           metadata: {
-            transactionId, // Use the one from frontend, not generate new
+            transactionId,
             status: 'pending',
+            action: 'ai_resume_builder',
+            timestamp: new Date().toISOString(),
             ...(metadata || {})
           },
         },
       });
 
-      return { wallet: walletUpdate, transaction: transactionRecord };
+      return { 
+        success: true,
+        wallet: walletUpdate, 
+        transaction: transactionRecord 
+      };
     });
 
     this.logger.log(`Deducted ${amount} coins for user ${userId}, transaction: ${transactionId}`);
-    return result;
+    return {
+      success: true,
+      transactionId,
+      wallet: result.wallet,
+    };
 
   } catch (error) {
     this.logger.error(`Failed to deduct coins for user ${userId}: ${error.message}`);
+    
+    // Try to mark as failed if transaction record exists
+    try {
+      const existing = await this.prisma.walletTransaction.findFirst({
+        where: {
+          userId,
+          metadata: { path: ['transactionId'], equals: transactionId }
+        }
+      });
+      
+      if (existing) {
+        await this.prisma.walletTransaction.update({
+          where: { id: existing.id },
+          data: {
+            metadata: {
+              ...(existing.metadata as any),
+              status: 'failed',
+              error: error.message,
+              failedAt: new Date().toISOString()
+            }
+          }
+        });
+      }
+    } catch (updateError) {
+      this.logger.error(`Failed to update transaction status: ${updateError.message}`);
+    }
+    
     throw error;
   }
 }
+
+
+
+
 
   async markTransactionComplete(
   userId: string,

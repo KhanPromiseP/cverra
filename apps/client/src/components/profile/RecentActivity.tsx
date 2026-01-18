@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { t, Trans } from "@lingui/macro";
 import {
   Card,
   List,
@@ -8,13 +9,9 @@ import {
   Tag,
   Button,
   Space,
-  Timeline,
   Empty,
   Badge,
-  Tooltip,
   Divider,
-  Col,
-  Row,
   notification,
 } from 'antd';
 
@@ -29,13 +26,8 @@ import {
   TrophyOutlined,
   ClockCircleOutlined,
   ArrowRightOutlined,
-  FireOutlined,
-  StarOutlined,
-  CrownOutlined,
+  HistoryOutlined,
   ReadOutlined,
-  LikeOutlined,
-  MessageOutlined,
-  HistoryOutlined
 } from '@ant-design/icons';
 import { apiClient } from '@/client/services/api-client';
 import './RecentActivity.css';
@@ -94,26 +86,25 @@ const RecentActivity: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-// Fetch recent activity
-const { data: activitiesData, isLoading } = useQuery({
+  // Fetch recent activity
+  const { data: activitiesData, isLoading } = useQuery({
     queryKey: ['/articles/user/activity/recent'],
     queryFn: async () => {
-        const response = await apiClient.get('/articles/user/activity/recent', {
+      const response = await apiClient.get('/articles/user/activity/recent', {
         params: { limit: 20 }
-        });
-        return response.data;
+      });
+      return response.data;
     },
-});
+  });
 
-// Fetch reading stats
-const { data: readingStatsData, isLoading: statsLoading } = useQuery({
+  // Fetch reading stats
+  const { data: readingStatsData, isLoading: statsLoading } = useQuery<ReadingStats>({
     queryKey: ['/articles/user/reading/stats'],
     queryFn: async () => {
-        const response = await apiClient.get('/articles/user/reading/stats');
-        return response.data;
+      const response = await apiClient.get('/articles/user/reading/stats');
+      return response.data;
     },
-});
-
+  });
 
   const getActivityIcon = (type: string) => {
     const icons: Record<string, React.ReactNode> = {
@@ -143,15 +134,15 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
 
   const getActivityVerb = (type: string) => {
     const verbs: Record<string, string> = {
-      'VIEW': 'viewed',
-      'LIKE': 'liked',
-      'SAVE': 'saved',
-      'COMMENT': 'commented on',
-      'ACHIEVEMENT': 'unlocked achievement',
-      'SHARE': 'shared',
-      'READING_SESSION': 'read'
+      'VIEW': t`viewed`,
+      'LIKE': t`liked`,
+      'SAVE': t`saved`,
+      'COMMENT': t`commented on`,
+      'ACHIEVEMENT': t`unlocked achievement`,
+      'SHARE': t`shared`,
+      'READING_SESSION': t`read`
     };
-    return verbs[type] || 'interacted with';
+    return verbs[type] || t`interacted with`;
   };
 
   const formatTimeAgo = (timestamp: string) => {
@@ -162,10 +153,10 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffMins < 1) return t`Just now`;
+    if (diffMins < 60) return t`{diffMins, plural, one {# minute ago} other {# minutes ago}}`;
+    if (diffHours < 24) return t`{diffHours, plural, one {# hour ago} other {# hours ago}}`;
+    if (diffDays < 7) return t`{diffDays, plural, one {# day ago} other {# days ago}}`;
     return past.toLocaleDateString();
   };
 
@@ -204,8 +195,8 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
               <div className="activity-title">
                 <Text strong>
                   {activity.type === 'ACHIEVEMENT' 
-                    ? `Unlocked: ${activity.achievement?.title}`
-                    : `${getActivityVerb(activity.type)} ${activity.article?.title}`
+                    ? <Trans>Unlocked: {activity.achievement?.title}</Trans>
+                    : <Trans>{getActivityVerb(activity.type)} {activity.article?.title}</Trans>
                   }
                 </Text>
                 <Text type="secondary" className="activity-time">
@@ -216,14 +207,16 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
               {activity.type === 'READING_SESSION' && activity.duration && (
                 <div className="activity-duration">
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
-                  <Text type="secondary">{activity.duration} minutes</Text>
+                  <Text type="secondary">
+                    <Trans>{activity.duration} minutes</Trans>
+                  </Text>
                 </div>
               )}
               
               {activity.type === 'ACHIEVEMENT' && (
                 <div className="achievement-details">
                   <Tag color="gold" style={{ marginRight: 8 }}>
-                    +{activity.achievement?.points} points
+                    <Trans>+{activity.achievement?.points} points</Trans>
                   </Tag>
                   <Text type="secondary">{activity.achievement?.description}</Text>
                 </div>
@@ -272,7 +265,7 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
                 icon={<ArrowRightOutlined />}
                 onClick={() => window.location.href = `/dashboard/article/${activity.article?.slug}`}
               >
-                Read Again
+                <Trans>Read Again</Trans>
               </Button>
             )}
             <Button
@@ -280,7 +273,7 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
               size="small"
               onClick={() => toggleExpand(activity.id)}
             >
-              {isExpanded ? 'Show Less' : 'Show More'}
+              {isExpanded ? t`Show Less` : t`Show More`}
             </Button>
           </div>
         </div>
@@ -293,23 +286,37 @@ const { data: readingStatsData, isLoading: statsLoading } = useQuery({
       <Card className="recent-activity-card">
         <div style={{ textAlign: 'center', padding: '40px' }}>
           <HistoryOutlined style={{ fontSize: 32, color: '#6B7280' }} />
-          <Text>Loading activity...</Text>
+          <Text>{t`Loading activity...`}</Text>
         </div>
       </Card>
     );
   }
 
   // Use real data with fallback to mock
-const displayActivities = activitiesData || [];
-const displayStats = readingStatsData || [];
+  const displayActivities = activitiesData || [];
+  const displayStats = readingStatsData || {
+    today: {
+      articlesRead: 0,
+      readingTime: 0,
+      likesGiven: 0,
+      commentsMade: 0
+    },
+    week: {
+      streakDays: 0,
+      totalArticles: 0,
+      totalTime: 0,
+      progress: 0
+    },
+    topCategories: []
+  };
 
   const activityFilters = [
-    { key: 'all', label: 'All Activity', icon: <HistoryOutlined /> },
-    { key: 'READING_SESSION', label: 'Reading', icon: <ReadOutlined /> },
-    { key: 'LIKE', label: 'Likes', icon: <HeartOutlined /> },
-    { key: 'COMMENT', label: 'Comments', icon: <CommentOutlined /> },
-    { key: 'SAVE', label: 'Saves', icon: <BookOutlined /> },
-    { key: 'ACHIEVEMENT', label: 'Achievements', icon: <TrophyOutlined /> }
+    { key: 'all', label: t`All Activity`, icon: <HistoryOutlined /> },
+    { key: 'READING_SESSION', label: t`Reading`, icon: <ReadOutlined /> },
+    { key: 'LIKE', label: t`Likes`, icon: <HeartOutlined /> },
+    { key: 'COMMENT', label: t`Comments`, icon: <CommentOutlined /> },
+    { key: 'SAVE', label: t`Saves`, icon: <BookOutlined /> },
+    { key: 'ACHIEVEMENT', label: t`Achievements`, icon: <TrophyOutlined /> }
   ];
 
   return (
@@ -318,7 +325,7 @@ const displayStats = readingStatsData || [];
       title={
         <Space>
           <HistoryOutlined />
-          <span>Recent Activity</span>
+          <span>{t`Recent Activity`}</span>
           <Badge 
             count={displayActivities.length} 
             style={{ backgroundColor: '#3B82F6' }}
@@ -326,70 +333,6 @@ const displayStats = readingStatsData || [];
         </Space>
       }
     >
-      {/* Stats Overview */}
-      <div className="stats-overview">
-        <Row gutter={[16, 16]} className="stats-grid">
-          <Col xs={12} sm={6}>
-            <div className="stat-item today-stat">
-              <div className="stat-icon">
-                <EyeOutlined />
-              </div>
-              <div className="stat-content">
-                <Text strong>{displayStats.today.articlesRead}</Text>
-                <Text type="secondary">Today's Reads</Text>
-              </div>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div className="stat-item today-stat">
-              <div className="stat-icon">
-                <ClockCircleOutlined />
-              </div>
-              <div className="stat-content">
-                <Text strong>{displayStats.today.readingTime} min</Text>
-                <Text type="secondary">Reading Time</Text>
-              </div>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div className="stat-item week-stat">
-              <div className="stat-icon">
-                <FireOutlined />
-              </div>
-              <div className="stat-content">
-                <Text strong>{displayStats.week.streakDays} days</Text>
-                <Text type="secondary">Current Streak</Text>
-              </div>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div className="stat-item week-stat">
-              <div className="stat-icon">
-                <BookOutlined />
-              </div>
-              <div className="stat-content">
-                <Text strong>{displayStats.week.totalArticles}</Text>
-                <Text type="secondary">This Week</Text>
-              </div>
-            </div>
-          </Col>
-        </Row>
-      </div>
-
-      {/* Weekly Progress */}
-      <div className="weekly-progress">
-        <div className="progress-header">
-          <Text strong>Weekly Reading Goal</Text>
-          <Text type="secondary">{displayStats.week.progress}% complete</Text>
-        </div>
-        <div className="progress-bar">
-          <div 
-            className="progress-fill"
-            style={{ width: `${displayStats.week.progress}%` }}
-          />
-        </div>
-      </div>
-
       {/* Activity Filters */}
       <div className="activity-filters">
         <Space wrap style={{ marginBottom: 16 }}>
@@ -409,7 +352,7 @@ const displayStats = readingStatsData || [];
 
       {/* Activity Timeline */}
       <div className="activity-timeline">
-        {filteredActivities.length > 0 ? (
+        {filteredActivities && filteredActivities.length > 0 ? (
           <List
             dataSource={filteredActivities}
             renderItem={renderActivityItem}
@@ -420,13 +363,13 @@ const displayStats = readingStatsData || [];
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               <div>
-                <Text>No activity found for this filter</Text>
+                <Text>{t`No activity found for this filter`}</Text>
                 <br />
                 <Button 
                   type="link" 
                   onClick={() => setActiveFilter('all')}
                 >
-                  View all activity
+                  {t`View all activity`}
                 </Button>
               </div>
             }
@@ -438,7 +381,7 @@ const displayStats = readingStatsData || [];
       {displayStats.topCategories.length > 0 && (
         <div className="top-categories">
           <Divider orientation="left">
-            <Text strong>Top Categories This Week</Text>
+            <Text strong>{t`Top Categories This Week`}</Text>
           </Divider>
           <Space wrap>
             {displayStats.topCategories.map((category: any, index: any) => (
@@ -466,40 +409,6 @@ const displayStats = readingStatsData || [];
           </Space>
         </div>
       )}
-
-      {/* Shareable Insights */}
-      <div className="shareable-insights">
-        <Divider orientation="left">
-          <Text strong>Share Your Progress</Text>
-        </Divider>
-        <Card size="small" className="insight-card">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text>
-              📊 You've read <Text strong>{displayStats.week.totalArticles} articles</Text> this week with{' '}
-              <Text strong>{displayStats.week.totalTime} minutes</Text> of focused reading!
-            </Text>
-            <Text>
-              🎯 Keep going! You're on a <Text strong>{displayStats.week.streakDays}-day streak</Text>.
-            </Text>
-            <Button
-              type="primary"
-              ghost
-              icon={<ShareAltOutlined />}
-              onClick={() => {
-                const shareText = `I've read ${displayStats.week.totalArticles} articles this week on Cverra! 📚 Join me in discovering life-changing insights! ${window.location.origin}/dashboard/articles`;
-                navigator.clipboard.writeText(shareText);
-                notification.success({
-                  message: 'Copied!',
-                  description: 'Share message copied to clipboard',
-                  duration: 2
-                });
-              }}
-            >
-              Copy Progress Summary
-            </Button>
-          </Space>
-        </Card>
-      </div>
     </Card>
   );
 };

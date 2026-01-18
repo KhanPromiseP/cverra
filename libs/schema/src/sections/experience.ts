@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const experienceSchema = itemSchema.extend({
-  company: z.string().min(1),
+  company: z.string(),
   position: z.string(),
   location: z.string(),
   date: z.string(),

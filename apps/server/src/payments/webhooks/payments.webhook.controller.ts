@@ -34,32 +34,60 @@ export class PaymentsWebhookController {
     }
   }
 
+
+
   @Post('stripe')
-  async stripe(@Req() req: Request, @Res() res: Response, @Headers() headers: any) {
-    try {
-      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
-      const payload = req.body;
+    async stripe(@Req() req: Request, @Res() res: Response, @Headers() headers: any) {
+      const rawBody = (req as any).rawBody || req.body;
       const sig = headers['stripe-signature'];
 
-      // Verify signature using Stripe driver
-      const driver = (this.payments as any).getDriver?.('STRIPE');
-      if (driver && typeof driver.verifyWebhookSignature === 'function') {
-        const ok = driver.verifyWebhookSignature(rawBody, { 'stripe-signature': sig });
-        if (!ok) {
-          this.logger.warn('Invalid Stripe webhook signature');
-          return res.status(400).send('Invalid signature');
-        }
+      if (!sig) {
+        this.logger.warn('Missing Stripe signature');
+        return res.status(400).send('Missing signature');
       }
 
-      const event = payload;
-      const providerRef = event.data?.object?.id;
+      try {
+        // Get Stripe driver for verification
+        const driver = (this.payments as any).getDriver?.('STRIPE');
+        if (!driver) {
+          this.logger.error('Stripe driver not available');
+          return res.status(500).send('Stripe not configured');
+        }
 
-      await this.payments.handleWebhook('STRIPE', providerRef, event);
+        // Verify signature
+        const isValid = driver.verifyWebhookSignature(rawBody, { 'stripe-signature': sig });
+        if (!isValid) {
+          this.logger.warn('Invalid Stripe signature');
+          return res.status(400).send('Invalid signature');
+        }
 
-      return res.status(200).json({ received: true });
-    } catch (err) {
-      this.logger.error('Stripe webhook error', err);
-      return res.status(500).send('Webhook error');
+        const event = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+        
+        // Handle different Stripe events
+        switch (event.type) {
+          case 'checkout.session.completed':
+            const session = event.data.object;
+            await this.payments.handleWebhook('STRIPE', session.id, event);
+            break;
+            
+          case 'payment_intent.succeeded':
+            const paymentIntent = event.data.object;
+            await this.payments.handleWebhook('STRIPE', paymentIntent.id, event);
+            break;
+            
+          case 'payment_intent.payment_failed':
+            this.logger.log('Stripe payment failed:', event.data.object);
+            break;
+            
+          default:
+            this.logger.log(`Unhandled Stripe event type: ${event.type}`);
+        }
+
+        return res.status(200).json({ received: true });
+      } catch (err) {
+        this.logger.error('Stripe webhook error:', err);
+        return res.status(500).send('Webhook error');
+      }
     }
-  }
+
 }

@@ -3,7 +3,7 @@ import { useLocalStorage, useMediaQuery } from "usehooks-ts";
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 
-type Theme = "system" | "dark" | "light";
+type Theme = "dark" | "light"; 
 
 type UseThemeOutput = {
   theme: Theme;
@@ -15,11 +15,7 @@ type UseThemeOutput = {
 export const useTheme = (): UseThemeOutput => {
   const isDarkOS = useMediaQuery(COLOR_SCHEME_QUERY);
   const [isDarkMode, setDarkMode] = useState<boolean>(isDarkOS);
-  const [theme, setTheme] = useLocalStorage<Theme>("theme", "system");
-
-  useEffect(() => {
-    if (theme === "system") setDarkMode((prev) => !prev);
-  }, [theme]);
+  const [theme, setTheme] = useLocalStorage<Theme>("theme", isDarkOS ? "dark" : "light");
 
   useEffect(() => {
     switch (theme) {
@@ -27,25 +23,15 @@ export const useTheme = (): UseThemeOutput => {
         setDarkMode(false);
         break;
       }
-      case "system": {
-        setDarkMode(isDarkOS);
-        break;
-      }
       case "dark": {
         setDarkMode(true);
         break;
       }
     }
-  }, [theme, isDarkOS]);
+  }, [theme]);
 
   function toggleTheme() {
-    const toggleDict: Record<Theme, Theme> = {
-      light: "system",
-      system: "dark",
-      dark: "light",
-    };
-
-    setTheme((prevMode) => toggleDict[prevMode]);
+    setTheme((prevMode) => (prevMode === "light" ? "dark" : "light"));
   }
 
   return {

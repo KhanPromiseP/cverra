@@ -1,4 +1,4 @@
-// client/components/cover-letter/dashboard.tsx
+import { t, Trans } from "@lingui/macro";
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { Plus, FileText, Edit, Download, Trash2, Clock, Calendar, ChevronRight, Eye, Copy, X } from 'lucide-react';
@@ -32,11 +32,11 @@ export const CoverLetterDashboard = () => {
       console.error('Failed to fetch cover letters:', error);
       
       if (error.response?.status === 401) {
-        setError('Please log in to access letters.');
+        setError(t`Please log in to access letters.`);
       } else if (error.response?.status === 404) {
-        setError('API endpoint not found. Please check if the backend is running.');
+        setError(t`API endpoint not found. Please check if the backend is running.`);
       } else {
-        setError(error.message || 'Failed to load letters. Please try again.');
+        setError(error.message || t`Failed to load letters. Please try again.`);
       }
     } finally {
       setLoading(false);
@@ -44,20 +44,20 @@ export const CoverLetterDashboard = () => {
   };
 
   const deleteCoverLetter = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this letter?')) return;
+    if (!confirm(t`Are you sure you want to delete this letter?`)) return;
 
     try {
       await coverLetterService.delete(id);
       setCoverLetters(letters => letters.filter(letter => letter.id !== id));
     } catch (error) {
       console.error('Failed to delete letter:', error);
-      alert('Failed to delete letter. Please try again.');
+      alert(t`Failed to delete letter. Please try again.`);
     }
   };
 
   const openDuplicateModal = (letter: any) => {
     setSelectedLetter(letter);
-    setDuplicateName(`${letter.title || 'Untitled Letter'} (Copy)`);
+    setDuplicateName(t`${letter.title || 'Untitled Letter'} (Copy)`);
     setShowDuplicateModal(true);
   };
 
@@ -87,12 +87,12 @@ const duplicateLetter = async () => {
     setCoverLetters(letters => [duplicated, ...letters]);
     
     // Show success message
-    alert(`Letter duplicated successfully as "${duplicateName}"`);
+    alert(t`Letter duplicated successfully as "${duplicateName}"`);
     
     closeDuplicateModal();
   } catch (error) {
     console.error('Failed to duplicate letter:', error);
-    alert('Failed to duplicate letter. Please try again.');
+    alert(t`Failed to duplicate letter. Please try again.`);
   } finally {
     setDuplicating(false);
   }
@@ -113,12 +113,12 @@ const duplicateLetter = async () => {
       const diffTime = Math.abs(now.getTime() - date.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays === 1) return t`Yesterday`;
+      if (diffDays < 7) return t`${diffDays} days ago`;
+      if (diffDays < 30) return t`${Math.floor(diffDays / 7)} weeks ago`;
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
-      return 'Invalid date';
+      return t`Invalid date`;
     }
   };
 
@@ -149,8 +149,8 @@ const duplicateLetter = async () => {
             <FileText className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-blue-600" />
           </div>
           <div className="text-center">
-            <p className="text-lg font-medium text-gray-900 dark:text-white mb-1">Loading your letters</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Please wait while we fetch your documents</p>
+            <p className="text-lg font-medium text-gray-900 dark:text-white mb-1">{t`Loading your letters`}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t`Please wait while we fetch your documents`}</p>
           </div>
         </div>
       </div>
@@ -164,7 +164,7 @@ const duplicateLetter = async () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-6">
             <FileText className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Oops! Something went wrong</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{t`Oops! Something went wrong`}</h3>
           <div className="max-w-lg mx-auto mb-8">
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5">
               <div className="flex items-start">
@@ -174,7 +174,7 @@ const duplicateLetter = async () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-1">Error Details</h4>
+                  <h4 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-1">{t`Error Details`}</h4>
                   <p className="text-red-700 dark:text-red-400">{error}</p>
                 </div>
               </div>
@@ -190,13 +190,13 @@ const duplicateLetter = async () => {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Try Again
+                {t`Try Again`}
               </span>
             </Button>
             <Link to="/dashboard/cover-letters/wizard">
               <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 shadow-lg hover:shadow-xl transition-all">
                 <Plus className="w-4 h-4 mr-2" />
-                Create New Letter
+                {t`Create New Letter`}
               </Button>
             </Link>
           </div>
@@ -218,10 +218,10 @@ const duplicateLetter = async () => {
                 </div>
                 <div>
                   <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 to-blue-700 dark:from-white dark:to-blue-300 bg-clip-text text-transparent">
-                    Letters
+                    {t`Letters`}
                   </h1>
                   <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    Professional correspondence and communications
+                    {t`Professional correspondence and communications`}
                   </p>
                 </div>
               </div>
@@ -229,13 +229,13 @@ const duplicateLetter = async () => {
                 <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
                   <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 animate-pulse"></div>
                   <span className="text-sm font-medium">
-                    {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''}
+                    {coverLetters.length} {t`letter${coverLetters.length !== 1 ? 's' : ''}`}
                   </span>
                 </div>
                 <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
                   <Calendar className="w-3 h-3 mr-2 text-gray-500" />
                   <span className="text-sm">
-                    Updated {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
+                    {t`Updated ${coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}`}
                   </span>
                 </div>
               </div>
@@ -250,7 +250,7 @@ const duplicateLetter = async () => {
                     </div>
                     <div className="text-left">
                       
-                      <div className="text-sm opacity-80">Create a new letter</div>
+                      <div className="text-sm opacity-80">{t`Create a new letter`}</div>
                     </div>
                   </div>
                 </Button>
@@ -260,7 +260,7 @@ const duplicateLetter = async () => {
                 className="border-2 px-6 py-3 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all"
                 onClick={fetchCoverLetters}
               >
-                Refresh
+                {t`Refresh`}
               </Button>
             </div>
           </div>
@@ -277,19 +277,19 @@ const duplicateLetter = async () => {
                     <FileText className="w-16 h-16 text-white" />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No letters created yet</h3>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{t`No letters created yet`}</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-lg">
-                  Start by creating your first professional letter. Our AI will help you craft the perfect message.
+                  {t`Start by creating your first professional letter. Our AI will help you craft the perfect message.`}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
+                  <Link to="/docs/#letter-builder" className="w-full sm:w-auto">
                     <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all">
-                      Create First Letter
+                      {t`Create First Letter`}
                       <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                   <Button variant="outline" className="px-8 py-3 text-lg">
-                    View Templates
+                    {t`Get Help`}
                   </Button>
                 </div>
               </CardContent>
@@ -306,7 +306,7 @@ const duplicateLetter = async () => {
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">{coverLetters.length}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Total Letters</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t`Total Letters`}</div>
                   </div>
                 </div>
               </div>
@@ -319,7 +319,7 @@ const duplicateLetter = async () => {
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">
                       {coverLetters.filter(l => new Date(l.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Updated this week</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t`Updated this week`}</div>
                   </div>
                 </div>
               </div>
@@ -337,7 +337,7 @@ const duplicateLetter = async () => {
                   <CardHeader className="pb-4 relative z-10">
                     <div className="flex justify-between items-start mb-3">
                       <Badge className={`text-xs font-semibold px-3 py-1 ${getStyleBadgeColor(letter.style)}`}>
-                        {letter.style || 'Custom'}
+                        {letter.style || t`Custom`}
                       </Badge>
                       <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm px-2 py-1 rounded-full">
                         <Clock className="w-3 h-3 mr-1" />
@@ -345,7 +345,7 @@ const duplicateLetter = async () => {
                       </div>
                     </div>
                     <CardTitle className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
-                      {letter.title || 'Untitled Letter'}
+                      {letter.title || t`Untitled Letter`}
                     </CardTitle>
                     <CardDescription className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
                       {truncateText(letter.content, 100)}
@@ -360,7 +360,7 @@ const duplicateLetter = async () => {
                         <div className="flex items-center space-x-4">
                           {letter.company && (
                             <div className="flex items-center">
-                              <span className="text-gray-500 dark:text-gray-400 mr-2">For:</span>
+                              <span className="text-gray-500 dark:text-gray-400 mr-2">{t`For:`}</span>
                               <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px]">
                                 {letter.company}
                               </span>
@@ -369,7 +369,7 @@ const duplicateLetter = async () => {
                         </div>
                         {letter.wordCount && (
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {letter.wordCount} words
+                            {letter.wordCount} {t`words`}
                           </div>
                         )}
                       </div>
@@ -401,7 +401,7 @@ const duplicateLetter = async () => {
                           className="w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all group"
                         >
                           <Edit className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                          Edit
+                          {t`Edit`}
                         </Button>
                       </Link>
                       
@@ -443,20 +443,22 @@ const duplicateLetter = async () => {
             <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Showing {coverLetters.length} letter{coverLetters.length !== 1 ? 's' : ''} • 
-                  Sorted by recent • 
+                  {t`Showing ${coverLetters.length} letter${coverLetters.length !== 1 ? 's' : ''}`} • 
+                  {t`Sorted by recent`} • 
                   <span className="ml-2 text-blue-600 dark:text-blue-400 font-medium">
-                    Last updated: {coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}
+                    {t`Last updated: ${coverLetters.length > 0 ? formatDate(coverLetters[0].updatedAt) : 'never'}`}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
-                    Need help?
-                  </Button>
+                  <Link to="/docs">
+                    <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                      {t`Need help?`}
+                    </Button>
+                  </Link>
                   <Link to="/dashboard/cover-letters/wizard">
                     <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Another
+                      {t`Add Another`}
                     </Button>
                   </Link>
                 </div>
@@ -478,8 +480,12 @@ const duplicateLetter = async () => {
                     <Copy className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Duplicate Letter</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Create a copy of "{selectedLetter.title || 'Untitled Letter'}"</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t`Duplicate Letter`}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <Trans>
+                        Create a copy of "{selectedLetter.title || t`Untitled Letter`}"
+                      </Trans>
+                    </p>
                   </div>
                 </div>
                 <button
@@ -496,18 +502,18 @@ const duplicateLetter = async () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    New Letter Name
+                    {t`New Letter Name`}
                   </label>
                   <Input
                     type="text"
                     value={duplicateName}
                     onChange={(e) => setDuplicateName(e.target.value)}
-                    placeholder="Enter a name for the duplicate"
+                    placeholder={t`Enter a name for the duplicate`}
                     className="w-full"
                     autoFocus
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    The duplicate will contain all content from the original letter.
+                    {t`The duplicate will contain all content from the original letter.`}
                   </p>
                 </div>
 
@@ -515,17 +521,17 @@ const duplicateLetter = async () => {
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Original Letter</p>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t`Original Letter`}</p>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {selectedLetter.title || 'Untitled Letter'}
+                        {selectedLetter.title || t`Untitled Letter`}
                       </p>
                     </div>
                     <Badge className={`${getStyleBadgeColor(selectedLetter.style)}`}>
-                      {selectedLetter.style || 'Custom'}
+                      {selectedLetter.style || t`Custom`}
                     </Badge>
                   </div>
                   <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Created: {formatDate(selectedLetter.createdAt)}
+                    {t`Created: ${formatDate(selectedLetter.createdAt)}`}
                   </div>
                 </div>
               </div>
@@ -540,7 +546,7 @@ const duplicateLetter = async () => {
                   onClick={closeDuplicateModal}
                   disabled={duplicating}
                 >
-                  Cancel
+                  {t`Cancel`}
                 </Button>
                 <Button
                   className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
@@ -550,12 +556,12 @@ const duplicateLetter = async () => {
                   {duplicating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Duplicating...
+                      {t`Duplicating...`}
                     </>
                   ) : (
                     <>
                       <Copy className="w-4 h-4 mr-2" />
-                      Duplicate
+                      {t`Duplicate`}
                     </>
                   )}
                 </Button>

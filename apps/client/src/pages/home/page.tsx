@@ -1,7 +1,7 @@
 import { t } from "@lingui/macro";
 import { useLingui } from "@lingui/react";
 import { Helmet } from "react-helmet-async";
-
+import { useCallback } from "react";
 
 import { FeaturesSection } from "./sections/features";
 import { HeroSection } from "./sections/hero";
@@ -15,32 +15,44 @@ import { LettersSection } from "./sections/letters";
 export const HomePage = () => {
   const { i18n } = useLingui();
 
+  const scrollToTemplates = useCallback(() => {
+    const templatesSection = document.getElementById('templates');
+    
+    if (templatesSection) {
+      const offset = 80;
+      const elementPosition = templatesSection.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
   return (
     <main className="relative isolate bg-background">
       <Helmet prioritizeSeoTags>
         <html lang={i18n.locale} />
-
         <title>
-          {t`Cverra`} - {t`A powerful resume builder`}
+          {t`Inrah`} – {t`Build resumes, letters, and careers with Inrah`}
         </title>
-
         <meta
           name="description"
-          content="A powerful resume builder that makes creating, updating, and sharing your professional profile effortless."
+          content={t`Inrah is an AI-powered career platform that helps professionals build standout resumes, write impactful letters, and grow with expert knowledge.`}
         />
       </Helmet>
 
       <HeroSection />
       <PlatformManifestoSection />
-      <ResumeSection />
-      <LettersSection />
+      {/* Pass the same function to ResumeSection */}
+      <ResumeSection onViewTemplates={scrollToTemplates} />
+      {/* Pass the same function to LettersSection */}
+      <LettersSection onViewTemplates={scrollToTemplates} />
       <KnowledgeHubSection />
       <LogoCloudSection />
       <FeaturesSection />
-      {/* <TemplatesSection /> */}
-    
-     
-    
+      <TemplatesSection />
     </main>
   );
 };

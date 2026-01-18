@@ -23,6 +23,12 @@ export const ImportResumeListItem = () => {
       onClick={() => {
         open("create");
       }}
+      className="
+        bg-green-100 hover:bg-green-200 
+        dark:bg-green-300 dark:hover:bg-green-400
+         text-gray-900 font-semibold rounded-lg shadow-md
+        cursor-pointer transition-colors duration-300
+      "
     />
   );
 };

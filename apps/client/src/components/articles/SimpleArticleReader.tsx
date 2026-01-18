@@ -1,5 +1,5 @@
-// components/articles/SimpleArticleReader.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import { t, Trans } from "@lingui/macro";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Card, 
   Typography, 
@@ -54,6 +54,10 @@ import {
   PictureOutlined,
   CalendarOutlined,
   CheckOutlined,
+  InfoCircleOutlined, 
+  CloseOutlined,
+  PlusOutlined,
+  CopyrightOutlined
   
 } from '@ant-design/icons';
 import { Fragment } from "react"; 
@@ -63,6 +67,7 @@ import { apiClient } from '../../services/api-client';
 import AuthModal from '../common/AuthModal';
 import { useUser } from "@/client/services/user";
 import PremiumPaywall from './PremiumPaywall';
+import { useLingui } from '@lingui/react';
 
 
 
@@ -70,14 +75,14 @@ import PremiumPaywall from './PremiumPaywall';
 const FONT_SIZES = [12, 14, 16, 18, 20, 22, 24];
 const LINE_HEIGHTS = [1.4, 1.6, 1.8, 2.0, 2.2];
 const FONT_FAMILIES = [
-  { label: 'System', value: 'system-ui' },
-  { label: 'Serif', value: 'Georgia, serif' },
-  { label: 'Sans', value: 'Arial, sans-serif' },
-  { label: 'Monospace', value: 'Monaco, monospace' },
-  { label: 'Open Dyslexic', value: 'OpenDyslexic, sans-serif' },
+  { label: t`System`, value: 'system-ui' },
+  { label: t`Serif`, value: 'Georgia, serif' },
+  { label: t`Sans`, value: 'Arial, sans-serif' },
+  { label: t`Monospace`, value: 'Monaco, monospace' },
+  { label: t`Open Dyslexic`, value: 'OpenDyslexic, sans-serif' },
 ];
 
-  
+
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -92,10 +97,11 @@ interface RelatedArticle extends Article {
 }
 
 
-
 const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({ 
   slug, 
   showReadingProgress = true 
+
+  
 }) => {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,7 +124,7 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const [hasMoreComments, setHasMoreComments] = useState(true);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authAction, setAuthAction] = useState<'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply'>('like');
+  const [authAction, setAuthAction] = useState<'like' | 'comment' | 'save' | 'premium' | 'translate' | 'share' | 'reply'>('like');
   const { user, loading: userLoading } = useUser();
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -133,6 +139,18 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const [userHasAccess, setUserHasAccess] = useState(false);
 
   const [showReadingSettings, setShowReadingSettings] = useState(false);
+  // Add these with your other useState declarations
+  const [languageSwitching, setLanguageSwitching] = useState(false);
+  const [contentKey, setContentKey] = useState<string>('');
+  const [reloadingContent, setReloadingContent] = useState(false);
+ 
+  const { i18n } = useLingui();
+  const currentLocale = i18n.locale; // e.g., 'fr', 'en', etc.
+
+  const [lastManualLanguageChange, setLastManualLanguageChange] = useState<number | null>(null);
+
+
+
 
     
   // Refs for view tracking control
@@ -158,77 +176,1231 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const [availableLanguages, setAvailableLanguages] = useState<string[]>(['en']);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
 
+
+// At the top of your SimpleArticleReader component
+console.log('🔄 SimpleArticleReader rendering', {
+  articleId: article?.id,
+  user: user?.id,
+  availableLanguages,
+  currentLanguage
+});
+
+
+
+
+
+// In your useEffect that loads article
+useEffect(() => {
+  console.log('📥 useEffect triggered for slug:', slug);
+  // ... rest of code
+}, [slug]);
+
+useEffect(() => {
+  console.log('🔄 State changed:', {
+    articleId: article?.id,
+    userId: user?.id,
+    availableLanguages,
+    currentLanguage,
+    userHasAccess,
+    showPaywall
+  });
+}, [article?.id, user?.id, availableLanguages, currentLanguage, userHasAccess, showPaywall]);
+
+
+
+// In your useUser hook (if you have access to it)
+console.log('👤 useUser result:', { user, loading: userLoading });
+
+
+
   useEffect(() => {
   const loadAvailableLanguages = async () => {
     if (article?.id) {
       try {
         const response = await articleApi.getArticleAvailableLanguages(article.id);
-        if (response?.languages) {
-          const languages = response.languages.map((lang: any) => lang.language);
+        if (response?.data.languages) {
+          const languages = response.data.languages.map((lang: any) => lang.language);
           setAvailableLanguages(languages);
+          
+          // This might be causing the loop - don't update article if it's the same
+          setArticle(prev => {
+            if (!prev) return null;
+            if (JSON.stringify(prev.availableLanguages) === JSON.stringify(languages)) {
+              return prev; // No change, return same object
+            }
+            return {
+              ...prev,
+              availableLanguages: languages
+            };
+          });
         }
       } catch (error) {
         console.error('Failed to load available languages:', error);
-        setAvailableLanguages(['en']);
       }
     }
   };
   
   loadAvailableLanguages();
-}, [article?.id]);
+}, [article?.id]); // Should only run when article.id changes
 
-  const handleLanguageChange = async (language: string) => {
-  if (!article || language === currentLanguage) return;
-  
-  console.log(' Switching language to:', language);
-  console.log(' Available languages:', article.availableLanguages);
-  
-  if (article.availableLanguages && article.availableLanguages.includes(language)) {
-    setCurrentLanguage(language);
+
+// useEffect(() => {
+//   // This will run when language changes AND article exists
+//   if (article && i18n.locale !== currentLanguage) {
+//     console.log('🌐 UI language changed, updating article language:', {
+//       uiLocale: i18n.locale,
+//       currentArticleLang: currentLanguage,
+//       shouldUpdate: i18n.locale.split('-')[0] !== currentLanguage.split('-')[0]
+//     });
     
-    setIsTranslating(true);
-    try {
-      console.log('Making API request with params:', { language });
-      const response = await articleApi.getArticle(article.slug, { language });
-      
-      console.log('API Response:', {
-        status: response.status,
-        data: response.data,
-        isTranslated: response.data?.isTranslated,
-        title: response.data?.title,
-      });
-      
-      if (response.data) {
-        const articleData = response.data.data || response.data;
-        
-        // Update article with translated content
-        setArticle(prev => prev ? {
-          ...prev,
-          title: articleData.title || prev.title,
-          content: articleData.content || prev.content,
-          excerpt: articleData.excerpt || prev.excerpt,
-          language: language,
-          availableLanguages: articleData.availableLanguages || prev.availableLanguages,
-          translationQuality: articleData.translationQuality || prev.translationQuality
-        } : null);
-        
-        notification.success({
-          message: `Switched to ${getLanguageName(language)}`,
-          description: 'Article content has been updated.',
-          duration: 2,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to switch language:', error);
-      notification.error({
-        message: 'Language Switch Failed',
-        description: 'Could not load the translated version.',
-        duration: 3,
-      });
-    } finally {
-      setIsTranslating(false);
+//     // Extract base language code (e.g., 'fr' from 'fr-FR')
+//     const uiLanguageCode = i18n.locale.split('-')[0];
+//     const currentLanguageCode = currentLanguage.split('-')[0];
+    
+    
+//     // Only update if different language codes
+//     if (uiLanguageCode !== currentLanguageCode) {
+//       handleLanguageChange(uiLanguageCode);
+//     }
+//   }
+// }, [i18n.locale, article]); // Watch for language changes
+
+
+useEffect(() => {
+  // Only run when UI language changes, not when article changes
+  if (article && i18n.locale !== currentLanguage) {
+    console.log('🌐 UI language changed:', {
+      uiLocale: i18n.locale,
+      currentArticleLang: currentLanguage
+    });
+    
+    const uiLanguageCode = i18n.locale.split('-')[0];
+    const currentLanguageCode = currentLanguage.split('-')[0];
+    
+    // Check if this is likely a manual change by user
+    // (if article language was recently changed manually)
+    const timeSinceArticleLoad = article?.updatedAt ? 
+      Date.now() - new Date(article.updatedAt).getTime() : Infinity;
+    
+    // Only auto-sync if article hasn't been recently updated
+    // (meaning user hasn't just manually changed language)
+    if (uiLanguageCode !== currentLanguageCode && timeSinceArticleLoad > 5000) {
+      console.log('🔄 Auto-syncing article to UI language');
+      handleLanguageChange(uiLanguageCode);
+    } else {
+      console.log('🔄 Skipping auto-sync - article recently updated');
     }
   }
+}, [i18n.locale]); // REMOVE article from dependencies! Only watch i18n.locale
+
+useEffect(() => {
+  if (article?.id && !languageSwitching) {
+    console.log('🔄 Language state updated, reloading related articles:', {
+      currentLanguage,
+      uiLocale: i18n.locale
+    });
+    
+    // Small delay to ensure state is settled
+    const timer = setTimeout(() => {
+      loadRelatedArticles(article.id, true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }
+}, [currentLanguage, languageSwitching]);
+
+
+  // Function to update available languages
+  const updateAvailableLanguages = (newLanguages: string[]) => {
+    setAvailableLanguages(newLanguages);
+    // Also update article state
+    setArticle(prev => prev ? {
+      ...prev,
+      availableLanguages: newLanguages
+    } : null);
+  };
+
+// const handleLanguageChange = async (language: string) => {
+//   if (!article || language === currentLanguage || isTranslating || languageSwitching) return;
+  
+//   console.log('🔄 START Switching language to:', language);
+//   console.log('🔄 Current article language:', article.language, 'Current state language:', currentLanguage);
+  
+//   setLanguageSwitching(true);
+  
+//   try {
+//     // Show loading notification
+//     notification.info({
+//       message: t`Loading ${getLanguageName(language)} version...`,
+//       duration: 2,
+//       key: 'language-switch',
+//     });
+    
+//     // Simply update the currentLanguage state
+//     // This will trigger the useEffect above to reload the article
+//     console.log('🔄 Setting currentLanguage to:', language);
+//     setCurrentLanguage(language);
+    
+//     // Set a new content key to force re-render
+//     const newKey = `lang-${language}-${Date.now()}`;
+//     setContentKey(newKey);
+    
+//     notification.success({
+//       message: t`Switched to ${getLanguageName(language)}`,
+//       description: t`Article content has been updated.`,
+//       duration: 3,
+//     });
+    
+//     console.log('✅ Language switch state updated');
+//   } catch (error: any) {
+//     console.error('❌ Failed to switch language:', error);
+//     notification.error({
+//       message: t`Language Switch Failed`,
+//       description: error.response?.data?.message || t`Could not load the translated version.`,
+//       duration: 3,
+//     });
+//   } finally {
+//     setLanguageSwitching(false);
+//   }
+// };
+
+const handleLanguageChange = async (language: string) => {
+  if (!article || language === currentLanguage || isTranslating || languageSwitching) return;
+  
+  console.log('🔄 START Switching language to:', language, {
+    currentArticleId: article.id,
+    currentArticleLanguage: article.language
+  });
+  
+    // Mark as manual change with timestamp
+  setLastManualLanguageChange(Date.now());
+  
+  setLanguageSwitching(true);
+  
+  try {
+    // Show loading notification
+    notification.info({
+      message: t`Loading ${getLanguageName(language)} version...`,
+      duration: 2,
+      key: 'language-switch',
+    });
+    
+    // 1. Clear current article to show loading state
+    setArticle(null);
+    setLoading(true);
+    
+    // 2. Update the currentLanguage state IMMEDIATELY
+    console.log('🔄 Setting currentLanguage to:', language);
+    setCurrentLanguage(language);
+    
+    // 3. Set a new content key to force re-render
+    const newKey = `lang-${language}-${Date.now()}`;
+    setContentKey(newKey);
+    
+    // 4. CRITICAL: Re-fetch the article with new language
+    // Use language parameter only if it's NOT the default language
+    const params = language !== 'en' ? { language } : undefined;
+    console.log('🔄 Re-fetching article with params:', params, 'slug:', slug);
+    
+    const response = await articleApi.getArticle(slug, params);
+    
+    console.log('🔄 Article API response:', {
+      responseData: response?.data,
+      success: response?.success,
+      hasData: !!response?.data
+    });
+    
+    if (response?.data) {
+      let articleData;
+      
+      // Handle different response formats
+      if (typeof response.data === 'object') {
+        // Check for success wrapper pattern
+        if ('success' in response.data && response.data.success) {
+          articleData = response.data.data;
+          console.log('✅ Success wrapper found, data:', articleData);
+        } 
+        // Check for direct data pattern
+        else if ('id' in response.data || 'slug' in response.data) {
+          articleData = response.data;
+          console.log('✅ Direct data found');
+        }
+        // Check for API response pattern
+        else if ('data' in response.data && response.data.data) {
+          articleData = response.data.data;
+          console.log('✅ Nested data found');
+        }
+      }
+      
+      if (articleData) {
+        console.log('✅ Processing article data:', {
+          id: articleData.id,
+          title: articleData.title,
+          language: articleData.language
+        });
+        
+        // Map the article data
+        const mappedArticle: Article = {
+          id: articleData.id,
+          slug: articleData.slug,
+          title: articleData.title,
+          excerpt: articleData.excerpt || articleData.metaDescription || '',
+          content: articleData.content,
+          plainText: articleData.plainText || '',
+          coverImage: articleData.coverImage || articleData.featuredImage || '',
+          readingTime: articleData.readingTime || 1,
+          viewCount: articleData.viewCount || 0,
+          likeCount: articleData.likeCount || 0,
+          commentCount: articleData.commentCount || 0,
+          clapCount: articleData.clapCount || 0,
+          shareCount: articleData.shareCount || 0,
+          isFeatured: articleData.isFeatured || false,
+          isTrending: articleData.isTrending || false,
+          isLiked: articleData.isLiked || false,
+          isSaved: articleData.isSaved || false,
+          isPremium: articleData.accessType === 'PREMIUM',
+          isPreview: articleData.isPreview || false,
+          accessType: articleData.accessType || 'FREE',
+          status: articleData.status || 'PUBLISHED',
+          publishedAt: articleData.publishedAt || articleData.createdAt,
+          createdAt: articleData.createdAt,
+          updatedAt: articleData.updatedAt,
+          author: {
+            id: articleData.author?.id || '',
+            name: articleData.author?.name || 'Anonymous',
+            picture: articleData.author?.picture,
+            bio: articleData.author?.bio,
+            isVerified: articleData.author?.isVerified || false,
+            followersCount: articleData.author?.followersCount || 0
+          } as Author,
+          category: {
+            id: articleData.category?.id || '',
+            name: articleData.category?.name || 'Uncategorized',
+            slug: articleData.category?.slug || 'uncategorized',
+            color: articleData.category?.color,
+            description: articleData.category?.description
+          } as Category,
+          tags: articleData.tags || [],
+          availableLanguages: articleData.availableLanguages || availableLanguages, // Use existing if not provided
+          language: articleData.language || language, // Fallback to requested language
+          translationQuality: articleData.translationQuality,
+          recommendationScore: articleData.recommendationScore
+        };
+        
+        console.log('✅ Setting article with language:', mappedArticle.language);
+        setArticle(mappedArticle);
+        
+        // Update available languages if provided
+        if (articleData.availableLanguages) {
+          setAvailableLanguages(articleData.availableLanguages);
+        }
+        
+        notification.success({
+          message: t`Switched to ${getLanguageName(language)}`,
+          description: t`Article content has been updated.`,
+          duration: 3,
+        });
+        
+        console.log('✅ Language switch and article reload completed');
+      } else {
+        console.error('❌ No article data found in response');
+        throw new Error(t`Could not load the ${getLanguageName(language)} version`);
+      }
+    } else {
+      console.error('❌ No response data');
+      throw new Error(t`Could not load the ${getLanguageName(language)} version`);
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to switch language:', error);
+    
+    // Revert to previous language on error
+    if (article) {
+      setArticle(article); // Restore original article
+      setCurrentLanguage(article.language || 'en');
+    }
+    
+    notification.error({
+      message: t`Language Switch Failed`,
+      description: error.response?.data?.message || error.message || t`Could not load the translated version.`,
+      duration: 3,
+    });
+  } finally {
+    setLanguageSwitching(false);
+    setLoading(false);
+  }
+};
+
+
+const MobileLanguageSelector: React.FC<{
+  currentLanguage: string;
+  availableLanguages: string[];
+  isTranslating: boolean;
+  onLanguageChange: (lang: string) => Promise<void>;
+  onTranslateRequest: (lang: string) => Promise<void>;
+  articleId?: string;
+  onLanguagesUpdated?: (newLanguages: string[]) => void;
+  user?: any;  
+  onAuthRequired?: () => void; 
+}> = ({ 
+  currentLanguage, 
+  availableLanguages, 
+  isTranslating, 
+  onLanguageChange, 
+  onTranslateRequest,
+  articleId,
+  onLanguagesUpdated
+}) => {
+  const [showFullLanguageModal, setShowFullLanguageModal] = useState(false);
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [selectedLangForTranslate, setSelectedLangForTranslate] = useState<string | null>(null);
+  const [translateProgress, setTranslateProgress] = useState(0);
+  const [isMobileTranslating, setIsMobileTranslating] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState<'idle' | 'progress' | 'complete'>('idle');
+
+  // Progress interval refs
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup intervals
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+useEffect(() => {
+  console.log('🌐 Language changed to:', i18n.locale);
+  
+  // Extract language code
+  const uiLanguageCode = i18n.locale.split('-')[0];
+  const currentLanguageCode = currentLanguage.split('-')[0];
+  
+  // Only update if language code is different
+  if (uiLanguageCode !== currentLanguageCode) {
+    console.log('🔄 UI language differs from article language, triggering update');
+    
+    // Clear related articles cache
+    setRelatedArticles([]);
+    
+    // Update current language state
+    setCurrentLanguage(uiLanguageCode);
+    
+    // Re-fetch related articles with new language
+    if (article?.id) {
+      // Use a small delay to ensure language state is updated
+      setTimeout(() => {
+        loadRelatedArticles(article.id, true);
+      }, 100);
+    }
+  }
+}, [i18n.locale]);
+ 
+ 
+  useEffect(() => {
+  const startTranslation = async () => {
+    if (showTranslationModal && selectedLangForTranslate && !isMobileTranslating && translationStatus === 'idle') {
+      console.log('🔄 Auto-starting translation for:', selectedLangForTranslate);
+      await handleMobileTranslate(selectedLangForTranslate);
+    }
+  };
+  
+  // Add a debounce or run only once
+  if (showTranslationModal && selectedLangForTranslate) {
+    startTranslation();
+  }
+}, [showTranslationModal, selectedLangForTranslate, isMobileTranslating, translationStatus]);
+
+
+
+
+  const checkTranslationExists = async (targetLanguage: string): Promise<boolean> => {
+    if (!articleId) return false;
+    
+    try {
+      const languagesResponse = await articleApi.getArticleAvailableLanguages(articleId);
+      console.log(' Mobile: Checking existing languages:', languagesResponse);
+      
+      let languages;
+      if (languagesResponse?.data.languages) {
+        languages = languagesResponse.data.languages;
+      } else if (languagesResponse?.data?.languages) {
+        languages = languagesResponse.data.languages;
+      } else if (Array.isArray(languagesResponse)) {
+        languages = languagesResponse;
+      } else if (Array.isArray(languagesResponse?.data)) {
+        languages = languagesResponse.data;
+      }
+      
+      const exists = Array.isArray(languages) && languages.some((lang: any) => 
+        (lang.language || lang.code || lang) === targetLanguage
+      );
+      
+      console.log(' Mobile: Language exists?', exists, 'for', targetLanguage);
+      return exists;
+    } catch (error) {
+      console.error('Error checking translation existence:', error);
+      return false;
+    }
+  };
+
+  // Handle translation request
+const handleMobileTranslate = useCallback(async (langCode: string) => {
+  // Check authentication before allowing translation
+  if (!user) {
+    // Show auth modal for translation
+    setAuthAction('translate');
+    setShowAuthModal(true);
+    return;
+  }
+
+  // Check if the language is already available FIRST
+  const isAlreadyAvailable = availableLanguages.includes(langCode);
+  if (isAlreadyAvailable) {
+    // If already available, just switch to it
+    notification.info({
+      message: t`Language Already Available`,
+      description: t`${getLanguageName(langCode)} is already available. Switching now...`,
+      duration: 3,
+    });
+    await onLanguageChange(langCode);
+    return;
+  }
+
+  if (!articleId || isMobileTranslating) return;
+  
+  console.log('📱 Mobile: Starting translation for language:', langCode);
+  
+  setIsMobileTranslating(true);
+  setTranslationStatus('progress');
+  setTranslateProgress(0);
+  
+  try {
+    // Make the API call to backend
+    console.log('📱 Mobile: Calling articleApi.translateArticle...');
+    const response = await articleApi.translateArticle(articleId, langCode);
+    
+    console.log('📱 Mobile: Translation API response:', response);
+    
+    // Check if response indicates success
+    const isSuccess = 
+      response?.success === true ||
+      response?.status === 201 ||
+      response?.status === 200 ||
+      (response?.data && (
+        typeof response.data === 'object' && 
+        ('id' in response.data || 'articleId' in response.data)
+      ));
+    
+    if (isSuccess) {
+      console.log('✅ Mobile: Translation request successful');
+      
+      // Show success notification
+      notification.success({
+        message: t`Translation Started! 🚀`,
+        description: t`Converting your content to ${getLanguageName(langCode)}. Hang tight - this usually takes seconds to a minute!`,
+        duration: 4,
+      });
+      
+      // Start progress simulation
+      let simulatedProgress = 0;
+      progressIntervalRef.current = setInterval(() => {
+        simulatedProgress += Math.random() * 8 + 3;
+        if (simulatedProgress >= 95) {
+          setTranslateProgress(95);
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+        } else {
+          setTranslateProgress(Math.floor(simulatedProgress));
+        }
+      }, 1000);
+      
+      // Start polling for completion
+      startPollingForTranslation(langCode);
+      
+    } else {
+      // Log technical error to console
+      console.error('❌ Mobile: Translation API returned non-success (Technical):', response?.message || response?.error);
+      
+      // Throw user-friendly error from FRONTEND
+      throw new Error(t`Translation service is temporarily busy. Please try again shortly.`);
+    }
+    
+  } catch (error: any) {
+    // Log technical error to console
+    console.error('❌ Mobile: Translation request failed (Technical):', {
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Clean up intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    
+    // Show user-friendly error message from FRONTEND
+    notification.error({
+      message: t`Translation Unavailable`,
+      description: t`We couldn't start the translation right now. Please try again in a moment.`,
+      duration: 4,
+    });
+    
+    // Reset state
+    setIsMobileTranslating(false);
+    setSelectedLangForTranslate(null);
+    setTranslateProgress(0);
+    setTranslationStatus('idle');
+    setShowTranslationModal(false);
+  }
+}, [user, articleId, isMobileTranslating]);
+
+  // Polling function
+  const startPollingForTranslation = (targetLanguage: string) => {
+    let checkCount = 0;
+    const maxChecks = 40;
+    
+    const poll = async () => {
+      if (checkCount >= maxChecks || translationStatus === 'complete') {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        
+        if (checkCount >= maxChecks && translationStatus !== 'complete') {
+        notification.info({
+          message: t`Translation Taking Longer`,
+          description: t`Translation is still processing. It will appear automatically when ready.`,
+          duration: 5,
+        });
+}
+        return;
+      }
+      
+      checkCount++;
+      console.log(`obile: Polling attempt ${checkCount}/${maxChecks} for ${targetLanguage}`);
+      
+      try {
+        const alreadyTranslated = await checkTranslationExists(targetLanguage);
+        if (alreadyTranslated) {
+          setTranslateProgress(100);
+          setTranslationStatus('complete');
+          
+          // Clean up intervals
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+          
+          // Show SUCCESS MESSAGE (same as desktop)
+          setTimeout(() => {
+            const userName = user?.name || 'Reader';
+            showTranslationSuccess(userName, targetLanguage);
+            
+            // Update available languages
+            if (onLanguagesUpdated) {
+              const newLanguages = [...availableLanguages, targetLanguage];
+              onLanguagesUpdated(newLanguages);
+            }
+            
+            // Automatically switch to the new language
+            onLanguageChange(targetLanguage);
+            
+            // Reset state
+            setIsMobileTranslating(false);
+            setSelectedLangForTranslate(null);
+            setTranslateProgress(0);
+            setTranslationStatus('idle');
+            setShowTranslationModal(false);
+          }, 2000);
+          
+          return;
+        }
+        
+        // Continue polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        pollingIntervalRef.current = setTimeout(poll, 3000);
+        
+      } catch (error) {
+        console.error('Mobile: Error polling translation:', error);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        pollingIntervalRef.current = setTimeout(poll, 5000);
+      }
+    };
+    
+    // Start polling
+    poll();
+  };
+// Show success notification
+  const showTranslationSuccess = (userName: string, language: string) => {
+    notification.success({
+    message: (
+      <div className="flex items-center gap-2">
+        <div className="text-lg">🎉</div>
+        <div>
+          <div className="font-bold">{t`Excellent news, ${userName}!`}</div>
+          <div className="text-sm text-gray-600">{t`Your ${getLanguageName(language)} translation is ready`}</div>
+        </div>
+      </div>
+    ),
+    description: (
+      <div className="space-y-2">
+        <div className="text-sm">
+          {t`You can now enjoy the outstanding knowledge of Inlirah in ${getLanguageName(language)} for best understanding.`}
+        </div>
+        <div className="text-xs text-gray-500">
+          {t`Inlirah is committed to making knowledge accessible to everyone. Thank you for your patience!`}
+        </div>
+        <div className="mt-2 text-xs text-blue-600">
+          <strong>{t`Note:`}</strong> {t`Once translated by one person, the language becomes available for everyone!`}
+        </div>
+      </div>
+    ),
+    duration: 8,
+    placement: 'topRight',
+    className: 'translation-success-notification',
+    style: {
+      background: 'linear-gradient(135deg, #f6ffed 0%, #f0f5ff 100%)',
+      border: '2px solid #52c41a',
+      borderRadius: '8px',
+    }
+  });
+  };
+
+  // All supported languages
+  const allLanguages = [
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+    { code: 'pt', name: 'Português', flag: '🇵🇹' },
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+    { code: 'zh', name: '中文', flag: '🇨🇳' },
+    { code: 'ja', name: '日本語', flag: '🇯🇵' },
+    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  ];
+
+  // Group languages
+  const availableLangs = allLanguages.filter(lang => 
+    availableLanguages.includes(lang.code)
+  );
+  
+  const suggestedLangs = allLanguages.filter(lang => 
+    !availableLanguages.includes(lang.code)
+  );
+
+  return (
+    <>
+      {/* Compact Language Display */}
+      <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+        <div className="px-3 py-2">
+          {/* Current Language */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <span className="text-base">{getLanguageFlag(currentLanguage)}</span>
+              </div>
+              <div>
+               <div className="text-xs text-gray-500 dark:text-gray-400">
+                {t`Current Language`}
+               </div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {getLanguageName(currentLanguage)}
+                </div>
+              </div>
+            </div>
+            <CheckOutlined className="text-green-500" />
+          </div>
+
+          {/* Available Languages */}
+          <div className="mb-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center justify-between">
+            <span>{t`Available`} ({availableLangs.length})</span>
+            <button
+              onClick={() => setShowFullLanguageModal(true)}
+              className="text-blue-500 hover:text-blue-600 text-xs"
+            >
+              {t`See all`}
+            </button>
+          </div>
+            
+            <div className="flex flex-wrap gap-1">
+              {availableLangs.slice(0, 4).map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    onLanguageChange(lang.code);
+                  }}
+                  disabled={isTranslating || lang.code === currentLanguage}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-all ${
+                    lang.code === currentLanguage
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                      : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  } ${isTranslating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className="text-sm">{lang.flag}</span>
+                  <span className="max-w-[60px] truncate">{lang.name}</span>
+                </button>
+              ))}
+              {availableLangs.length > 4 && (
+                <button
+                  onClick={() => setShowFullLanguageModal(true)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <span>+{availableLangs.length - 4}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Translate */}
+          {suggestedLangs.length > 0 && !isMobileTranslating && (
+          <div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {t`Request Translation`}
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {suggestedLangs.slice(0, 3).map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    console.log(t`Mobile: Language selected for translation:`, lang.code);
+                    setSelectedLangForTranslate(lang.code);
+                    setShowTranslationModal(true); // This will trigger the useEffect
+                  }}
+                  disabled={isMobileTranslating}
+                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span className="text-lg mb-1">{lang.flag}</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300 truncate w-full text-center">
+                    {lang.name}
+                  </span>
+                </button>
+              ))}
+              {suggestedLangs.length > 3 && (
+                <button
+                  onClick={() => setShowFullLanguageModal(true)}
+                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span className="text-lg mb-1">🌐</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300 truncate w-full text-center">
+                    {t`More...`}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+          {/* Translation in Progress */}
+          {isMobileTranslating && selectedLangForTranslate && (
+            <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                    <Spin size="small" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-300">
+                        {translateProgress}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {t`Translating to ${getLanguageName(selectedLangForTranslate)}`}
+                  </div>
+                  <Progress 
+                    percent={translateProgress}
+                    size="small"
+                    strokeColor={{
+                      '0%': '#1890ff',
+                      '50%': '#722ed1',
+                      '100%': '#52c41a',
+                    }}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* FULL Translation Modal (SAME AS DESKTOP) */}
+      <Modal
+  title={
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+        <TranslationOutlined className="text-white" />
+      </div>
+      <span>
+        {translationStatus === 'complete' ? t`Translation Complete!` : t`Generating Translation`}
+      </span>
+    </div>
+  }
+  open={showTranslationModal && !!selectedLangForTranslate}
+  closable={translationStatus === 'complete'}
+  onCancel={() => {
+    if (translationStatus === 'complete') {
+      setIsMobileTranslating(false);
+      setSelectedLangForTranslate(null);
+      setTranslateProgress(0);
+      setTranslationStatus('idle');
+      setShowTranslationModal(false);
+    }
+  }}
+  footer={translationStatus === 'complete' ? [
+    <Button 
+      key="close" 
+      type="primary" 
+      onClick={() => {
+        setIsMobileTranslating(false);
+        setSelectedLangForTranslate(null);
+        setTranslateProgress(0);
+        setTranslationStatus('idle');
+        setShowTranslationModal(false);
+      }}
+    >
+      {t`Close`}
+    </Button>
+  ] : null}
+  width="100%"
+  style={{ 
+    maxWidth: '500px',
+    margin: '16px',
+    top: '16px',
+    position: 'relative'
+  }}
+>
+  <div className="space-y-6">
+    {translationStatus === 'complete' ? (
+      // Success state (SAME AS DESKTOP)
+      <div className="text-center animate-fadeIn">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
+          <CheckOutlined className="text-white text-3xl" />
+        </div>
+        <Title level={3} className="!mb-2 text-green-600">
+          {t`Translation Complete!`}
+        </Title>
+        <Paragraph className="text-lg mb-4">
+          {t`Your article is now available in ${getLanguageName(selectedLangForTranslate || '')}`}
+        </Paragraph>
+        <div className="flex items-center justify-center gap-2 text-lg">
+          <Spin size="small" />
+          <Text type="secondary">
+            {t`Switching to ${getLanguageName(selectedLangForTranslate || '')}...`}
+          </Text>
+        </div>
+      </div>
+    ) : (
+      // Progress state (SAME AS DESKTOP)
+      <>
+        <div className="text-center">
+          <div className="relative inline-block mb-4">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+              <div className="relative">
+                <Spin size="large" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
+                    {translateProgress}%
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center animate-pulse">
+              <span className="text-white text-lg">🚀</span>
+            </div>
+          </div>
+          
+          <div className="mb-2">
+            <Title level={3} className="!mb-1">
+              {t`Translating to ${getLanguageName(selectedLangForTranslate || '')}`}
+            </Title>
+            <Text type="secondary">
+              {translateProgress < 30 ? t`Analyzing content structure...` :
+               translateProgress < 60 ? t`Processing translation with AI...` :
+               translateProgress < 85 ? t`Reviewing translation quality...` :
+               t`Finalizing translation...`}
+            </Text>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <Text>{t`Progress`}</Text>
+            <Text strong>{translateProgress}%</Text>
+          </div>
+          <Progress 
+            percent={translateProgress}
+            status="active"
+            strokeColor={{
+              '0%': '#1890ff',
+              '100%': '#722ed1',
+            }}
+            strokeWidth={6}
+          />
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`p-3 rounded-lg border transition-all ${translateProgress > 20 ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translateProgress > 20 ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translateProgress > 20 ? '✓' : '1'}
+                </div>
+                <Text strong className={translateProgress > 20 ? 'text-green-600' : ''}>
+                  {t`Content Analysis`}
+                </Text>
+              </div>
+              <Text type="secondary" className="text-xs">
+                {t`Parsing original structure`}
+              </Text>
+            </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translateProgress > 50 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translateProgress > 50 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translateProgress > 50 ? '✓' : '2'}
+                </div>
+                <Text strong className={translateProgress > 50 ? 'text-blue-600' : ''}>
+                  {t`AI Translation`}
+                </Text>
+              </div>
+              <Text type="secondary" className="text-xs">
+                {t`Advanced LLM processing`}
+              </Text>
+            </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translateProgress > 80 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translateProgress > 80 ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translateProgress > 80 ? '✓' : '3'}
+                </div>
+                <Text strong className={translateProgress > 80 ? 'text-purple-600' : ''}>
+                  {t`Quality Review`}
+                </Text>
+              </div>
+              <Text type="secondary" className="text-xs">
+                {t`Ensuring accuracy`}
+              </Text>
+            </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translateProgress >= 95 ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translateProgress >= 95 ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translateProgress >= 95 ? '✓' : '4'}
+                </div>
+                <Text strong className={translateProgress >= 95 ? 'text-orange-600' : ''}>
+                  {t`Finalizing`}
+                </Text>
+              </div>
+              <Text type="secondary" className="text-xs">
+                {t`Making available`}
+              </Text>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">⏳</span>
+            </div>
+            <div>
+              <Text strong className="block mb-1">
+                {translateProgress < 50 ? t`Starting translation process...` :
+                 translateProgress < 85 ? t`AI is working on your translation...` :
+                 t`Almost done! Finalizing...`}
+              </Text>
+              <Text type="secondary" className="text-sm">
+                {t`Your request helps make this outstanding Inlirah knowledge accessible to more people in their preferred language. Once complete, ${getLanguageName(selectedLangForTranslate || '')} will be automatically available for everyone!`}
+              </Text>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+  </div>
+</Modal>
+
+      {/* Full Languages Modal */}
+<Modal
+  title={
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+        <GlobalOutlined className="text-blue-600 dark:text-blue-400 text-lg" />
+      </div>
+      <div className="flex-1">
+        <div className="font-bold text-gray-900 dark:text-white text-base">
+          {t`All Languages`}
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          {t`${availableLangs.length} available • ${suggestedLangs.length} suggested for translation`}
+        </div>
+      </div>
+    </div>
+  }
+  open={showFullLanguageModal}
+  onCancel={() => setShowFullLanguageModal(false)}
+  width="100%"
+  wrapClassName="dark:bg-gray-900"
+  className="[&_.ant-modal-content]:bg-white [&_.ant-modal-content]:dark:bg-gray-900 [&_.ant-modal-header]:border-b [&_.ant-modal-header]:border-gray-200 [&_.ant-modal-header]:dark:border-gray-700 [&_.ant-modal-header]:bg-white [&_.ant-modal-header]:dark:bg-gray-900"
+  style={{ 
+    maxWidth: '520px',
+    margin: '16px',
+    top: '20px',
+    borderRadius: '12px',
+    overflow: 'hidden'
+  }}
+  bodyStyle={{ 
+    maxHeight: '60vh',
+    overflowY: 'auto',
+    padding: '0',
+    backgroundColor: 'inherit'
+  }}
+  footer={null}
+  closeIcon={<CloseOutlined className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />}
+>
+  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+    {/* Available Languages Section */}
+    <div className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+            {t`Available Languages`}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {t`Select your preferred language`}
+          </div>
+        </div>
+        <span className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
+          {availableLangs.length}
+        </span>
+      </div>
+      
+      <div className="space-y-3">
+        {availableLangs.map(lang => (
+          <button
+            key={lang.code}
+            onClick={() => {
+              onLanguageChange(lang.code);
+              setShowFullLanguageModal(false);
+            }}
+            className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+              lang.code === currentLanguage 
+                ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' 
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900 ring-gray-200 dark:ring-gray-700">
+                  <span className="text-2xl">{lang.flag}</span>
+                </div>
+                {lang.code === currentLanguage && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
+                    <CheckOutlined className="text-white text-xs" />
+                  </div>
+                )}
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                  {lang.name}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {t`${lang.name} • ${lang.code.toUpperCase()}`}
+                </div>
+              </div>
+            </div>
+            {lang.code === currentLanguage ? (
+              <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-semibold">
+                {t`Active`}
+              </div>
+            ) : (
+              <CopyrightOutlined className="text-gray-400 dark:text-gray-500" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Suggested for Translation Section */}
+    <div className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+            {t`Request Translation`}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {t`Help us translate into these languages`}
+          </div>
+        </div>
+        <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
+          {suggestedLangs.length}
+        </span>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {suggestedLangs.map(lang => (
+          <button
+            key={lang.code}
+            onClick={() => {
+              setSelectedLangForTranslate(lang.code);
+              setShowTranslationModal(true);
+              setShowFullLanguageModal(false);
+            }}
+            className="group flex flex-col items-center justify-center p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md dark:hover:shadow-blue-900/10 hover:shadow-blue-100 dark:hover:shadow-blue-900/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <div className="relative mb-3">
+              <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900 ring-gray-200 dark:ring-gray-600 group-hover:ring-blue-200 dark:group-hover:ring-blue-800 transition-all">
+                <span className="text-3xl">{lang.flag}</span>
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-500 dark:bg-amber-600 rounded-full flex items-center justify-center">
+                <PlusOutlined className="text-white text-xs" />
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5 truncate w-full">
+                {lang.name}
+              </div>
+              <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                {lang.code.toUpperCase()}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Footer Note */}
+      {/* <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
+          <InfoCircleOutlined className="mt-0.5 flex-shrink-0" />
+          <span>
+            {t`Can't find your language?`}{' '}
+            <button className="text-blue-600 dark:text-blue-400 font-medium hover:underline focus:outline-none">
+              {t`Request a new language`}
+            </button>{' '}
+            {t`to be added.`}
+          </span>
+        </div>
+      </div> */}
+    </div>
+  </div>
+</Modal>
+    </>
+  );
 };
 
 const getLanguageName = (code: string): string => {
@@ -263,40 +1435,89 @@ const getLanguageFlag = (code: string): string => {
   return flags[code] || '🌐';
 };
 
-  // Helper function to get time ago
+
+// Add this function to show translation success notification
+const showTranslationSuccess = (userName: string, language: string) => {
+  const languageName = getLanguageName(language);
+  
+  notification.success({
+    message: (
+      <div className="flex items-center gap-2">
+        <div className="text-lg">🎉</div>
+        <div>
+          <div className="font-bold">
+            <Trans>Excellent news, {userName}!</Trans>
+          </div>
+          <div className="text-sm text-gray-600">
+            <Trans>
+              Your <strong>{languageName}</strong> translation is ready
+            </Trans>
+          </div>
+        </div>
+      </div>
+    ),
+    description: (
+      <div className="space-y-2">
+        <div className="text-sm">
+          <Trans>
+            You can now enjoy the outstanding knowledge of Inlirah in <strong>{languageName}</strong> for best understanding.
+          </Trans>
+        </div>
+        <div className="text-xs text-gray-500">
+          {t`Inlirah is committed to making knowledge accessible to everyone. Enjoy your reading!`}
+        </div>
+        <div className="mt-2 text-xs text-blue-600">
+          <Trans>
+            <strong>Note:</strong> Once translated by one person, the language becomes available for everyone!
+          </Trans>
+        </div>
+      </div>
+    ),
+    duration: 8,
+    placement: 'topRight',
+    className: 'translation-success-notification',
+    style: {
+      background: 'linear-gradient(135deg, #f6ffed 0%, #f0f5ff 100%)',
+      border: '2px solid #52c41a',
+      borderRadius: '8px',
+    }
+  });
+};
+
+ // Helper function to get time ago
 const getTimeAgo = (dateString: string): string => {
   try {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    if (seconds < 2592000) return `${Math.floor(seconds / 604800)}w ago`;
+    if (seconds < 60) return t`Just now`;
+    if (seconds < 3600) return t`${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return t`${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return t`${Math.floor(seconds / 86400)}d ago`;
+    if (seconds < 2592000) return t`${Math.floor(seconds / 604800)}w ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch (error) {
-    return 'Recently';
+    return t`Recently`;
   }
 };
 
+
 // Helper function to get engagement label
 const getEngagementLabel = (score: number): { label: string; color: string } => {
-  if (score >= 80) return { label: ' Hot', color: '#fa541c' };
-  if (score >= 60) return { label: ' Trending', color: '#fa8c16' };
-  if (score >= 40) return { label: ' Popular', color: '#52c41a' };
-  if (score >= 20) return { label: ' Good read', color: '#1890ff' };
-  return { label: ' New', color: '#8c8c8c' };
+  if (score >= 80) return { label: t`Hot`, color: '#fa541c' };
+  if (score >= 60) return { label: t`Trending`, color: '#fa8c16' };
+  if (score >= 40) return { label: t`Popular`, color: '#52c41a' };
+  if (score >= 20) return { label: t`Good read`, color: '#1890ff' };
+  return { label: t`New`, color: '#8c8c8c' };
 };
 
-// Helper function to get reading time text
+// Helper function to get reading time text with proper pluralization
 const getReadingTimeText = (minutes: number): string => {
-  if (minutes < 1) return 'Less than 1 min';
-  if (minutes === 1) return '1 min';
-  return `${minutes} mins`;
+  if (minutes < 1) return t`Less than a minute`;
+  if (minutes === 1) return t`1 minute`;
+  return t`${minutes} minutes`;
 };
-
 
 
 const checkPremiumAccess = async (): Promise<boolean> => {
@@ -380,14 +1601,24 @@ const checkAndSetAccess = async () => {
 
   
 
-  const checkAuth = (action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply'): boolean => {
-    if (!user) {
-      setAuthAction(action);
-      setShowAuthModal(true);
-      return false;
-    }
-    return true;
-  };
+//  const checkAuth = (action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply' | 'translate'): boolean => {
+//   if (!user) {
+//     setAuthAction(action);
+//     setShowAuthModal(true);
+//     return false;
+//   }
+//   return true;
+// };
+
+// Wrap checkAuth with useCallback to prevent recreation
+const checkAuth = useCallback((action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply' | 'translate'): boolean => {
+  if (!user) {
+    setAuthAction(action);
+    setShowAuthModal(true);
+    return false;
+  }
+  return true;
+}, [user]); // Add user as dependency
 
 
   // Handle edit comment
@@ -419,6 +1650,26 @@ const isCurrentUserComment = (comment: any): boolean => {
   }
 };
 
+const refreshAvailableLanguages = async () => {
+  if (!article?.id) return;
+  
+  try {
+    const response = await articleApi.getArticleAvailableLanguages(article.id);
+    if (response?.data.languages) {
+      const languages = response.data.languages.map((lang: any) => lang.language);
+      setAvailableLanguages(languages);
+      
+      // Update article state for consistency
+      setArticle(prev => prev ? {
+        ...prev,
+        availableLanguages: languages
+      } : null);
+    }
+  } catch (error) {
+    console.error('Failed to refresh available languages:', error);
+  }
+};
+
 
 // Add this simple function near your other helper functions
 const renderPremiumContentPlaceholder = () => {
@@ -427,12 +1678,11 @@ const renderPremiumContentPlaceholder = () => {
       <div className="mb-4">
         <CrownOutlined className="text-3xl text-purple-500 mb-2" />
         <Title level={4} className="!mb-2 text-foreground dark:text-white">
-          Premium Content
+          {t`Premium Content`}
         </Title>
         <Paragraph className="text-lg text-muted-foreground dark:text-gray-300 mb-6">
-                This article is part of our premium collection. Unlock it to access exclusive insights, 
-                expert analysis, and in-depth content that's not available anywhere else.
-              </Paragraph>
+          {t`This article is part of our premium collection. Unlock it to access exclusive insights, expert analysis, and in-depth content that's not available anywhere else.`}
+        </Paragraph>
       </div>
       
       <Button
@@ -441,7 +1691,7 @@ const renderPremiumContentPlaceholder = () => {
         onClick={() => setShowPaywall(true)}
         className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0"
       >
-        Unlock Article
+        {t`Unlock Article`}
       </Button>
     </div>
   );
@@ -498,7 +1748,7 @@ const handleSaveEdit = async (commentId: string) => {
     await articleApi.updateComment(commentId, { content: editCommentText });
     
     notification.success({ 
-      message: 'Comment updated!',
+      message: t`Comment updated!`,
       placement: 'top',
       duration: 2
     });
@@ -530,7 +1780,7 @@ const handleSaveEdit = async (commentId: string) => {
     }
     
     notification.error({ 
-      message: 'Failed to update comment',
+      message: t`Failed to update comment`,
       placement: 'top',
       duration: 3
     });
@@ -625,62 +1875,107 @@ useEffect(() => {
   localStorage.setItem('article-reader-font-family', fontFamily);
 }, [fontSize, lineHeight, fontFamily]);
 
+// useEffect(() => {
+//   // Re-check access when user logs in/out
+//   if (article && article.accessType === 'PREMIUM') {
+//     checkAndSetAccess();
+//   }
+// }, [user, article]);
+
 useEffect(() => {
-  // Re-check access when user logs in/out
-  if (article && article.accessType === 'PREMIUM') {
+  // Only run if article and user have actually changed
+  if (article && article.accessType === 'PREMIUM' && user) {
     checkAndSetAccess();
   }
-}, [user, article]);
+}, [user?.id, article?.id]); 
 
-  // Load article and related data
-  useEffect(() => {
-    if (!slug) return;
+
+useEffect(() => {
+  // This will run when slug changes OR component unmounts
+  return () => {
+    console.log('🧹 Cleaning up component for slug change');
+    fetchInProgressRef.current = false;
+    // Don't reset other states here - let the new useEffect handle it
+  };
+}, [slug]);
+
+
+/// Load article and related data
+useEffect(() => {
+  if (!slug) return;
+  
+  console.log('📥 Loading article for slug:', slug, 'with language:', currentLanguage);
+  
+  let isActive = true;
+  
+  const loadArticleData = async () => {
+    if (fetchInProgressRef.current) {
+      console.log('🔄 Fetch already in progress, skipping');
+      return;
+    }
     
-    const loadArticleData = async () => {
-      if (fetchInProgressRef.current) return;
+    fetchInProgressRef.current = true;
+    setLoading(true);
+    
+    // Clear previous data for this new slug
+    if (isActive) {
+      setRelatedArticles([]);
+      setTrendingArticles([]);
+      setComments([]);
+      setDisplayedComments([]);
+      setCategories([]);
+    }
+  
+    try {
+
+      const uiLanguageCode = i18n.locale.split('-')[0];
       
-      fetchInProgressRef.current = true;
-      setLoading(true);
-    
-      try {
-        
-        // Load main article
-        const params = currentLanguage !== 'en' ? { language: currentLanguage } : undefined;
-        const response = await articleApi.getArticle(slug, params);
-        
-        let articleData;
-        if (response?.data) {
-          if (typeof response.data === 'object' && 'success' in response.data) {
-            const apiResponse = response.data as any;
-            if (apiResponse.success && apiResponse.data) {
-              articleData = apiResponse.data;
-            } else {
-              throw new Error(apiResponse.message || 'Article not found in response');
-            }
+      // Set currentLanguage to UI language BEFORE fetching
+      setCurrentLanguage(uiLanguageCode);
+      
+
+      // Load main article WITH language parameter
+      const params = currentLanguage !== 'en' ? { language: currentLanguage } : undefined;
+      console.log('📥 Fetching article with params:', params);
+      
+      const response = await articleApi.getArticle(slug, params);
+      
+      // Check if component is still mounted
+      if (!isActive) {
+        console.log('🔄 Component unmounted, aborting');
+        return;
+      }
+      
+      let articleData;
+      if (response?.data) {
+        if (typeof response.data === 'object' && 'success' in response.data) {
+          const apiResponse = response.data as any;
+          if (apiResponse.success && apiResponse.data) {
+            articleData = apiResponse.data;
           } else {
-            articleData = response.data;
+            throw new Error(apiResponse.message || 'Article not found in response');
           }
         } else {
-          throw new Error('No data received from server');
+          articleData = response.data;
         }
+      } else {
+        throw new Error('No data received from server');
+      }
+      
+      if (articleData && articleData.id) {
+        console.log('✅ Article loaded:', {
+          id: articleData.id,
+          title: articleData.title,
+          language: articleData.language,
+          currentLanguage
+        });
         
-        if (articleData && articleData.id) {
-          articleIdRef.current = articleData.id;
-          
-          console.log('Mapping article data:', articleData);
-
-          
-
-
-        // In the fixImageUrl function, change:
+        // Fix image URLs
         const fixImageUrl = (url: string): string => {
           if (!url || url.trim() === '') return '';
           
-          console.log('🔧 Fixing image URL:', url);
-          
           // Don't use Unsplash URLs
           if (url.includes('images.unsplash.com')) {
-            console.log('🚫 Skipping Unsplash URL:', url);
             return '';
           }
           
@@ -712,192 +2007,193 @@ useEffect(() => {
           return `${baseUrl}/articles/${cleanUrl}?t=${Date.now()}`;
         };
 
-
-
-
-        const getFullImageUrl = (url: string): string => {
-          if (!url) return '';
+        // Helper function to fix images in content
+        const fixImagesInContent = (content: any): any => {
+          if (!content) return content;
           
-          // Already a full URL
-          if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url;
+          if (typeof content === 'string') {
+            // Fix image URLs in HTML string content
+            return content.replace(
+              /src="([^"]*\/uploads\/[^"]*)"/g, 
+              (match, url) => `src="${fixImageUrl(url)}"`
+            );
           }
           
-          // Data URL (base64)
-          if (url.startsWith('data:')) {
-            return url;
+          if (typeof content === 'object' && content.type === 'doc') {
+            // Deep clone and fix TipTap JSON content
+            const fixedContent = JSON.parse(JSON.stringify(content));
+            
+            const fixNodeImages = (node: any) => {
+              if (node.type === 'image' && node.attrs?.src) {
+                node.attrs.src = fixImageUrl(node.attrs.src);
+              }
+              
+              if (node.content && Array.isArray(node.content)) {
+                node.content.forEach(fixNodeImages);
+              }
+              
+              return node;
+            };
+            
+            if (fixedContent.content) {
+              fixedContent.content.forEach(fixNodeImages);
+            }
+            
+            return fixedContent;
           }
           
-          // Always use localhost:3000 for development
-          const baseUrl = 'http://localhost:3000';
-          
-          // Clean up the URL
-          let cleanUrl = url;
-          if (cleanUrl.startsWith('/')) {
-            cleanUrl = cleanUrl.substring(1);
-          }
-          
-          // For uploads, use the correct endpoint
-          if (cleanUrl.includes('uploads/') || cleanUrl.includes('articles/')) {
-            return `${baseUrl}/${cleanUrl}`;
-          }
-          
-          // Default: prepend the base URL
-          return `${baseUrl}/uploads/articles/${cleanUrl}`;
+          return content;
         };
 
-          // Helper function to fix images in content
-          const fixImagesInContent = (content: any): any => {
-            if (!content) return content;
-            
-            if (typeof content === 'string') {
-              // Fix image URLs in HTML string content
-              return content.replace(
-                /src="([^"]*\/uploads\/[^"]*)"/g, 
-                (match, url) => `src="${fixImageUrl(url)}"`
-              );
-            }
-            
-            if (typeof content === 'object' && content.type === 'doc') {
-              // Deep clone and fix TipTap JSON content
-              const fixedContent = JSON.parse(JSON.stringify(content));
-              
-              const fixNodeImages = (node: any) => {
-                if (node.type === 'image' && node.attrs?.src) {
-                  node.attrs.src = fixImageUrl(node.attrs.src);
-                }
-                
-                if (node.content && Array.isArray(node.content)) {
-                  node.content.forEach(fixNodeImages);
-                }
-                
-                return node;
-              };
-              
-              if (fixedContent.content) {
-                fixedContent.content.forEach(fixNodeImages);
-              }
-              
-              return fixedContent;
-            }
+        const mappedArticle: Article = {
+          id: articleData.id,
+          slug: articleData.slug,
+          title: articleData.title,
+          excerpt: articleData.excerpt || articleData.metaDescription || '',
+          content: fixImagesInContent(articleData.content),
+          plainText: articleData.plainText || '',
+          coverImage: fixImageUrl(articleData.coverImage || articleData.featuredImage || ''),
+          readingTime: articleData.readingTime || 1,
+          viewCount: articleData.viewCount || 0,
+          likeCount: articleData.likeCount || 0,
+          commentCount: articleData.commentCount || 0,
+          clapCount: articleData.clapCount || 0,
+          shareCount: articleData.shareCount || 0,
+          isFeatured: articleData.isFeatured || false,
+          isTrending: articleData.isTrending || false,
+          isLiked: articleData.isLiked || false,
+          isSaved: articleData.isSaved || false,
+          isPremium: articleData.accessType === 'PREMIUM',
+          isPreview: articleData.isPreview || false,
+          accessType: articleData.accessType || 'FREE',
+          status: articleData.status || 'PUBLISHED',
+          publishedAt: articleData.publishedAt || articleData.createdAt,
+          createdAt: articleData.createdAt,
+          updatedAt: articleData.updatedAt,
+          author: {
+            id: articleData.author?.id || '',
+            name: articleData.author?.name || 'Anonymous',
+            picture: articleData.author?.picture,
+            bio: articleData.author?.bio,
+            isVerified: articleData.author?.isVerified || false,
+            followersCount: articleData.author?.followersCount || 0
+          } as Author,
+          category: {
+            id: articleData.category?.id || '',
+            name: articleData.category?.name || 'Uncategorized',
+            slug: articleData.category?.slug || 'uncategorized',
+            color: articleData.category?.color,
+            description: articleData.category?.description
+          } as Category,
+          tags: articleData.tags || [],
+          availableLanguages: articleData.availableLanguages || ['en'],
+          language: articleData.language || 'en',
+          translationQuality: articleData.translationQuality,
+          recommendationScore: articleData.recommendationScore
+        };
 
-            
-            return content;
-          };
+        // Check if still active before setting state
+        if (!isActive) return;
 
+        // IMPORTANT: Set current language from the loaded article
+        // if (articleData.language) {
+        //   console.log('📥 Setting currentLanguage to:', articleData.language);
+        //   setCurrentLanguage(articleData.language);
+        // }
 
+        // Set initial available languages
+        setAvailableLanguages(mappedArticle.availableLanguages);
+        
+        // Set article with initial content key
+        setArticle(mappedArticle);
+        
+        // Set initial content key for forcing re-renders
+        const initialKey = `init-${mappedArticle.id}-${mappedArticle.language || 'en'}-${Date.now()}`;
+        setContentKey(initialKey);
+        
+        console.log('✅ Article state set with content key:', initialKey);
 
-           const mappedArticle: Article = {
-            id: articleData.id,
-            slug: articleData.slug,
-            title: articleData.title,
-            excerpt: articleData.excerpt || articleData.metaDescription || '',
-            content: fixImagesInContent(articleData.content),
-            plainText: articleData.plainText || '',
-            coverImage: fixImageUrl(articleData.coverImage || articleData.featuredImage || ''),
-            readingTime: articleData.readingTime || 1,
-            viewCount: articleData.viewCount || 0,
-            likeCount: articleData.likeCount || 0,
-            commentCount: articleData.commentCount || 0,
-            clapCount: articleData.clapCount || 0,
-            shareCount: articleData.shareCount || 0,
-            isFeatured: articleData.isFeatured || false,
-            isTrending: articleData.isTrending || false,
-            isLiked: articleData.isLiked || false,
-            isSaved: articleData.isSaved || false,
-            isPremium: articleData.accessType === 'PREMIUM',
-            isPreview: articleData.isPreview || false,
-            accessType: articleData.accessType || 'FREE',
-            status: articleData.status || 'PUBLISHED',
-            publishedAt: articleData.publishedAt || articleData.createdAt,
-            createdAt: articleData.createdAt,
-            updatedAt: articleData.updatedAt,
-            author: {
-              id: articleData.author?.id || '',
-              name: articleData.author?.name || 'Anonymous',
-              picture: articleData.author?.picture,
-              bio: articleData.author?.bio,
-              isVerified: articleData.author?.isVerified || false,
-              followersCount: articleData.author?.followersCount || 0
-            } as Author,
-            category: {
-              id: articleData.category?.id || '',
-              name: articleData.category?.name || 'Uncategorized',
-              slug: articleData.category?.slug || 'uncategorized',
-              color: articleData.category?.color,
-              description: articleData.category?.description
-            } as Category,
-            tags: articleData.tags || [],
-            availableLanguages: articleData.availableLanguages || ['en'],
-            language: articleData.language || 'en',
-            translationQuality: articleData.translationQuality,
-            recommendationScore: articleData.recommendationScore
-          };
-          
-          setArticle(mappedArticle);
-
-          if (mappedArticle.accessType === 'PREMIUM' && user) {
-            checkAndSetAccess();
-          } else if (mappedArticle.accessType === 'FREE') {
-            setUserHasAccess(true);
-            setShowPaywall(false);
-          }
-
-          setLiked(mappedArticle.isLiked || false);
-          setSaved(mappedArticle.isSaved || false);
-          articleIdRef.current = mappedArticle.id;
-          viewTrackedRef.current = false;
-          scrollTrackingEnabledRef.current = false;
-
-
-           if (mappedArticle.accessType === 'PREMIUM' && user) {
-              try {
-                const accessResponse = await articleApi.purchaseArticle(mappedArticle.id);
-                setUserHasAccess(accessResponse.success === true);
-              } catch (error) {
-                console.error('Failed to check premium access:', error);
-                setUserHasAccess(false);
-              }
-            } else if (mappedArticle.accessType === 'FREE') {
-              setUserHasAccess(true);
-            }
-          
-          // Load related data in parallel
-          await Promise.all([
-            loadComments(mappedArticle.id),
-            loadComments(articleData.id),
-            loadComments(slug),
-            loadRelatedArticles(mappedArticle.id),
-            loadTrendingArticles(),
-            loadCategories()
-          ]);
-          
-          // Log for debugging
-          console.log('Article loaded:', {
-            title: mappedArticle.title,
-            coverImage: mappedArticle.coverImage,
-            contentType: typeof mappedArticle.content,
-            hasComments: mappedArticle.commentCount > 0
-          });
-          
-        } else {
-          throw new Error('Invalid article data structure');
+        if (mappedArticle.accessType === 'PREMIUM' && user) {
+          checkAndSetAccess();
+        } else if (mappedArticle.accessType === 'FREE') {
+          setUserHasAccess(true);
+          setShowPaywall(false);
         }
-      } catch (error: any) {
-        console.error('Failed to load article:', error);
+
+        setLiked(mappedArticle.isLiked || false);
+        setSaved(mappedArticle.isSaved || false);
+        articleIdRef.current = mappedArticle.id;
+        viewTrackedRef.current = false;
+        scrollTrackingEnabledRef.current = false;
+
+        if (mappedArticle.accessType === 'PREMIUM' && user) {
+          try {
+            const accessResponse = await articleApi.purchaseArticle(mappedArticle.id);
+            setUserHasAccess(accessResponse.success === true);
+          } catch (error) {
+            console.error('Failed to check premium access:', error);
+            setUserHasAccess(false);
+          }
+        } else if (mappedArticle.accessType === 'FREE') {
+          setUserHasAccess(true);
+        }
+        
+        // Load related data in parallel
+        if (isActive) {
+          // Use Promise.allSettled to prevent one failure from breaking everything
+          await Promise.allSettled([
+            loadComments(mappedArticle.id).catch(err => 
+              console.log('Comments load skipped:', err.message)
+            ),
+            loadRelatedArticles(mappedArticle.id).catch(err => 
+              console.log('Related articles load skipped:', err.message)
+            ),
+            loadTrendingArticles().catch(err => 
+              console.log('Trending articles load skipped:', err.message)
+            ),
+            loadCategories().catch(err => 
+              console.log('Categories load skipped:', err.message)
+            )
+          ]);
+        }
+        
+        // Log for debugging
+        if (isActive) {
+          console.log('✅ Article fully loaded:', mappedArticle.title);
+        }
+        
+      } else {
+        throw new Error('Invalid article data structure');
+      }
+    } catch (error: any) {
+      // Only show error if this is the active fetch
+      if (isActive) {
+        console.error('❌ Failed to load article:', error);
         notification.error({
           message: 'Error Loading Article',
-          description: error.response?.data?.message || error.message || 'Failed to load article. Please try again.',
+          description: error.response?.data?.message || error.message || t`Failed to load article. Please try again.`,
           duration: 5,
         });
-      } finally {
+      }
+    } finally {
+      // Only update loading state if this is still active
+      if (isActive) {
         fetchInProgressRef.current = false;
         setLoading(false);
       }
-    };
-    
-    loadArticleData();
-  }, [slug]);
+    }
+  };
+  
+  // Execute the load
+  loadArticleData();
+  
+  // Cleanup function
+  return () => {
+    console.log('🧹 Cleaning up article fetch for slug:', slug);
+    isActive = false;
+    fetchInProgressRef.current = false;
+  };
+}, [slug, currentLanguage]); // Depend on both slug AND currentLanguage
 
 
 const ReadingSettingsModal = React.memo(({ 
@@ -921,135 +2217,135 @@ const ReadingSettingsModal = React.memo(({
 }) => {
   return (
     <Modal
-        title="Reading Settings"
-        open={visible}
-        onCancel={onClose}
-        destroyOnClose={false} // Prevents unmounting when closed
-        forceRender // Keeps the modal in DOM even when not visible
-        transitionName="" // Disable animations
-        maskTransitionName=""
-        footer={[
-          <Button key="reset" onClick={() => {
-            setFontSize(18);
-            setLineHeight(1.8);
-            setFontFamily('system-ui');
-          }}>
-            Reset to Default
-          </Button>,
-          <Button key="close" type="primary" onClick={onClose}>
-            Apply Settings
-          </Button>
-        ]}
-      >
-      <div className="space-y-6">
-        {/* Font Size */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <Title level={5} className="!mb-0">Font Size</Title>
-            <Text className="text-lg font-bold">{fontSize}px</Text>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              type="text" 
-              size="small"
-              onClick={() => setFontSize(Math.max(12, fontSize - 1))}
-              disabled={fontSize <= 12}
-            >
-              A-
-            </Button>
-            <div className="flex-1">
-              <div className="grid grid-cols-7 gap-2">
-                {FONT_SIZES.map(size => ( // Use FONT_SIZES constant
-                  <Button
-                    key={size}
-                    type={fontSize === size ? 'primary' : 'default'}
-                    size="small"
-                    onClick={() => setFontSize(size)}
-                    className="flex items-center justify-center"
-                  >
-                    <span style={{ fontSize: `${size}px` }}>A</span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <Button 
-              type="text" 
-              size="small"
-              onClick={() => setFontSize(Math.min(24, fontSize + 1))}
-              disabled={fontSize >= 24}
-            >
-              A+
-            </Button>
-          </div>
-        </div>
-
-        {/* Line Height */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <Title level={5} className="!mb-0">Line Height</Title>
-            <Text className="text-lg font-bold">{lineHeight}</Text>
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {LINE_HEIGHTS.map(height => ( // Use LINE_HEIGHTS constant
+  title={t`Reading Settings`}
+  open={visible}
+  onCancel={onClose}
+  destroyOnClose={false} // Prevents unmounting when closed
+  forceRender // Keeps the modal in DOM even when not visible
+  transitionName="" // Disable animations
+  maskTransitionName=""
+  footer={[
+    <Button key="reset" onClick={() => {
+      setFontSize(18);
+      setLineHeight(1.8);
+      setFontFamily('system-ui');
+    }}>
+      {t`Reset to Default`}
+    </Button>,
+    <Button key="close" type="primary" onClick={onClose}>
+      {t`Apply Settings`}
+    </Button>
+  ]}
+>
+  <div className="space-y-6">
+    {/* Font Size */}
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <Title level={5} className="!mb-0">{t`Font Size`}</Title>
+        <Text className="text-lg font-bold">{fontSize}px</Text>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button 
+          type="text" 
+          size="small"
+          onClick={() => setFontSize(Math.max(12, fontSize - 1))}
+          disabled={fontSize <= 12}
+        >
+          A-
+        </Button>
+        <div className="flex-1">
+          <div className="grid grid-cols-7 gap-2">
+            {FONT_SIZES.map(size => (
               <Button
-                key={height}
-                type={lineHeight === height ? 'primary' : 'default'}
+                key={size}
+                type={fontSize === size ? 'primary' : 'default'}
                 size="small"
-                onClick={() => setLineHeight(height)}
+                onClick={() => setFontSize(size)}
                 className="flex items-center justify-center"
               >
-                <div style={{ 
-                  width: '100%',
-                  height: '20px',
-                  background: 'repeating-linear-gradient(to bottom, #ccc, #ccc 1px, transparent 1px, transparent 10px)',
-                  backgroundSize: '100% 10px',
-                  transform: `scaleY(${height})`,
-                  transformOrigin: 'center'
-                }} />
+                <span style={{ fontSize: `${size}px` }}>A</span>
               </Button>
             ))}
           </div>
         </div>
-
-        {/* Font Family */}
-        <div>
-          <Title level={5} className="!mb-4">Font Family</Title>
-          <div className="grid grid-cols-2 gap-2">
-            {FONT_FAMILIES.map(font => ( // Use FONT_FAMILIES constant
-              <Button
-                key={font.value}
-                type={fontFamily === font.value ? 'primary' : 'default'}
-                onClick={() => setFontFamily(font.value)}
-                className="text-left h-auto py-3"
-                style={{ fontFamily: font.value }}
-              >
-                <div className="text-center">
-                  <div className="text-lg">{font.label}</div>
-                  <div className="text-xs opacity-75">Aa</div>
-                </div>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Preview */}
-        <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-900">
-          <Text className="mb-2 text-sm text-gray-500 dark:text-gray-400">Preview:</Text>
-          <div 
-            style={{
-              fontSize: `${fontSize}px`,
-              lineHeight: lineHeight,
-              fontFamily: fontFamily,
-            }}
-            className="text-foreground"
-          >
-            This is how your article will look with these settings.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-            Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-          </div>
-        </div>
+        <Button 
+          type="text" 
+          size="small"
+          onClick={() => setFontSize(Math.min(24, fontSize + 1))}
+          disabled={fontSize >= 24}
+        >
+          A+
+        </Button>
       </div>
-    </Modal>
+    </div>
+
+    {/* Line Height */}
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <Title level={5} className="!mb-0">{t`Line Height`}</Title>
+        <Text className="text-lg font-bold">{lineHeight}</Text>
+      </div>
+      <div className="grid grid-cols-5 gap-2">
+        {LINE_HEIGHTS.map(height => (
+          <Button
+            key={height}
+            type={lineHeight === height ? 'primary' : 'default'}
+            size="small"
+            onClick={() => setLineHeight(height)}
+            className="flex items-center justify-center"
+          >
+            <div style={{ 
+              width: '100%',
+              height: '20px',
+              background: 'repeating-linear-gradient(to bottom, #ccc, #ccc 1px, transparent 1px, transparent 10px)',
+              backgroundSize: '100% 10px',
+              transform: `scaleY(${height})`,
+              transformOrigin: 'center'
+            }} />
+          </Button>
+        ))}
+      </div>
+    </div>
+
+    {/* Font Family */}
+    <div>
+      <Title level={5} className="!mb-4">{t`Font Family`}</Title>
+      <div className="grid grid-cols-2 gap-2">
+        {FONT_FAMILIES.map(font => (
+          <Button
+            key={font.value}
+            type={fontFamily === font.value ? 'primary' : 'default'}
+            onClick={() => setFontFamily(font.value)}
+            className="text-left h-auto py-3"
+            style={{ fontFamily: font.value }}
+          >
+            <div className="text-center">
+              <div className="text-lg">{font.label}</div>
+              <div className="text-xs opacity-75">Aa</div>
+            </div>
+          </Button>
+        ))}
+      </div>
+    </div>
+
+    {/* Preview */}
+    <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-900">
+      <Text className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+        {t`Preview:`}
+      </Text>
+      <div 
+        style={{
+          fontSize: `${fontSize}px`,
+          lineHeight: lineHeight,
+          fontFamily: fontFamily,
+        }}
+        className="text-foreground"
+      >
+        {t`This is how your article will look with these settings. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`}
+      </div>
+    </div>
+  </div>
+</Modal>
   );
 });
 
@@ -1060,12 +2356,19 @@ const LanguageSwitcher: React.FC<{
   onLanguageChange: (lang: string) => void;
   isLoading?: boolean;
   articleId?: string;
+  onLanguagesUpdated?: (newLanguages: string[]) => void;
+  checkAuth?: (action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply' | 'translate') => boolean;
+
 }> = ({ 
   availableLanguages, 
   currentLanguage, 
   onLanguageChange, 
   isLoading = false,
-  articleId 
+  articleId,
+  onLanguagesUpdated,
+  checkAuth,
+
+  
 }) => {
   const [isManualTranslating, setIsManualTranslating] = useState(false);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
@@ -1123,39 +2426,59 @@ const LanguageSwitcher: React.FC<{
   }, [translationProgress, translationStatus]);
 
   const checkTranslationExists = async (targetLanguage: string): Promise<boolean> => {
-    if (!articleId) return false;
+  if (!articleId) return false;
+  
+  try {
+    const languagesResponse = await articleApi.getArticleAvailableLanguages(articleId);
     
-    try {
-      const languagesResponse = await articleApi.getArticleAvailableLanguages(articleId);
-      const newLanguages = languagesResponse?.languages?.map((lang: any) => lang.language) || [];
-      return newLanguages.includes(targetLanguage);
-    } catch (error) {
-      console.error('Error checking translation existence:', error);
-      return false;
+    // Handle different response formats
+    let languages;
+    if (languagesResponse?.data.languages) {
+      languages = languagesResponse.data.languages;
+    } else if (languagesResponse?.data?.languages) {
+      languages = languagesResponse.data.languages;
+    } else if (Array.isArray(languagesResponse)) {
+      languages = languagesResponse;
+    } else if (Array.isArray(languagesResponse?.data)) {
+      languages = languagesResponse.data;
     }
-  };
+    
+    if (languages && Array.isArray(languages)) {
+      return languages.some((lang: any) => 
+        (lang.language || lang.code || lang) === targetLanguage
+      );
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking translation existence:', error);
+    return false;
+  }
+};
 
   const handleTranslationComplete = () => {
-    setTranslationStatus('complete');
-    cleanupIntervals();
-    
-    // Show completion for 2 seconds before closing and switching
-    setTimeout(() => {
-      if (selectedLanguage) {
-        const userName = user?.name || 'Reader';
-        showTranslationSuccess(userName, selectedLanguage);
-        onLanguageChange(selectedLanguage);
-      }
+  setTranslationStatus('complete');
+  cleanupIntervals();
+  
+  // Show completion for 2 seconds before closing and switching
+  setTimeout(() => {
+    if (selectedLanguage && articleId) {
+      const userName = user?.name || t`Reader`;
+      showTranslationSuccess(userName, selectedLanguage);
       
-      // Reset state
-      setTimeout(() => {
-        setIsManualTranslating(false);
-        setSelectedLanguage(null);
-        setTranslationProgress(0);
-        setTranslationStatus('idle');
-      }, 500);
-    }, 2000);
-  };
+      // IMPORTANT: Instead of just changing language, refresh the article data
+      onLanguageChange(selectedLanguage);
+    }
+    
+    // Reset state
+    setTimeout(() => {
+      setIsManualTranslating(false);
+      setSelectedLanguage(null);
+      setTranslationProgress(0);
+      setTranslationStatus('idle');
+    }, 500);
+  }, 2000);
+};
 
   const showTranslationSuccess = (userName: string, language: string) => {
     notification.success({
@@ -1163,21 +2486,21 @@ const LanguageSwitcher: React.FC<{
         <div className="flex items-center gap-2">
           <div className="text-lg">🎉</div>
           <div>
-            <div className="font-bold">Excellent news, {userName}!</div>
-            <div className="text-sm text-gray-600">Your {getLanguageName(language)} translation is ready</div>
+            <div className="font-bold">{t`Excellent news, ${userName}!`}</div>
+            <div className="text-sm text-gray-600">{t`Your ${getLanguageName(language)} translation is ready`}</div>
           </div>
         </div>
       ),
       description: (
         <div className="space-y-2">
           <div className="text-sm">
-            You can now enjoy the outstanding knowledge of Cverra in {getLanguageName(language)} for best understanding.
+            {t`You can now enjoy the outstanding knowledge of Inlirah in ${getLanguageName(language)} for best understanding.`}
           </div>
           <div className="text-xs text-gray-500">
-            Cverra is committed to making knowledge accessible to everyone. Thank you for helping us expand our reach!
+            {t`Inlirah is committed to making knowledge accessible to everyone. Thank you for helping us expand our reach!`}
           </div>
           <div className="mt-2 text-xs text-blue-600">
-            <strong>Note:</strong> Once translated by one person, the language becomes available for everyone!
+            <strong>{t`Note:`}</strong> {t`Once translated by one person, the language becomes available for everyone!`}
           </div>
         </div>
       ),
@@ -1192,126 +2515,203 @@ const LanguageSwitcher: React.FC<{
     });
   };
 
-  const handleManualTranslate = async (targetLanguage: string) => {
-    if (!articleId) return;
+   const handleManualTranslate = async (targetLanguage: string) => {
+  // Check authentication
+  if (checkAuth && !checkAuth('translate')) {
+    return; // Parent will show auth modal
+  }
+  
+  if (!articleId) return;
+  
+  console.log('🔄 Starting manual translation for language:', targetLanguage);
+  
+  // Check if translation already exists first
+  try {
+    const alreadyTranslated = await checkTranslationExists(targetLanguage);
+    if (alreadyTranslated) {
+      console.log('Translation already exists, switching language');
+      notification.info({
+        message: t`Translation Already Available`,
+        description: t`The ${getLanguageName(targetLanguage)} translation already exists! Switching now...`,
+        duration: 3,
+      });
+      onLanguageChange(targetLanguage);
+      return;
+    }
+  } catch (error) {
+    console.error('Error checking existing translation:', error);
+  }
+  
+  // Start new translation process
+  setSelectedLanguage(targetLanguage);
+  setIsManualTranslating(true);
+  setTranslationProgress(0);
+  setTranslationStatus('progress');
+  
+  // Clear any existing intervals
+  cleanupIntervals();
+  
+  try {
+    console.log('📤 Calling translateArticle API...');
     
-    // Check if translation already exists first
-    try {
-      const alreadyTranslated = await checkTranslationExists(targetLanguage);
-      if (alreadyTranslated) {
-        notification.info({
-          message: 'Translation Already Available',
-          description: `The ${getLanguageName(targetLanguage)} translation already exists! Switching now...`,
-          duration: 3,
-        });
-        onLanguageChange(targetLanguage);
-        return;
-      }
-    } catch (error) {
-      console.error('Error checking existing translation:', error);
+    // Make the API call
+    const response = await articleApi.translateArticle(articleId, targetLanguage);
+    
+    console.log('📥 Translation API raw response:', response);
+    
+    // Check if response indicates success
+    const isSuccess = 
+      response?.success === true ||
+      response?.status === 201 ||
+      response?.status === 200 ||
+      (response?.data && (
+        typeof response.data === 'object' && 
+        ('id' in response.data || 'articleId' in response.data)
+      ));
+    
+    if (isSuccess) {
+      console.log('✅ Translation request successful');
+      
+      // Show success notification
+      notification.success({
+        message: t`Translation Started! 🚀`,
+        description: t`AI is now generating a ${getLanguageName(targetLanguage)} translation. This may take 1-2 minutes.`,
+        duration: 4,
+      });
+      
+      // Start progress simulation
+      startProgressSimulation();
+      
+      // Start polling for completion
+      startPollingForTranslation(targetLanguage);
+      
+    } else {
+      // Log technical error to console
+      console.error('❌ Translation API returned non-success (Technical):', response?.message || response?.error);
+      
+      // Throw user-friendly error from FRONTEND
+      throw new Error(t`Translation service is temporarily busy. Please try again in a moment.`);
     }
     
-    // Start new translation process
-    setSelectedLanguage(targetLanguage);
-    setIsManualTranslating(true);
-    setTranslationProgress(0);
-    setTranslationStatus('progress');
+  } catch (error: any) {
+    console.error('❌ Translation request failed (Technical):', {
+      message: error.message,
+      stack: error.stack
+    });
     
-    // Clear any existing intervals
+    // Reset state
+    setIsManualTranslating(false);
+    setSelectedLanguage(null);
+    setTranslationProgress(0);
+    setTranslationStatus('idle');
     cleanupIntervals();
-  
-    try {
-      // Start the translation
-      const response = await articleApi.translateArticle(articleId, targetLanguage);
-      
-      if (response.success) {
-        // Show initial notification
-        notification.success({
-          message: 'Translation Requested! 🚀',
-          description: `Our AI is now generating a ${getLanguageName(targetLanguage)} translation.`,
-          duration: 4,
-        });
-        
-        // Start realistic progress simulation
-        let simulatedProgress = 0;
-        progressIntervalRef.current = setInterval(() => {
-          simulatedProgress += Math.random() * 8 + 3; // 3-11% increments
-          if (simulatedProgress >= 95) {
-            setTranslationProgress(95);
-            if (progressIntervalRef.current) {
-              clearInterval(progressIntervalRef.current);
-              progressIntervalRef.current = null;
-            }
-          } else {
-            setTranslationProgress(Math.floor(simulatedProgress));
-          }
-        }, 1000);
-        
-        // Start polling for translation completion
-        let checkCount = 0;
-        const maxChecks = 60; // Check for up to 3 minutes
-        
-        const pollForCompletion = async () => {
-          if (checkCount >= maxChecks || translationStatus === 'complete') {
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
-            
-            if (checkCount >= maxChecks && translationStatus !== 'complete') {
-              notification.info({
-                message: 'Translation Taking Longer',
-                description: 'Your translation is still being processed. It will appear automatically when ready.',
-                duration: 5,
-              });
-              // Don't close modal - let user see the 95% progress
-            }
-            return;
-          }
-          
-          checkCount++;
-          
-          try {
-            const alreadyTranslated = await checkTranslationExists(targetLanguage);
-            if (alreadyTranslated) {
-              setTranslationProgress(100);
-              return;
-            }
-            
-            // Adjust polling frequency based on check count
-            if (checkCount > 5 && pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = setInterval(pollForCompletion, 3000);
-            }
-          } catch (error) {
-            console.error('Error polling translation status:', error);
-          }
-        };
-        
-        // Start polling immediately and then every 5 seconds
-        pollForCompletion(); // Immediate check
-        pollingIntervalRef.current = setInterval(pollForCompletion, 5000);
-        
-      } else {
-        throw new Error('Translation request failed');
-      }
-    } catch (error: any) {
-      console.error('Translation request failed:', error);
-      
-      // Reset state
-      setIsManualTranslating(false);
-      setSelectedLanguage(null);
-      setTranslationProgress(0);
-      setTranslationStatus('idle');
-      cleanupIntervals();
-      
+    
+    // Show user-friendly error message
+    if (error.message?.includes(t`already exists`) || error.message?.includes(t`already translated`)) {
+      notification.info({
+        message: t`Translation Already Exists`,
+        description: t`This translation already exists! Switching to ${getLanguageName(targetLanguage)}...`,
+        duration: 3,
+      });
+      onLanguageChange(targetLanguage);
+    } else {
+      // Show frontend user-friendly message
       notification.error({
-        message: 'Translation Request Failed',
-        description: error.response?.data?.message || 'Could not request translation. Please try again later.',
+        message: t`Translation Unavailable`,
+        description: t`We couldn't start the translation right now. Please try again in a few moments.`,
         duration: 4,
       });
     }
+  }
+};
+
+// Helper function for progress simulation
+const startProgressSimulation = () => {
+  let simulatedProgress = 0;
+  progressIntervalRef.current = setInterval(() => {
+    simulatedProgress += Math.random() * 8 + 3; // 3-11% increments
+    if (simulatedProgress >= 95) {
+      setTranslationProgress(95);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    } else {
+      setTranslationProgress(Math.floor(simulatedProgress));
+    }
+  }, 1000);
+};
+
+// Helper function for polling
+const startPollingForTranslation = (targetLanguage: string) => {
+    let checkCount = 0;
+    const maxChecks = 40; // Check for up to 2 minutes (40 * 3s = 120s)
+    
+    const poll = async () => {
+      if (checkCount >= maxChecks) {
+        console.log('⏰ Polling timeout reached');
+        notification.info({
+          message: t`Translation Taking Longer`,
+          description: t`Translation is still processing. It will appear automatically when ready.`,
+          duration: 5,
+        });
+        return;
+      }
+      
+      checkCount++;
+      console.log(`🔄 Polling attempt ${checkCount}/${maxChecks} for ${targetLanguage}`);
+      
+      try {
+        const alreadyTranslated = await checkTranslationExists(targetLanguage);
+        if (alreadyTranslated) {
+          console.log('✅ Translation found during polling!');
+          setTranslationProgress(100);
+          
+          // Show the SAME success message as desktop
+          setTimeout(() => {
+            const userName = user?.name || t`Reader`;
+            showTranslationSuccess(userName, targetLanguage);
+            
+            // CRITICAL: Update the available languages list
+            if (onLanguagesUpdated) {
+              const newLanguages = [...availableLanguages, targetLanguage];
+              onLanguagesUpdated(newLanguages);
+            }
+            
+            // Switch to the new language automatically
+            onLanguageChange(targetLanguage);
+            
+            // Reset state
+            setIsManualTranslating(false);
+            setSelectedLanguage(null);
+            setTranslationProgress(0);
+            setTranslationStatus('idle');
+            cleanupIntervals();
+          }, 2000);
+          
+          return;
+        }
+        
+        // Continue polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        pollingIntervalRef.current = setTimeout(poll, 3000);
+        
+      } catch (error) {
+        console.error('Error polling translation:', error);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        pollingIntervalRef.current = setTimeout(poll, 5000);
+      }
+    };
+    
+    // Start polling
+    poll();
   };
+
+
 
   // Language items for existing translations
   const languageItems = availableLanguages.map(lang => ({
@@ -1339,7 +2739,7 @@ const LanguageSwitcher: React.FC<{
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg">{getLanguageFlag(lang)}</span>
-            <span>Translate to {getLanguageName(lang)}</span>
+            <span>{t`Translate to`}{getLanguageName(lang)}</span>
           </div>
           {isManualTranslating && selectedLanguage === lang && (
             <Spin size="small" />
@@ -1391,24 +2791,26 @@ const LanguageSwitcher: React.FC<{
         trigger={['click']}
         placement="bottomRight"
         overlayClassName="w-56"
+      
       >
         <Button
-          type="text"
-          icon={<GlobalOutlined />}
-          size="large"
-          className="text-muted-foreground hover:text-primary flex items-center gap-2"
-          loading={isLoading || isManualTranslating}
-        >
-          <span className="hidden sm:inline">
-            {getLanguageFlag(currentLanguage)} {getLanguageName(currentLanguage)}
-          </span>
-          <span className="sm:hidden">
-            {getLanguageFlag(currentLanguage)}
-          </span>
-          {isManualTranslating && (
-            <span className="animate-pulse text-xs text-blue-500">Translating...</span>
-          )}
-        </Button>
+            type="text"
+            icon={<GlobalOutlined />}
+            size="large"
+            className="text-muted-foreground hover:text-primary text-foreground hover:text-primary flex items-center gap-2"
+            loading={isTranslating || languageSwitching}
+            disabled={isTranslating || languageSwitching}
+          >
+            <span className="hidden sm:inline">
+              {getLanguageFlag(currentLanguage)} {getLanguageName(currentLanguage)}
+            </span>
+            <span className="sm:hidden">
+              {getLanguageFlag(currentLanguage)}
+            </span>
+            {(isTranslating || languageSwitching) && (
+              <span className="animate-pulse text-xs text-blue-500">{t`Loading...`}</span>
+            )}
+          </Button>
       </Dropdown>
 
 
@@ -1420,21 +2822,21 @@ const LanguageSwitcher: React.FC<{
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
               <TranslationOutlined className="text-blue-600 dark:text-blue-300" />
             </div>
-            <span>Request Translation</span>
+            <span>{t`Request Translation`}</span>
           </div>
         }
         open={showTranslationModal}
         onCancel={() => setShowTranslationModal(false)}
         footer={[
           <Button key="cancel" onClick={() => setShowTranslationModal(false)}>
-            Cancel
+            {t`Cancel`}
           </Button>,
           <Button 
             key="close" 
             type="primary" 
             onClick={() => setShowTranslationModal(false)}
           >
-            Got it
+            {t`Got it`}
           </Button>
         ]}
       >
@@ -1445,9 +2847,9 @@ const LanguageSwitcher: React.FC<{
                 <span className="text-2xl">🌍</span>
               </div>
               <div>
-                <Title level={5} className="!mb-2">Make Knowledge Accessible</Title>
+                <Title level={5} className="!mb-2">{t`Make Knowledge Accessible`}</Title>
                 <Text type="secondary">
-                  Request translations to help make Cverra content available in more languages.
+                  {t`Request translations to help make Inlirah content available in more languages.`}
                 </Text>
               </div>
             </div>
@@ -1459,9 +2861,9 @@ const LanguageSwitcher: React.FC<{
                 <span className="text-green-600 dark:text-green-300 text-sm">1</span>
               </div>
               <div>
-                <Text strong>Select a language</Text>
+                <Text strong>{t`Select a language`}</Text>
                 <Text type="secondary" className="text-sm">
-                  Choose from the dropdown menu above to request translation
+                  {t`Choose from the dropdown menu above to request translation`}
                 </Text>
               </div>
             </div>
@@ -1471,9 +2873,9 @@ const LanguageSwitcher: React.FC<{
                 <span className="text-blue-600 dark:text-blue-300 text-sm">2</span>
               </div>
               <div>
-                <Text strong>AI-powered translation</Text>
+                <Text strong>{t`AI-powered translation`}</Text>
                 <Text type="secondary" className="text-sm">
-                  Our advanced AI translates with quality review (1-3 minutes)
+                  {t`Our advanced AI translates with quality review (1-3 minutes)`}
                 </Text>
               </div>
             </div>
@@ -1483,9 +2885,9 @@ const LanguageSwitcher: React.FC<{
                 <span className="text-purple-600 dark:text-purple-300 text-sm">3</span>
               </div>
               <div>
-                <Text strong>Quality assurance</Text>
+                <Text strong>{t`Quality assurance`}</Text>
                 <Text type="secondary" className="text-sm">
-                  System verifies it's a real translation, not a mock
+                  {t`System verifies it's a real translation, not a mock`}
                 </Text>
               </div>
             </div>
@@ -1495,9 +2897,9 @@ const LanguageSwitcher: React.FC<{
                 <span className="text-orange-600 dark:text-orange-300 text-sm">4</span>
               </div>
               <div>
-                <Text strong>Available for everyone</Text>
+                <Text strong>{t`Available for everyone`}</Text>
                 <Text type="secondary" className="text-sm">
-                  Once translated, the language is automatically added for all users
+                  {t`Once translated, the language is automatically added for all users`}
                 </Text>
               </div>
             </div>
@@ -1506,12 +2908,12 @@ const LanguageSwitcher: React.FC<{
           <Alert
             type="info"
             showIcon
-            message="Community Contribution"
+            message={t`Community Contribution`}
             description={
               <div className="space-y-1">
-                <div>Your translation request helps the entire community!</div>
+                <div>{t`Your translation request helps the entire community!`}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Cverra is dedicated to outstanding knowledge accessibility for all.
+                  {t`Inlirah is dedicated to outstanding knowledge accessibility for all.`}
                 </div>
               </div>
             }
@@ -1521,255 +2923,216 @@ const LanguageSwitcher: React.FC<{
 
       {/* Translation Progress Modal - Professionally Corrected */}
       <Modal
-        title={
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-              <TranslationOutlined className="text-white" />
-            </div>
-            <span>
-              {translationStatus === 'complete' ? 'Translation Complete!' : 'Generating Translation'}
-            </span>
-          </div>
-        }
-        open={isManualTranslating}
-        closable={translationStatus === 'complete'}
-        onCancel={() => {
-          if (translationStatus === 'complete') {
-            setIsManualTranslating(false);
-            setSelectedLanguage(null);
-            setTranslationProgress(0);
-            setTranslationStatus('idle');
-            cleanupIntervals();
-          }
-        }}
-        footer={translationStatus === 'complete' ? [
-          <Button 
-            key="close" 
-            type="primary" 
-            onClick={() => {
-              setIsManualTranslating(false);
-              setSelectedLanguage(null);
-              setTranslationProgress(0);
-              setTranslationStatus('idle');
-              cleanupIntervals();
-            }}
-          >
-            Close
-          </Button>
-        ] : null}
-        width={500}
-      >
-        <div className="space-y-6">
-          {translationStatus === 'complete' ? (
-            // Success state
-            <div className="text-center animate-fadeIn">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
-                <CheckOutlined className="text-white text-3xl" />
+  title={
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+        <TranslationOutlined className="text-white" />
+      </div>
+      <span>
+        {translationStatus === 'complete' ? t`Translation Complete!` : t`Generating Translation`}
+      </span>
+    </div>
+  }
+  open={isManualTranslating}
+  closable={translationStatus === 'complete'}
+  onCancel={() => {
+    if (translationStatus === 'complete') {
+      setIsManualTranslating(false);
+      setSelectedLanguage(null);
+      setTranslationProgress(0);
+      setTranslationStatus('idle');
+      cleanupIntervals();
+    }
+  }}
+  footer={translationStatus === 'complete' ? [
+    <Button 
+      key="close" 
+      type="primary" 
+      onClick={() => {
+        setIsManualTranslating(false);
+        setSelectedLanguage(null);
+        setTranslationProgress(0);
+        setTranslationStatus('idle');
+        cleanupIntervals();
+      }}
+    >
+      {t`Close`}
+    </Button>
+  ] : null}
+  width={500}
+>
+  <div className="space-y-6">
+    {translationStatus === 'complete' ? (
+      // Success state
+      <div className="text-center animate-fadeIn">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
+          <CheckOutlined className="text-white text-3xl" />
+        </div>
+        <Title level={3} className="!mb-2 text-green-600">
+          {t`Translation Complete!`}
+        </Title>
+        <Paragraph className="text-lg mb-4">
+          {t`Your article is now available in ${getLanguageName(selectedLanguage || '')}`}
+        </Paragraph>
+        <div className="flex items-center justify-center gap-2 text-lg">
+          <Spin size="small" />
+          <Text type="secondary">
+            {t`Switching to ${getLanguageName(selectedLanguage || '')}...`}
+          </Text>
+        </div>
+      </div>
+    ) : (
+      // Progress state
+      <>
+        <div className="text-center">
+          <div className="relative inline-block mb-4">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+              <div className="relative">
+                <Spin size="large" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
+                    {translationProgress}%
+                  </span>
+                </div>
               </div>
-              <Title level={3} className="!mb-2 text-green-600">
-                Translation Complete!
-              </Title>
-              <Paragraph className="text-lg mb-4">
-                Your article is now available in {getLanguageName(selectedLanguage || '')}
-              </Paragraph>
-              <div className="flex items-center justify-center gap-2 text-lg">
-                <Spin size="small" />
-                <Text type="secondary">
-                  Switching to {getLanguageName(selectedLanguage || '')}...
+            </div>
+            <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center animate-pulse">
+              <span className="text-white text-lg">🚀</span>
+            </div>
+          </div>
+          
+          <div className="mb-2">
+            <Title level={3} className="!mb-1">
+              {t`Translating to ${getLanguageName(selectedLanguage || '')}`}
+            </Title>
+            <Text type="secondary">
+              {translationProgress < 30 ? t`Analyzing content structure...` :
+               translationProgress < 60 ? t`Processing translation with AI...` :
+               translationProgress < 85 ? t`Reviewing translation quality...` :
+               t`Finalizing translation...`}
+            </Text>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <Text>{t`Progress`}</Text>
+            <Text strong>{translationProgress}%</Text>
+          </div>
+          <Progress 
+            percent={translationProgress}
+            status="active"
+            strokeColor={{
+              '0%': '#1890ff',
+              '100%': '#722ed1',
+            }}
+            strokeWidth={6}
+          />
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`p-3 rounded-lg border transition-all ${translationProgress > 20 ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 20 ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translationProgress > 20 ? '✓' : '1'}
+                </div>
+                <Text strong className={translationProgress > 20 ? 'text-green-600' : ''}>
+                  {t`Content Analysis`}
                 </Text>
               </div>
+              <Text type="secondary" className="text-xs">
+                {t`Parsing original structure`}
+              </Text>
             </div>
-          ) : (
-            // Progress state
-            <>
-              <div className="text-center">
-                <div className="relative inline-block mb-4">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
-                    <div className="relative">
-                      <Spin size="large" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
-                          {translationProgress}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center animate-pulse">
-                    <span className="text-white text-lg">🚀</span>
-                  </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translationProgress > 50 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 50 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translationProgress > 50 ? '✓' : '2'}
                 </div>
-                
-                <div className="mb-2">
-                  <Title level={3} className="!mb-1">
-                    Translating to {getLanguageName(selectedLanguage || '')}
-                  </Title>
-                  <Text type="secondary">
-                    {translationProgress < 30 ? 'Analyzing content structure...' :
-                     translationProgress < 60 ? 'Processing translation with AI...' :
-                     translationProgress < 85 ? 'Reviewing translation quality...' :
-                     'Finalizing translation...'}
-                  </Text>
-                </div>
+                <Text strong className={translationProgress > 50 ? 'text-blue-600' : ''}>
+                  {t`AI Translation`}
+                </Text>
               </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Text>Progress</Text>
-                  <Text strong>{translationProgress}%</Text>
+              <Text type="secondary" className="text-xs">
+                {t`Advanced LLM processing`}
+              </Text>
+            </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translationProgress > 80 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 80 ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translationProgress > 80 ? '✓' : '3'}
                 </div>
-                <Progress 
-                  percent={translationProgress}
-                  status="active"
-                  strokeColor={{
-                    '0%': '#1890ff',
-                    '100%': '#722ed1',
-                  }}
-                  strokeWidth={6}
-                />
+                <Text strong className={translationProgress > 80 ? 'text-purple-600' : ''}>
+                  {t`Quality Review`}
+                </Text>
               </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 20 ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 20 ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        {translationProgress > 20 ? '✓' : '1'}
-                      </div>
-                      <Text strong className={translationProgress > 20 ? 'text-green-600' : ''}>
-                        Content Analysis
-                      </Text>
-                    </div>
-                    <Text type="secondary" className="text-xs">
-                      Parsing original structure
-                    </Text>
-                  </div>
-                  
-                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 50 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 50 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        {translationProgress > 50 ? '✓' : '2'}
-                      </div>
-                      <Text strong className={translationProgress > 50 ? 'text-blue-600' : ''}>
-                        AI Translation
-                      </Text>
-                    </div>
-                    <Text type="secondary" className="text-xs">
-                      Advanced LLM processing
-                    </Text>
-                  </div>
-                  
-                  <div className={`p-3 rounded-lg border transition-all ${translationProgress > 80 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress > 80 ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        {translationProgress > 80 ? '✓' : '3'}
-                      </div>
-                      <Text strong className={translationProgress > 80 ? 'text-purple-600' : ''}>
-                        Quality Review
-                      </Text>
-                    </div>
-                    <Text type="secondary" className="text-xs">
-                      Ensuring accuracy
-                    </Text>
-                  </div>
-                  
-                  <div className={`p-3 rounded-lg border transition-all ${translationProgress >= 95 ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress >= 95 ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        {translationProgress >= 95 ? '✓' : '4'}
-                      </div>
-                      <Text strong className={translationProgress >= 95 ? 'text-orange-600' : ''}>
-                        Finalizing
-                      </Text>
-                    </div>
-                    <Text type="secondary" className="text-xs">
-                      Making available
-                    </Text>
-                  </div>
+              <Text type="secondary" className="text-xs">
+                {t`Ensuring accuracy`}
+              </Text>
+            </div>
+            
+            <div className={`p-3 rounded-lg border transition-all ${translationProgress >= 95 ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${translationProgress >= 95 ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  {translationProgress >= 95 ? '✓' : '4'}
                 </div>
+                <Text strong className={translationProgress >= 95 ? 'text-orange-600' : ''}>
+                  {t`Finalizing`}
+                </Text>
               </div>
-              
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg">⏳</span>
-                  </div>
-                  <div>
-                    <Text strong className="block mb-1">
-                      {translationProgress < 50 ? 'Starting translation process...' :
-                       translationProgress < 85 ? 'AI is working on your translation...' :
-                       'Almost done! Finalizing...'}
-                    </Text>
-                    <Text type="secondary" className="text-sm">
-                      Your request helps make this outstanding Cverra knowledge accessible to more people in their preferred language.
-                      Once complete, {getLanguageName(selectedLanguage || '')} will be automatically available for everyone!
-                    </Text>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+              <Text type="secondary" className="text-xs">
+                {t`Making available`}
+              </Text>
+            </div>
+          </div>
         </div>
-      </Modal>
+        
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">⏳</span>
+            </div>
+            <div>
+              <Text strong className="block mb-1">
+                {translationProgress < 50 ? t`Starting translation process...` :
+                 translationProgress < 85 ? t`Translation in progress...` :
+                 t`Almost done! Finalizing...`}
+              </Text>
+              <Text type="secondary" className="text-sm">
+                {t`Your request helps make this outstanding Inlirah knowledge accessible to more people in their preferred language. Once complete, ${getLanguageName(selectedLanguage || '')} will be automatically available for everyone!`}
+              </Text>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+  </div>
+</Modal>
     </>
   );
 };
   
-  // Function to organize comments with nested replies
-const organizeCommentsWithReplies = (comments: Comment[]): Comment[] => {
-  const commentMap = new Map<string, Comment>();
-  const rootComments: Comment[] = [];
-  
-  // First pass: create a map of all comments with normalized author/user
-  comments.forEach(comment => {
-    // Normalize the author/user field
-    const normalizedComment: Comment = {
-      ...comment,
-      // Use user if author is not present
-      author: comment.author || comment.user,
-      likesCount: comment.likesCount || comment.likeCount || 0,
-      replies: []
-    };
-    
-    commentMap.set(comment.id, normalizedComment);
-  });
-  
-  // Second pass: build the tree
-  comments.forEach(comment => {
-    const mappedComment = commentMap.get(comment.id)!;
-    
-    if (comment.parentId) {
-      // This is a reply, add it to parent's replies
-      const parent = commentMap.get(comment.parentId);
-      if (parent) {
-        if (!parent.replies) parent.replies = [];
-        parent.replies.push(mappedComment);
-      }
-    } else {
-      // This is a root comment
-      rootComments.push(mappedComment);
-    }
-  });
-  
-  // Recursively sort replies by date (newest first)
-  const sortComments = (commentList: Comment[]): Comment[] => {
-    return commentList.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    ).map(comment => ({
-      ...comment,
-      replies: comment.replies ? sortComments(comment.replies) : []
-    }));
-  };
-  
-  return sortComments(rootComments);
-};
+
 
 const loadComments = async (articleId?: string, page = 1, loadAll = false) => {
   const articleIdToUse = articleId || article?.id;
   
   if (!articleIdToUse) return;
   
-  // Prevent duplicate loading
-  if (commentsLoading) return;
+  // Prevent duplicate loading with a check
+  if (commentsLoading) {
+    console.log('🔄 Comments already loading, skipping');
+    return;
+  }
+  
+  // Don't load if we already have comments and not loading more
+  if (page === 1 && comments.length > 0 && !loadAll) {
+    console.log('🔄 Comments already loaded, skipping initial load');
+    return;
+  }
   
   setCommentsLoading(true);
   try {
@@ -1891,24 +3254,55 @@ const loadMoreReplies = async (commentId: string) => {
     }
   } catch (error) {
     console.error('Failed to load replies:', error);
-    notification.error({ message: 'Failed to load replies' });
+    notification.error({ message: t`Failed to load replies` });
   }
 };
 
- // Load related articles with engagement score
-const loadRelatedArticles = async (articleId: string) => {
+// Load related articles with engagement score
+const loadRelatedArticles = async (articleId: string, forceRefresh = false) => {
+  // Don't reload if we already have articles AND not forcing refresh
+  if (!forceRefresh && relatedArticles.length > 0 && !relatedLoading) {
+    console.log('🔄 Related articles already loaded, skipping');
+    return;
+  }
+  
+  // Clear cache if forcing refresh
+  if (forceRefresh) {
+    console.log('🔄 Force refreshing related articles');
+    setRelatedArticles([]);
+  }
+  
   try {
     setRelatedLoading(true);
     
-    // Use the correct endpoint that supports both ID and slug
-    const response = await apiClient.get(`/articles/${articleId}/related`, {
-      params: { limit: 3 }
+    // ALWAYS use the current UI language from i18n
+    const currentLocale = i18n.locale;
+    const languageCode = currentLocale.split('-')[0];
+    
+    console.log('🌐 Loading related articles in language:', {
+      currentLocale,
+      languageCode,
+      articleId,
+      forceRefresh,
+      // Log the current state for debugging
+      currentArticleLanguage: article?.language,
+      currentStateLanguage: currentLanguage
     });
     
-    console.log(' Related Articles Response:', {
+    // Use the correct endpoint that supports both ID and slug
+    const response = await apiClient.get(`/articles/${articleId}/related`, {
+      params: { 
+        limit: 3,
+        language: languageCode // Add language parameter
+      }
+    });
+    
+    console.log('📚 Related Articles Response:', {
       identifier: articleId,
+      language: languageCode,
       articles: response.data,
-      count: response.data?.length
+      count: response.data?.length,
+      responseStatus: response.status
     });
     
     if (response.data && Array.isArray(response.data)) {
@@ -1943,6 +3337,8 @@ const loadRelatedArticles = async (articleId: string) => {
           slug: article.category.slug,
           color: article.category.color
         } : undefined,
+        availableLanguages: article.availableLanguages || ['en'],
+        language: article.language || 'en',
         engagementScore: calculateEngagementScore({
           viewCount: article._count?.views || 0,
           likeCount: article._count?.likes || 0,
@@ -1952,15 +3348,8 @@ const loadRelatedArticles = async (articleId: string) => {
       
       setRelatedArticles(articlesWithScore);
     } else {
-      // Fallback to get related articles using the article service
-      const fallbackResponse = await articleApi.getRelatedArticles(articleId, { limit: 3 });
-      if (fallbackResponse?.data?.data) {
-        const articlesWithScore: RelatedArticle[] = fallbackResponse.data.data.map((article: Article) => ({
-          ...article,
-          engagementScore: calculateEngagementScore(article)
-        }));
-        setRelatedArticles(articlesWithScore);
-      }
+      console.warn('No related articles data in response');
+      setRelatedArticles([]); // Set empty array to avoid showing stale data
     }
   } catch (error: any) {
     console.error('Failed to load related articles:', error);
@@ -1968,25 +3357,34 @@ const loadRelatedArticles = async (articleId: string) => {
     // Show user-friendly error message but don't crash
     if (error.response?.status !== 404) {
       notification.warning({
-        message: 'Could not load related articles',
-        description: 'Showing recent articles instead',
+        message: t`Could not load related articles`,
+        description: t`Showing recent articles instead`,
         duration: 3,
       });
     }
     
-    // Fallback: Load recent articles
+    // Fallback: Load recent articles WITH language parameter
     try {
-      const fallbackResponse = await articleApi.getArticles({ limit: 3 });
+      const currentLocale = i18n.locale;
+      const languageCode = currentLocale.split('-')[0];
+      
+      const fallbackResponse = await articleApi.getArticles({ 
+        limit: 3,
+        language: languageCode
+      });
+      
       if (fallbackResponse?.data?.articles) {
         const articlesWithScore: RelatedArticle[] = fallbackResponse.data.articles.map((article: Article) => ({
           ...article,
           engagementScore: calculateEngagementScore(article)
         }));
         setRelatedArticles(articlesWithScore);
+      } else {
+        setRelatedArticles([]);
       }
     } catch (fallbackError) {
       console.error('Failed to load fallback articles:', fallbackError);
-      setRelatedArticles([]); // Set empty array to avoid errors
+      setRelatedArticles([]);
     }
   } finally {
     setRelatedLoading(false);
@@ -1994,6 +3392,7 @@ const loadRelatedArticles = async (articleId: string) => {
 };
 
 // Engagement score calculation
+
 const calculateEngagementScore = (article: any): number => {
   const views = article.viewCount || article._count?.views || 0;
   const likes = article.likeCount || article._count?.likes || 0;
@@ -2009,6 +3408,8 @@ const calculateEngagementScore = (article: any): number => {
   
   return Math.round(normalizedScore * 10) / 10; // Round to 1 decimal
 };
+
+
 
   // Load trending articles
   const loadTrendingArticles = async () => {
@@ -2136,11 +3537,11 @@ const handleLike = async () => {
     
     if (success) {
       notification.success({
-        message: liked ? 'Article unliked' : 'Article liked!',
+        message: liked ? t`Article unliked` : t`Article liked!`,
         duration: 2,
       });
     } else {
-      throw new Error('Like operation failed');
+      throw new Error(t`Like operation failed`);
     }
   } catch (error: any) {
     // Revert on error
@@ -2153,7 +3554,7 @@ const handleLike = async () => {
     
     notification.error({
       message: 'Error',
-      description: error.response?.data?.message || error.message || 'Failed to update like status.',
+      description: error.response?.data?.message || error.message || t`Failed to update like status.`,
       duration: 3,
     });
   }
@@ -2188,7 +3589,7 @@ const handleSave = async () => {
     
     if (success) {
       notification.success({
-        message: saved ? 'Removed from saved articles' : 'Article saved!',
+        message: saved ? t`Removed from saved articles` : t`Article saved!`,
         duration: 2,
       });
     } else {
@@ -2204,7 +3605,7 @@ const handleSave = async () => {
     
     notification.error({
       message: 'Error',
-      description: error.response?.data?.message || error.message || 'Failed to save article.',
+      description: error.response?.data?.message || error.message || t`Failed to save article.`,
       duration: 3,
     });
   }
@@ -2216,7 +3617,7 @@ const handleSave = async () => {
     
     const shareUrl = window.location.href;
     const shareTitle = article.title;
-    const shareText = article.excerpt || 'Check out this article!';
+    const shareText = article.excerpt || t`Check out this article!`;
     
     if (navigator.share) {
       navigator.share({
@@ -2225,7 +3626,7 @@ const handleSave = async () => {
         url: shareUrl,
       })
       .then(() => {
-        notification.success({ message: 'Article shared successfully!', duration: 2 });
+        notification.success({ message: t`Article shared successfully!`, duration: 2 });
         if (article.id) {
           articleApi.shareArticle(article.id, 'native').catch(console.error);
         }
@@ -2234,7 +3635,7 @@ const handleSave = async () => {
     } else {
       navigator.clipboard.writeText(`${shareTitle}\n${shareText}\n${shareUrl}`)
         .then(() => {
-          notification.success({ message: 'Link copied to clipboard!', duration: 2 });
+          notification.success({ message: t`Link copied to clipboard!`, duration: 2 });
         })
         .catch(() => {
           const textArea = document.createElement('textarea');
@@ -2243,7 +3644,7 @@ const handleSave = async () => {
           textArea.select();
           document.execCommand('copy');
           document.body.removeChild(textArea);
-          notification.success({ message: 'Link copied to clipboard!', duration: 2 });
+          notification.success({ message: t`Link copied to clipboard!`, duration: 2 });
         });
     }
   };
@@ -2265,7 +3666,7 @@ const handleCommentSubmit = async () => {
     
     if (response?.data) {
       notification.success({ 
-        message: 'Comment added successfully!', 
+        message: t`Comment added successfully!`, 
         duration: 2,
         placement: 'top'
       });
@@ -2346,7 +3747,7 @@ const handleCommentSubmit = async () => {
     console.error('Comment submission error:', error);
     notification.error({
       message: 'Error',
-      description: error.response?.data?.message || 'Failed to add comment.',
+      description: error.response?.data?.message || t`Failed to add comment.`,
       duration: 3,
       placement: 'top'
     });
@@ -2409,7 +3810,7 @@ const handleCommentSubmit = async () => {
     // Handle different response formats
     if (response?.success === true || response?.status === 200 || response?.status === 201) {
       notification.success({
-        message: previousLiked ? 'Comment unliked!' : 'Comment liked!',
+        message: previousLiked ? t`Comment unliked!` : t`Comment liked!`,
         duration: 1,
         placement: 'top'
       });
@@ -2466,14 +3867,14 @@ const handleCommentSubmit = async () => {
       
       notification.error({
         message: 'Error',
-        description: 'Failed to like comment',
+        description: t`Failed to like comment`,
       });
     }
   } catch (error: any) {
     console.error('Failed to like comment:', error);
     notification.error({
-      message: 'Error',
-      description: 'Failed to like comment',
+      message: t`Error`,
+      description: t`Failed to like comment`,
     });
   } finally {
     fetchInProgressRef.current = false;
@@ -2491,104 +3892,117 @@ const handleCommentSubmit = async () => {
   // Handle comment delete
   const handleCommentDelete = async (commentId: string) => {
     Modal.confirm({
-      title: 'Delete Comment',
-      content: 'Are you sure you want to delete this comment? This action cannot be undone.',
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await articleApi.deleteComment(commentId);
-          notification.success({ message: 'Comment deleted successfully!', duration: 2 });
-          if (article?.id) {
-            await loadComments(article.id);
-            // Update comment count
-            setArticle({
-              ...article,
-              commentCount: Math.max(0, (article.commentCount || 0) - 1)
-            });
-          }
-        } catch (error) {
-          notification.error({
-            message: 'Error',
-            description: 'Failed to delete comment.',
-            duration: 3,
+    title: t`Delete Comment`,
+    content: t`Are you sure you want to delete this comment? This action cannot be undone.`,
+    okText: t`Delete`,
+    okType: 'danger',
+    cancelText: t`Cancel`,
+    onOk: async () => {
+      try {
+        await articleApi.deleteComment(commentId);
+        notification.success({ message: t`Comment deleted successfully!`, duration: 2 });
+        if (article?.id) {
+          await loadComments(article.id);
+          // Update comment count
+          setArticle({
+            ...article,
+            commentCount: Math.max(0, (article.commentCount || 0) - 1)
           });
         }
+      } catch (error) {
+        notification.error({
+          message: t`Error`,
+          description: t`Failed to delete comment.`,
+          duration: 3,
+        });
       }
-    });
+    }
+  });
   };
 
   // Enhanced content rendering with proper image and link handling
   const shouldShowPaywall = article?.accessType === 'PREMIUM' && !userHasAccess;
-  const renderContent = () => {
-    if (!article?.content) {
-      return (
-        <div className="article-content">
-        <Paragraph className="whitespace-pre-wrap leading-relaxed text-foreground">
-          {article?.plainText || article?.excerpt || 'No content available.'}
+ const renderContent = () => {
+  // Show loading state if switching languages
+  if (languageSwitching) {
+    return (
+      <div className="text-center py-12">
+        <Spin size="large" />
+        <Paragraph className="mt-4 text-muted-foreground">
+          {t`Loading ${getLanguageName(currentLanguage)} content...`}
         </Paragraph>
+      </div>
+    );
+  }
+  
+  if (!article?.content) {
+    return (
+      <div className="article-content">
+        <Paragraph className="whitespace-pre-wrap leading-relaxed text-foreground">
+          {article?.plainText || article?.excerpt || t`No content available.`}
+        </Paragraph>
+      </div>
+    );
+  }
+
+  // Use a unique key that forces re-render
+  const uniqueKey = `content-${article.id}-${currentLanguage}-${contentKey || 'default'}`;
+  console.log('🎨 Rendering content with key:', uniqueKey);
+  
+  // Handle string content
+  if (typeof article.content === 'string') {
+    if (article.content.includes('<') && article.content.includes('>')) {
+      // HTML content
+      return (
+        <div 
+          key={uniqueKey}
+          className="article-content animate-fadeIn"
+          dangerouslySetInnerHTML={{ __html: article.content }} 
+        />
+      );
+    } else {
+      // Plain text
+      return (
+        <div key={uniqueKey} className="article-content animate-fadeIn">
+          {article.content.split('\n').map((paragraph, index) => (
+            <Paragraph key={index} className="text-foreground leading-relaxed mb-6">
+              {paragraph}
+            </Paragraph>
+          ))}
         </div>
       );
-      
     }
-    if (typeof article.content === 'string') {
-      // Check if it's HTML content
-      if (article.content.includes('<') && article.content.includes('>')) {
-        // Process HTML content for better styling
-        const processedContent = article.content
-          .replace(/<a\s+href="([^"]+)"[^>]*>/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="article-link">')
-          .replace(/<img([^>]+)>/g, '<img$1 class="article-image" />')
-          .replace(/<h1/g, '<h1 class="article-heading"')
-          .replace(/<h2/g, '<h2 class="article-heading"')
-          .replace(/<h3/g, '<h3 class="article-heading"')
-          .replace(/<h4/g, '<h4 class="article-heading"')
-          .replace(/<h5/g, '<h5 class="article-heading"')
-          .replace(/<h6/g, '<h6 class="article-heading"')
-          .replace(/<blockquote/g, '<blockquote class="article-blockquote"')
-          .replace(/<pre/g, '<pre class="article-pre"')
-          .replace(/<code/g, '<code class="article-code"');
-        
-        return (
-          <div 
-            className="article-content"
-            dangerouslySetInnerHTML={{ __html: processedContent }} 
-          />
-        );
-      } else {
-        // Plain text content
-        return (
-          <div className="article-content">
-            {article.content.split('\n').map((paragraph, index) => (
-              <Paragraph key={index} className="text-foreground leading-relaxed mb-6">
-                {paragraph}
-              </Paragraph>
-            ))}
-          </div>
-        );
-      }
-    }
+  }
 
-    if (typeof article.content === 'object' && article.content.type === 'doc') {
-      try {
-        return renderTipTapContent(article.content);
-      } catch (error) {
-        console.error('Error rendering TipTap content:', error);
-        return (
+  // Handle TipTap JSON content
+  if (typeof article.content === 'object' && article.content.type === 'doc') {
+    try {
+      return (
+        <div key={uniqueKey} className="article-content space-y-6 animate-fadeIn">
+          {renderTipTapContent(article.content)}
+        </div>
+      );
+    } catch (error) {
+      console.error('Error rendering TipTap content:', error);
+      return (
+        <div key={uniqueKey} className="article-content">
           <Paragraph className="whitespace-pre-wrap leading-relaxed text-foreground">
-            {article.plainText || article.excerpt || 'Content could not be rendered.'}
+            {article.plainText || article.excerpt || t`Content could not be rendered.`}
           </Paragraph>
-        );
-      }
+        </div>
+      );
     }
+  }
 
-    // Fallback
-    return (
+  // Fallback
+  return (
+    <div key={uniqueKey} className="article-content">
       <Paragraph className="whitespace-pre-wrap leading-relaxed text-foreground">
-        {article.plainText || article.excerpt || 'No content available.'}
+        {article.plainText || article.excerpt || t`No content available.`}
       </Paragraph>
-    );
-  };
+    </div>
+  );
+};
 
   // Enhanced TipTap content renderer
   const renderTipTapContent = (content: any) => {
@@ -2832,34 +4246,28 @@ const handleCommentSubmit = async () => {
     );
   };
 
-  // Render related article card
-const renderArticleCard = (item: RelatedArticle) => {
-  console.log('Article card data:', {
-    title: item.title,
-    engagementScore: item.engagementScore,
-    viewCount: item.viewCount,
-    likeCount: item.likeCount,
-    commentCount: item.commentCount,
-    publishedAt: item.publishedAt
-  });
+
+// Render related article card - FIXED VERSION
+const renderArticleCard = useCallback((item: RelatedArticle) => {
+  
   // Make sure we have valid data for engagement score calculation
   const calculateEngagementScore = (article: any): number => {
-  const views = article.viewCount || article._count?.views || 0;
-  const likes = article.likeCount || article._count?.likes || 0;
-  const comments = article.commentCount || article._count?.comments || 0;
-  
-  // Simple calculation that always gives a reasonable score
-  let score = 0;
-  
-  if (views > 0) score += Math.min(views * 0.5, 30); // Max 30% from views
-  if (likes > 0) score += Math.min(likes * 3, 40);   // Max 40% from likes
-  if (comments > 0) score += Math.min(comments * 10, 30); // Max 30% from comments
-  
-  // Ensure it's between 10 and 100
-  score = Math.max(10, Math.min(score, 100));
-  
-  return Math.round(score);
-};
+    const views = article.viewCount || article._count?.views || 0;
+    const likes = article.likeCount || article._count?.likes || 0;
+    const comments = article.commentCount || article._count?.comments || 0;
+    
+    // Simple calculation that always gives a reasonable score
+    let score = 0;
+    
+    if (views > 0) score += Math.min(views * 0.5, 30); // Max 30% from views
+    if (likes > 0) score += Math.min(likes * 3, 40);   // Max 40% from likes
+    if (comments > 0) score += Math.min(comments * 10, 30); // Max 30% from comments
+    
+    // Ensure it's between 10 and 100
+    score = Math.max(10, Math.min(score, 100));
+    
+    return Math.round(score);
+  };
   
   const engagementScore = item.engagementScore || calculateEngagementScore(item);
   const engagementLabel = getEngagementLabel(engagementScore);
@@ -2898,7 +4306,6 @@ const renderArticleCard = (item: RelatedArticle) => {
                 src={item.coverImage}
                 alt={item.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                // Remove fallback prop - it expects string URL
                 preview={false}
                 onError={(e) => {
                   console.warn('Related article image failed to load');
@@ -2931,12 +4338,12 @@ const renderArticleCard = (item: RelatedArticle) => {
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {item.isPremium && (
               <Tag color="purple" icon={<CrownOutlined />} className="m-0 px-2 py-1 text-xs">
-                Premium
+                {t`Premium`}
               </Tag>
             )}
             {item.isFeatured && (
               <Tag color="gold" icon={<StarOutlined />} className="m-0 px-2 py-1 text-xs">
-                Featured
+                {t`Featured`}
               </Tag>
             )}
           </div>
@@ -3012,7 +4419,7 @@ const renderArticleCard = (item: RelatedArticle) => {
             </div>
             
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Tooltip title="Reading time">
+              <Tooltip title={t`Reading time`}>
                 <Space size={4}>
                   <ClockCircleOutlined />
                   <span>{getReadingTimeText(item.readingTime || 1)}</span>
@@ -3020,26 +4427,26 @@ const renderArticleCard = (item: RelatedArticle) => {
               </Tooltip>
             </div>
           </div>
-          
+
           {/* Stats & Engagement */}
           <div className="pt-2 space-y-2">
             {/* Stats */}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <Tooltip title="Views">
+              <Tooltip title={t`Views`}>
                 <Space size={4}>
                   <EyeOutlined />
                   <span>{formatViewCount(item.viewCount || 0)}</span>
                 </Space>
               </Tooltip>
               
-              <Tooltip title="Likes">
+              <Tooltip title={t`Likes`}>
                 <Space size={4}>
                   <HeartOutlined />
                   <span>{formatViewCount(item.likeCount || 0)}</span>
                 </Space>
               </Tooltip>
               
-              <Tooltip title="Comments">
+              <Tooltip title={t`Comments`}>
                 <Space size={4}>
                   <CommentOutlined />
                   <span>{formatViewCount(item.commentCount || 0)}</span>
@@ -3047,14 +4454,11 @@ const renderArticleCard = (item: RelatedArticle) => {
               </Tooltip>
             </div>
             
-            {/* Engagement Progress */}
-          {/* Always show engagement progress if we have any stats */}
             {(viewCount > 0 || likeCount > 0 || commentCount > 0) && (
               <div>
-                {/* Engagement Progress */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Text className="text-xs text-muted-foreground">Engagement</Text>
+                    <Text className="text-xs text-muted-foreground">{t`Engagement`}</Text>
                     <Text className="text-xs font-medium" style={{ color: engagementLabel.color }}>
                       {engagementPercentage}%
                     </Text>
@@ -3068,7 +4472,6 @@ const renderArticleCard = (item: RelatedArticle) => {
                   />
                 </div>
                 
-                {/* Time ago */}
                 {item.publishedAt && (
                   <div className="text-right pt-2">
                     <Text type="secondary" className="text-xs">
@@ -3078,14 +4481,12 @@ const renderArticleCard = (item: RelatedArticle) => {
                 )}
               </div>
             )}
-
           </div>
-         
         </div>
       </div>
     </Card>
   );
-};
+}, []);
 
 
   // Render comment item with proper nested replies
@@ -3112,7 +4513,7 @@ const renderComment = (comment: any, depth = 0) => {
       if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch (error) {
-      return 'Recently';
+      return t`Recently`;
     }
   };
 
@@ -3153,13 +4554,13 @@ const renderComment = (comment: any, depth = 0) => {
                 </Text>
                 {isOwnComment && (
                   <span className="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full ml-2">
-                    You
+                    {t`You`}
                   </span>
                 )}
                 <Text type="secondary" className="text-xs whitespace-nowrap">
                   {getTimeAgo(comment.createdAt)}
                   {comment.isEdited && (
-                    <span className="ml-2 text-xs text-gray-400 italic">(edited)</span>
+                    <span className="ml-2 text-xs text-gray-400 italic">({t`edited`})</span>
                   )}
                 </Text>
               </div>
@@ -3171,23 +4572,23 @@ const renderComment = (comment: any, depth = 0) => {
                 items: [
                   {
                     key: 'edit',
-                    label: 'Edit',
+                    label: t`Edit`,
                     icon: <EditOutlined />,
                     onClick: () => handleEditComment(comment)
                   },
                   {
                     key: 'delete',
-                    label: 'Delete',
+                    label: t`Delete`,
                     icon: <DeleteOutlined />,
                     danger: true,
                     onClick: () => handleCommentDelete(comment.id)
                   },
                   {
                     key: 'flag',
-                    label: 'Report',
+                    label: t`Report`,
                     icon: <FlagOutlined />,
                     onClick: () => {
-                      notification.info({ message: 'Report feature coming soon!' });
+                      notification.info({ message: t`Report feature coming soon!` });
                     }
                   }
                 ]
@@ -3218,7 +4619,7 @@ const renderComment = (comment: any, depth = 0) => {
                   onClick={() => handleSaveEdit(comment.id)}
                   type="primary"
                 >
-                  Save
+                  {t`Save`}
                 </Button>
                 <Button
                   size="small"
@@ -3227,7 +4628,7 @@ const renderComment = (comment: any, depth = 0) => {
                     setEditCommentText('');
                   }}
                 >
-                  Cancel
+                  {t`Cancel`}
                 </Button>
               </div>
             </div>
@@ -3282,7 +4683,7 @@ const renderComment = (comment: any, depth = 0) => {
                 }}
                 className="flex items-center text-blue gap-1 text-muted-foreground hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded"
               >
-                <span className="text-xs font-medium">Reply</span>
+                <span className="text-xs font-medium">{t`Reply`}</span>
               </Button>
               
               {/* Show/Hide Replies Button */}
@@ -3296,7 +4697,7 @@ const renderComment = (comment: any, depth = 0) => {
                   }))}
                   className="!text-xs !px-2 !py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  {showReplies ? 'Hide replies' : `View ${comment.replies.length} ${comment.replies.length === 1 ? 'reply' : 'replies'}`}
+                  {showReplies ? t`Hide replies` : t`View ${comment.replies.length} ${comment.replies.length === 1 ? 'reply' : 'replies'}`}
                 </Button>
               )}
             </div>
@@ -3314,7 +4715,7 @@ const renderComment = (comment: any, depth = 0) => {
                 />
                 <div className="flex-1">
                   <TextArea
-                    placeholder={`Reply to ${author?.name}...`}
+                    placeholder={t`Reply to ${author?.name}...`}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     autoSize={{ minRows: 1, maxRows: 4 }}
@@ -3329,7 +4730,7 @@ const renderComment = (comment: any, depth = 0) => {
                       loading={replyLoading}
                       disabled={!replyText.trim()}
                     >
-                      Reply
+                      {t`Reply`}
                     </Button>
                     <Button
                       size="small"
@@ -3338,7 +4739,7 @@ const renderComment = (comment: any, depth = 0) => {
                         setReplyText('');
                       }}
                     >
-                      Cancel
+                      {t`Cancel`}
                     </Button>
                   </div>
                 </div>
@@ -3360,7 +4761,7 @@ const renderComment = (comment: any, depth = 0) => {
                     onClick={() => loadMoreReplies(comment.id)}
                     className="!text-xs"
                   >
-                    Load more replies...
+                    {t`Load more replies...`}
                   </Button>
                 </div>
               )}
@@ -3401,7 +4802,7 @@ const renderComment = (comment: any, depth = 0) => {
         username: user.username
       } : { 
         id: 'temp-user',
-        name: 'You',
+        name: t`You`,
         username: 'you'
       },
       replies: [],
@@ -3495,13 +4896,13 @@ const renderComment = (comment: any, depth = 0) => {
       setDisplayedComments(prev => updateTempReply(prev));
       
       notification.success({ 
-        message: 'Reply added successfully!', 
+        message: t`Reply added successfully!`, 
         duration: 2,
         placement: 'top'
       });
     }
   } catch (error: any) {
-    console.error('Failed to add reply:', error);
+    console.error(t`Failed to add reply:`, error);
     
     // Remove the optimistic update on error
     const removeTempReply = (comments: any[]): any[] => {
@@ -3536,8 +4937,8 @@ const renderComment = (comment: any, depth = 0) => {
     } : null);
     
     notification.error({
-      message: 'Error',
-      description: error.response?.data?.message || 'Failed to add reply.',
+      message: t`Error`,
+      description: error.response?.data?.message || t`Failed to add reply.`,
       duration: 3,
     });
   } finally {
@@ -3553,22 +4954,24 @@ const renderComment = (comment: any, depth = 0) => {
 
   if (!article) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="text-center max-w-md">
-          <Title level={2} className="!mb-4 text-foreground">Article Not Found</Title>
-          <Paragraph className="text-muted-foreground mb-6">
-            The article "{slug}" could not be loaded or doesn't exist.
-          </Paragraph>
-          <Space>
-            <Button type="primary" onClick={() => window.history.back()}>
-              Go Back
-            </Button>
-            <Button onClick={() => window.location.href = '/dashboard/articles'}>
-              Browse Articles
-            </Button>
-          </Space>
-        </div>
+     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center max-w-md">
+        <Title level={2} className="!mb-4 text-foreground">
+          {t`Article Not Found`}
+        </Title>
+        <Paragraph className="text-muted-foreground mb-6">
+          {t`The article "${slug}" could not be loaded or doesn't exist.`}
+        </Paragraph>
+        <Space>
+          <Button type="primary" onClick={() => window.history.back()}>
+            {t`Go Back`}
+          </Button>
+          <Button onClick={() => window.location.href = '/dashboard/articles'}>
+            {t`Browse Articles`}
+          </Button>
+        </Space>
       </div>
+    </div>
     );
   }
 
@@ -3595,7 +4998,7 @@ const renderComment = (comment: any, depth = 0) => {
       onClick={() => window.history.back()}
       className="text-foreground hover:text-primary hover:no-underline flex items-center gap-2"
     >
-      Back
+      {t`Back`}
     </Button>
 
     {/* Controls */}
@@ -3632,7 +5035,7 @@ const renderComment = (comment: any, depth = 0) => {
             onClick={handleShare}
             className="text-foreground hover:text-primary"
           >
-            Share
+            {t`Share`}
           </Button>
         </Tooltip>
 
@@ -3641,112 +5044,170 @@ const renderComment = (comment: any, depth = 0) => {
             type="text"
             icon={<ReadOutlined />}
             onClick={() => setShowReadingSettings(true)}
-            className="text-muted-foreground hover:text-primary"
+            className="text-foreground hover:text-primary"
           >
-            Fonts
+            {t`Fonts`}
           </Button>
         </Tooltip>
 
-        {article?.availableLanguages?.length > 0 && (
+        {availableLanguages.length > 0 && (
           <LanguageSwitcher
-            availableLanguages={article.availableLanguages}
+            availableLanguages={availableLanguages} 
             currentLanguage={currentLanguage}
             onLanguageChange={handleLanguageChange}
-            isLoading={isTranslating}
+             isLoading={isTranslating || languageSwitching}
             articleId={article.id}
+            onLanguagesUpdated={updateAvailableLanguages} 
+            checkAuth={checkAuth}
+           
           />
         )}
       </div>
 
-      {/* Mobile: collapse buttons into dropdown */}
-      <div className="sm:hidden">
-        <Menu as="div" className="relative inline-block text-left">
-          <Menu.Button className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
-            <MoreOutlined />
-          </Menu.Button>
+  {/* Mobile Menu */}
+<div className="sm:hidden">
+  <Menu as="div" className="relative inline-block text-left">
+    <Menu.Button className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors">
+      <MoreOutlined />
+    </Menu.Button>
 
-          <Transition
-            as={Fragment}
-            enter="transition ease-out duration-100"
-            enterFrom="transform opacity-0 scale-95"
-            enterTo="transform opacity-100 scale-100"
-            leave="transition ease-in duration-75"
-            leaveFrom="transform opacity-100 scale-100"
-            leaveTo="transform opacity-0 scale-95"
-          >
-            <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-              <div className="py-1 flex flex-col gap-1">
-                <Menu.Item>
-                  {({ active }) => (
-                    <Button
-                      type="text"
-                      icon={liked ? <HeartFilled className="text-red-500" /> : <HeartOutlined className="text-red-500"/>}
-                      onClick={handleLike}
-                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
-                    >
-                      Like ({article.likeCount || 0})
-                    </Button>
+    <Transition
+      as={Fragment}
+      enter="transition ease-out duration-100"
+      enterFrom="transform opacity-0 scale-95"
+      enterTo="transform opacity-100 scale-100"
+      leave="transition ease-in duration-75"
+      leaveFrom="transform opacity-100 scale-100"
+      leaveTo="transform opacity-0 scale-95"
+    >
+      <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right rounded-xl bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 max-h-[80vh] overflow-y-auto">
+        <div className="py-2">
+          {/* Like Button */}
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={handleLike}
+                className={`flex items-center w-full px-4 py-3 text-sm ${
+                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                  liked ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800'
+                }`}>
+                  {liked ? (
+                    <HeartFilled className="text-red-500" />
+                  ) : (
+                    <HeartOutlined className="text-gray-500 dark:text-gray-400" />
                   )}
-                </Menu.Item>
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {liked ? t`Liked` : t`Like`} {t`Article`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {t`${article?.likeCount || 0} likes`}
+                  </div>
+                </div>
+              </button>
+            )}
+          </Menu.Item>
 
-                <Menu.Item>
-                  {({ active }) => (
-                    <Button
-                      type="text"
-                      icon={<CommentOutlined />}
-                      onClick={scrollToComments}
-                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
-                    >
-                      Comments ({article.commentCount || 0})
-                    </Button>
-                  )}
-                </Menu.Item>
+          {/* Comments Button */}
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={scrollToComments}
+                className={`flex items-center w-full px-4 py-3 text-sm ${
+                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3">
+                  <CommentOutlined className="text-gray-500 dark:text-gray-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {t`Comments`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {t`${article?.commentCount || 0} comments`}
+                  </div>
+                </div>
+              </button>
+            )}
+          </Menu.Item>
 
-                <Menu.Item>
-                  {({ active }) => (
-                    <Button
-                      type="text"
-                      icon={<ShareAltOutlined />}
-                      onClick={handleShare}
-                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
-                    >
-                      Share
-                    </Button>
-                  )}
-                </Menu.Item>
+          {/* Share Button */}
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={handleShare}
+                className={`flex items-center w-full px-4 py-3 text-sm ${
+                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3">
+                  <ShareAltOutlined className="text-gray-500 dark:text-gray-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {t`Share Article`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {t`Share with others`}
+                  </div>
+                </div>
+              </button>
+            )}
+          </Menu.Item>
 
-                <Menu.Item>
-                  {({ active }) => (
-                    <Button
-                      type="text"
-                      icon={<ReadOutlined />}
-                      onClick={() => setShowReadingSettings(true)}
-                      className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
-                    >
-                      Fonts
-                    </Button>
-                  )}
-                </Menu.Item>
+          {/* Reading Settings Button */}
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={() => setShowReadingSettings(true)}
+                className={`flex items-center w-full px-4 py-3 text-sm ${
+                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3">
+                  <ReadOutlined className="text-gray-500 dark:text-gray-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {t`Reading Settings`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {t`Font size, style, etc.`}
+                  </div>
+                </div>
+              </button>
+            )}
+          </Menu.Item>
 
-                {article?.availableLanguages?.length > 0 && (
-                  <Menu.Item>
-                    {({ active }) => (
-                      <LanguageSwitcher
-                        availableLanguages={article.availableLanguages}
-                        currentLanguage={currentLanguage}
-                        onLanguageChange={handleLanguageChange}
-                        isLoading={isTranslating}
-                        articleId={article.id}
-                        // className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
-                      />
-                    )}
-                  </Menu.Item>
-                )}
-              </div>
-            </Menu.Items>
-          </Transition>
-        </Menu>
-      </div>
+          {/* Language Section using the new component */}
+          <MobileLanguageSelector
+            currentLanguage={currentLanguage}
+            availableLanguages={availableLanguages}
+            isTranslating={isTranslating || languageSwitching} 
+            onLanguageChange={handleLanguageChange}
+            onTranslateRequest={async (lang) => {
+              if (!article?.id) return;
+              setIsTranslating(true);
+              try {
+                await articleApi.translateArticle(article.id, lang);
+              } catch (error) {
+                console.error('Translation failed:', error);
+                setIsTranslating(false);
+              }
+            }}
+            articleId={article?.id}
+            onLanguagesUpdated={updateAvailableLanguages}
+          />
+        </div>
+      </Menu.Items>
+    </Transition>
+  </Menu>
+</div>
 
     </div>
   </div>
@@ -3765,17 +5226,17 @@ const renderComment = (comment: any, depth = 0) => {
             <div className="flex flex-wrap gap-2 mb-1">
               {article.isFeatured && (
                 <Tag color="gold" icon={<StarOutlined />} className="m-0">
-                  Featured
+                  {t`Featured`}
                 </Tag>
               )}
               {article.isTrending && (
                 <Tag color="volcano" icon={<FireOutlined />} className="m-0">
-                  Trending
+                  {t`Trending`}
                 </Tag>
               )}
               {article.accessType === 'PREMIUM' && (
                 <Tag color="purple" icon={<CrownOutlined />} className="m-0">
-                  Premium
+                  {t`Premium`}
                 </Tag>
               )}
               {article.category && (
@@ -3806,7 +5267,7 @@ const renderComment = (comment: any, depth = 0) => {
             )}
 
             {/* Author and Metadata */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 p-4 bg-card rounded-xl border">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 p-4 bg-card rounded-xl border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-4">
                 <Avatar 
                   size={56}
@@ -3818,13 +5279,13 @@ const renderComment = (comment: any, depth = 0) => {
                 </Avatar>
                 <div>
                   <Text strong className="block text-foreground text-lg">
-                    {article.author?.name || 'Anonymous'}
+                    {article.author?.name || t`Anonymous`}
                     {article.author?.isVerified && (
                       <Badge count="✓" color="green" className="ml-2" />
                     )}
                   </Text>
                   <Text type="secondary" className="text-sm">
-                    Published {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', {
+                    {t`Published`} {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -3834,27 +5295,27 @@ const renderComment = (comment: any, depth = 0) => {
               </div>
 
               <div className="flex flex-wrap items-center gap-6 text-muted-foreground">
-                <Tooltip title="Reading time">
+                <Tooltip title={t`Reading time`}>
                   <Space>
                     <ClockCircleOutlined />
-                    <Text>{article.readingTime || 5} min read</Text>
+                    <Text>{article.readingTime || 5} {t`min read`}</Text>
                   </Space>
                 </Tooltip>
-                <Tooltip title="Views">
+                <Tooltip title={t`Views`}>
                   <Space>
                     <EyeOutlined className="text-blue-500"/>
                     <Text>{(article.viewCount || 0).toLocaleString()}</Text>
                   </Space>
                 </Tooltip>
-                <Tooltip title="Likes">
+                <Tooltip title={t`Likes`}>
                   <Space>
                     <HeartFilled className="text-red-500"/>
-                    <Text >{(article.likeCount || 0).toLocaleString()}</Text>
+                    <Text>{(article.likeCount || 0).toLocaleString()}</Text>
                   </Space>
                 </Tooltip>
-                <Tooltip title="Comments">
+                <Tooltip title={t`Comments`}>
                   <Space>
-                    <CommentOutlined />
+                    <CommentOutlined className="text-gray-900 dark:text-white"/>
                     <Text>{(article.commentCount || 0).toLocaleString()}</Text>
                   </Space>
                 </Tooltip>
@@ -3919,14 +5380,9 @@ const renderComment = (comment: any, depth = 0) => {
               renderPremiumContentPlaceholder()
             ) : (
               <div 
+                key={`article-wrapper-${article?.id}-${currentLanguage}-${contentKey || 'default'}`}
                 id="article-content-wrapper"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  lineHeight: lineHeight,
-                  fontFamily: fontFamily,
-                  color: 'var(--foreground)',
-                }}
-                className="article-content"
+                className="article-content-wrapper"
               >
                 {renderContent()}
               </div>
@@ -3936,61 +5392,58 @@ const renderComment = (comment: any, depth = 0) => {
           <Divider />
 
           {/* Action Bar */}
-          <div className="mb-10">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <Button
-                  type={liked ? "primary" : "default"}
-                  icon={liked ? <HeartFilled className="text-red-500"/> : <HeartOutlined className="text-red-500"/>}
-                  onClick={handleLike}
-                  size="large"
-                  className={`flex items-center gap-2 min-w-[120px] shadow-sm ${
-                    liked ? 'border-blue-500' : ''
-                  }`}
-                  style={liked ? {
-                    color: '#1890ff',
-                    borderColor: '#1890ff',
-                    backgroundColor: 'rgba(24, 144, 255, 0.1)'
-                  } : {}}
-                >
-                  {liked ? 'Liked' : 'Like'} ({article.likeCount || 0})
-                </Button>
-                
-                <Button
-                  type={saved ? "primary" : "default"}
-                  icon={saved ? <BookFilled /> : <BookOutlined />}
-                  onClick={handleSave}
-                  size="large"
-                  className="flex items-center gap-2 min-w-[120px] shadow-sm"
-                >
-                  {saved ? 'Saved' : 'Save'}
-                </Button>
-                
-                <Button
-                  type="default"
-                  icon={<CommentOutlined />}
-                  onClick={scrollToComments}
-                  size="large"
-                  className="flex items-center gap-2 shadow-sm"
-                >
-                  Comment ({article.commentCount || 0})
-                </Button>
-                
-                <Button
-                  type="default"
-                  icon={<ShareAltOutlined />}
-                  onClick={handleShare}
-                  size="large"
-                  className="flex items-center gap-2 shadow-sm"
-                >
-                  Share
-                </Button>
-                
-              </div>
-
+         <div className="mb-10">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                type={liked ? "primary" : "default"}
+                icon={liked ? <HeartFilled className="text-red-500"/> : <HeartOutlined className="text-red-500"/>}
+                onClick={handleLike}
+                size="large"
+                className={`flex items-center gap-2 min-w-[120px] shadow-sm ${
+                  liked ? 'border-blue-500' : ''
+                }`}
+                style={liked ? {
+                  color: '#1890ff',
+                  borderColor: '#1890ff',
+                  backgroundColor: 'rgba(24, 144, 255, 0.1)'
+                } : {}}
+              >
+                {liked ? t`Liked` : t`Like`} ({article.likeCount || 0})
+              </Button>
               
+              <Button
+                type={saved ? "primary" : "default"}
+                icon={saved ? <BookFilled /> : <BookOutlined />}
+                onClick={handleSave}
+                size="large"
+                className="flex items-center gap-2 min-w-[120px] shadow-sm"
+              >
+                {saved ? t`Saved` : t`Save`}
+              </Button>
+              
+              <Button
+                type="default"
+                icon={<CommentOutlined />}
+                onClick={scrollToComments}
+                size="large"
+                className="flex items-center gap-2 shadow-sm"
+              >
+                {t`Comment`} ({article.commentCount || 0})
+              </Button>
+              
+              <Button
+                type="default"
+                icon={<ShareAltOutlined />}
+                onClick={handleShare}
+                size="large"
+                className="flex items-center gap-2 shadow-sm"
+              >
+                {t`Share`}
+              </Button>
             </div>
           </div>
+        </div>
 
           {/* Author Bio */}
           {/* {(article.author?.bio || article.author?.name) && (
@@ -4006,7 +5459,7 @@ const renderComment = (comment: any, depth = 0) => {
                 </Avatar>
                 <div className="flex-1">
                   <Title level={3} className="!mb-4 text-foreground">
-                    About {article.author.name}
+                    {t`About ${article.author.name}`}
                   </Title>
                   {article.author.bio && (
                     <Paragraph className="text-muted-foreground mb-6 leading-relaxed text-base">
@@ -4016,180 +5469,185 @@ const renderComment = (comment: any, depth = 0) => {
                   <div className="flex flex-wrap gap-3">
                     {article.author.isVerified && (
                       <Tag color="green" icon={<StarOutlined />} className="px-3 py-1">
-                        Verified Author
+                        {t`Verified Author`}
                       </Tag>
                     )}
                     <Tag className="px-3 py-1">
                       <UserOutlined className="mr-2" />
-                      {article.author.followersCount?.toLocaleString() || 0} followers
+                      {article.author.followersCount === 1 
+                        ? t`1 follower` 
+                        : t`${article.author.followersCount?.toLocaleString() || 0} followers`
+                      }
                     </Tag>
                   </div>
                 </div>
               </div>
             </div>
           )} */}
-
           {/* Comments Section */}
-<div id="comments-section" className="mb-10">
-  <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
-    <CommentOutlined className="text-primary" />
-    Comments ({article?.commentCount || 0})
-  </Title>
-  
-  {/* Add Comment Form */}
-  <Card className="mb-8 shadow-sm border">
-    <div className="flex gap-4">
-      <Avatar 
-        size="large"
-        src={user?.picture}
-        icon={<UserOutlined />}
-        className="flex-shrink-0 border-2 border-primary/20"
-      />
-      <div className="flex-1">
-        <TextArea
-          placeholder="Share your thoughts on this article..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          autoSize={{ minRows: 3, maxRows: 6 }}
-          className="mb-4 text-base"
-        />
-        <div className="flex justify-end">
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleCommentSubmit}
-            loading={commenting}
-            disabled={!commentText.trim()}
-          >
-            Add Comment
-          </Button>
-        </div>
-      </div>
-    </div>
-  </Card>
+          <div id="comments-section" className="mb-10">
+            <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
+              <CommentOutlined className="text-primary" />
+              {t`Comments`} ({article?.commentCount || 0})
+            </Title>
+            
+            {/* Add Comment Form */}
+            <Card className="mb-8 shadow-sm border">
+              <div className="flex gap-4">
+                <Avatar 
+                  size="large"
+                  src={user?.picture}
+                  icon={<UserOutlined />}
+                  className="flex-shrink-0 border-2 border-primary/20"
+                />
+                <div className="flex-1">
+                  <TextArea
+                    placeholder={t`Share your thoughts on this article...`}
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    autoSize={{ minRows: 3, maxRows: 6 }}
+                    className="mb-4 text-base "
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      onClick={handleCommentSubmit}
+                      loading={commenting}
+                      disabled={!commentText.trim()}
+                      className="!text-gray-700"
+                    >
+                      {t`Add Comment`}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
-  {/* Comments List */}
-  {commentsLoading && displayedComments.length === 0 ? (
-    <div className="text-center py-12">
-      <Spin size="large" />
-      <Paragraph className="mt-4 text-muted-foreground">Loading comments...</Paragraph>
-    </div>
-  ) : displayedComments.length > 0 ? (
-    <div className="space-y-6">
-      {/* Show comments count header */}
-      <div className="flex justify-between items-center mb-4">
-        <Text strong className="text-foreground">
-          {displayedComments.length === comments.length ? 
-            `All ${comments.length} parent comments` : 
-            `Showing ${displayedComments.length} of ${comments.length} parent comments`}
-          {article?.commentCount && article.commentCount > comments.length && 
-            ` • ${article.commentCount} total comments`}
-        </Text>
-        
-        {/* Show Collapse button when showing all */}
-        {displayedComments.length > 2 && (
-          <Button
-            type="link"
-            onClick={handleShowFewerComments}
-            icon={<ArrowLeftOutlined rotate={90} />}
-            className="text-sm"
-          >
-            Show Less
-          </Button>
-        )}
-      </div>
-      
-      {/* Show displayed comments */}
-      {displayedComments.map(comment => renderComment(comment))}
-      
-      {/* Action Buttons at the bottom */}
-      <div className="flex flex-col gap-3 pt-6">
-        {/* Show "View More Comments" button when only showing 2 */}
-        {displayedComments.length === 2 && comments.length > 2 && (
-          <div className="text-center">
-            <Button 
-              onClick={handleShowAllComments}
-              loading={commentsLoading}
-              type="primary"
-              size="large"
-              className="min-w-[200px]"
-            >
-              {commentsLoading ? 'Loading...' : `View ${comments.length - 2} More Comments`}
-            </Button>
-            <Paragraph className="text-sm text-muted-foreground mt-2">
-              Showing 2 of {comments.length} parent comments
-              {article?.commentCount && ` • ${article.commentCount} total comments`}
-            </Paragraph>
+            {/* Comments List */}
+            {commentsLoading && displayedComments.length === 0 ? (
+              <div className="text-center py-12">
+                <Spin size="large" />
+                <Paragraph className="mt-4 text-muted-foreground">
+                  {t`Loading comments...`}
+                </Paragraph>
+              </div>
+            ) : displayedComments.length > 0 ? (
+              <div className="space-y-6">
+                {/* Show comments count header */}
+                <div className="flex justify-between items-center mb-4">
+                  <Text strong className="text-foreground">
+                    {displayedComments.length === comments.length ? 
+                      t`All ${comments.length} parent comments` : 
+                      t`Showing ${displayedComments.length} of ${comments.length} parent comments`}
+                    {article?.commentCount && article.commentCount > comments.length && 
+                      t` • ${article.commentCount} total comments`}
+                  </Text>
+                  
+                  {/* Show Collapse button when showing all */}
+                  {displayedComments.length > 2 && (
+                    <Button
+                      type="link"
+                      onClick={handleShowFewerComments}
+                      icon={<ArrowLeftOutlined rotate={90} />}
+                      className="text-sm"
+                    >
+                      {t`Show Less`}
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Show displayed comments */}
+                {displayedComments.map(comment => renderComment(comment))}
+                
+                {/* Action Buttons at the bottom */}
+                <div className="flex flex-col gap-3 pt-6">
+                  {/* Show "View More Comments" button when only showing 2 */}
+                  {displayedComments.length === 2 && comments.length > 2 && (
+                    <div className="text-center">
+                      <Button 
+                        onClick={handleShowAllComments}
+                        loading={commentsLoading}
+                        type="primary"
+                        size="large"
+                        className="min-w-[200px]"
+                      >
+                        {commentsLoading ? t`Loading...` : t`View ${comments.length - 2} More Comments`}
+                      </Button>
+                      <Paragraph className="text-sm text-muted-foreground mt-2">
+                        {t`Showing 2 of ${comments.length} parent comments`}
+                        {article?.commentCount && t` • ${article.commentCount} total comments`}
+                      </Paragraph>
+                    </div>
+                  )}
+                  
+                  {/* Show "Load More" button for pagination */}
+                  {displayedComments.length > 2 && hasMoreComments && (
+                    <div className="text-center">
+                      <Button 
+                        onClick={() => loadComments(article?.id, commentPage + 1)}
+                        loading={commentsLoading}
+                        type="primary"
+                        size="large"
+                        className="min-w-[200px]"
+                      >
+                        {commentsLoading ? t`Loading...` : t`Load More Comments`}
+                      </Button>
+                      <Paragraph className="text-sm text-muted-foreground mt-2">
+                        {t`${comments.length} parent comments loaded`}
+                        {article?.commentCount && t` • ${article.commentCount} total comments`}
+                      </Paragraph>
+                    </div>
+                  )}
+                  
+                  {/* Show "Collapse Comments" button when showing many */}
+                  {displayedComments.length > 2 && (
+                    <div className="text-center">
+                      <Button 
+                        onClick={handleShowFewerComments}
+                        type="default"
+                        size="large"
+                        icon={<ArrowLeftOutlined rotate={90} />}
+                        className="min-w-[200px]"
+                      >
+                        {t`Show Less Comments`}
+                      </Button>
+                      <Paragraph className="text-sm text-muted-foreground mt-2">
+                        {t`Showing ${displayedComments.length} of ${comments.length} parent comments`}
+                      </Paragraph>
+                    </div>
+                  )}
+                </div>
+                
+                <div ref={commentsEndRef} />
+              </div>
+            ) : (
+              <div className="text-center py-12 border rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+                <CommentOutlined className="text-5xl text-muted-foreground mb-4" />
+                <Title level={4} className="!mb-3 text-foreground">
+                  {t`No comments yet`}
+                </Title>
+                <Paragraph className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  {t`Be the first to share your thoughts! Your comment could start an interesting discussion.`}
+                </Paragraph>
+              </div>
+            )}
           </div>
-        )}
-        
-        {/* Show "Load More" button for pagination */}
-        {displayedComments.length > 2 && hasMoreComments && (
-          <div className="text-center">
-            <Button 
-              onClick={() => loadComments(article?.id, commentPage + 1)}
-              loading={commentsLoading}
-              type="primary"
-              size="large"
-              className="min-w-[200px]"
-            >
-              {commentsLoading ? 'Loading...' : 'Load More Comments'}
-            </Button>
-            <Paragraph className="text-sm text-muted-foreground mt-2">
-              {comments.length} parent comments loaded
-              {article?.commentCount && ` • ${article.commentCount} total comments`}
-            </Paragraph>
-          </div>
-        )}
-        
-        {/* Show "Collapse Comments" button when showing many */}
-        {displayedComments.length > 2 && (
-          <div className="text-center">
-            <Button 
-              onClick={handleShowFewerComments}
-              type="default"
-              size="large"
-              icon={<ArrowLeftOutlined rotate={90} />}
-              className="min-w-[200px]"
-            >
-              Show Less Comments
-            </Button>
-            <Paragraph className="text-sm text-muted-foreground mt-2">
-              Showing {displayedComments.length} of {comments.length} parent comments
-            </Paragraph>
-          </div>
-        )}
-      </div>
-      
-      <div ref={commentsEndRef} />
-    </div>
-  ) : (
-    <div className="text-center py-12 border rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <CommentOutlined className="text-5xl text-muted-foreground mb-4" />
-      <Title level={4} className="!mb-3 text-foreground">
-        No comments yet
-      </Title>
-      <Paragraph className="text-muted-foreground mb-6 max-w-md mx-auto">
-        Be the first to share your thoughts! Your comment could start an interesting discussion.
-      </Paragraph>
-    </div>
-  )}
-</div>
 
-         {/* Related Articles Section */}
+        {/* Related Articles Section */}
 <div className="mb-12">
   <div className="flex items-center justify-between mb-6">
     <Title level={3} className="!mb-0 text-foreground flex items-center gap-3">
       <ReadOutlined className="text-primary" />
-      Related Articles
-      {relatedArticles.length > 0 && (
+      {t`Related Articles`}
+      {relatedArticles.length > 0 && !relatedLoading && (
         <Tag color="blue" className="ml-2">
           {relatedArticles.length}
         </Tag>
       )}
     </Title>
     
-    {article?.category && (
+    {article?.category && !relatedLoading && (
       <Button
         type="link"
         onClick={() => {
@@ -4198,45 +5656,20 @@ const renderComment = (comment: any, depth = 0) => {
         className="text-primary hover:text-primary/80 flex items-center gap-1"
         size="small"
       >
-        View all in {article.category.name}
+        {t`View all in ${article.category.name}`}
         <ArrowLeftOutlined className="ml-1 rotate-180" />
       </Button>
     )}
   </div>
   
   {relatedLoading ? (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {[1, 2, 3].map(i => (
-        <Card key={i} className="border animate-pulse h-full">
-          <div className="space-y-4 p-4 h-full flex flex-col">
-            {/* Skeleton Image */}
-            <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-            
-            {/* Skeleton Title */}
-            <div className="space-y-2 flex-1">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-              
-              {/* Skeleton Excerpt */}
-              <div className="space-y-2 pt-2">
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-              </div>
-            </div>
-            
-            {/* Skeleton Footer */}
-            <div className="flex items-center justify-between pt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-              </div>
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-            </div>
-          </div>
-        </Card>
-      ))}
+    <div className="text-center py-12">
+      <Spin size="large" />
+      <Paragraph className="mt-4 text-muted-foreground">
+        {t`Loading related articles in ${getLanguageName(currentLanguage)}...`}
+      </Paragraph>
     </div>
-  ) : (
+  ) : relatedArticles.length > 0 ? (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {/* Render actual article cards */}
       {relatedArticles.map((articleItem) => (
@@ -4273,22 +5706,22 @@ const renderComment = (comment: any, depth = 0) => {
                     <Title level={5} className="!mb-2 text-gray-400 dark:text-gray-500">
                       {(() => {
                         const messages = [
-                          "More Coming Soon",
-                          "Discover More Articles",
-                          "Explore Further"
+                          t`More Coming Soon`,
+                          t`Discover More Articles`,
+                          t`Explore Further`
                         ];
-                        return messages[i] || "More Articles";
+                        return messages[i] || t`More Articles`;
                       })()}
                     </Title>
                     
                     <Paragraph className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-[200px] mx-auto">
                       {(() => {
                         const descriptions = [
-                          "We're working on more related content for you.",
-                          "Check back soon for more articles on this topic.",
-                          "Browse all articles to discover more great content."
+                          t`We're working on more related content for you.`,
+                          t`Check back soon for more articles on this topic.`,
+                          t`Browse all articles to discover more great content.`
                         ];
-                        return descriptions[i] || "No related articles found.";
+                        return descriptions[i] || t`No related articles found.`;
                       })()}
                     </Paragraph>
                   </div>
@@ -4300,14 +5733,14 @@ const renderComment = (comment: any, depth = 0) => {
                       onClick={() => window.location.href = '/dashboard/articles'}
                       className="text-xs"
                     >
-                      Browse All Articles
+                      {t`Browse All Articles`}
                     </Button>
                     
                     <Paragraph className="text-xs text-gray-400 dark:text-gray-500">
                       {relatedArticles.length === 0 ? (
-                        "No articles found in this category yet."
+                        t`No articles found in this category yet.`
                       ) : (
-                        `Found ${relatedArticles.length} related article${relatedArticles.length !== 1 ? 's' : ''}`
+                        t`Found ${relatedArticles.length} related article${relatedArticles.length !== 1 ? 's' : ''}`
                       )}
                     </Paragraph>
                   </div>
@@ -4329,12 +5762,11 @@ const renderComment = (comment: any, depth = 0) => {
               
               <div>
                 <Title level={5} className="!mb-2 text-gray-400 dark:text-gray-500">
-                  No Related Articles
+                  {t`No Related Articles`}
                 </Title>
                 
                 <Paragraph className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  We couldn't find articles related to this one. 
-                  Check out trending articles or browse by category.
+                  {t`We couldn't find articles related to this one. Check out trending articles or browse by category.`}
                 </Paragraph>
               </div>
               
@@ -4344,14 +5776,14 @@ const renderComment = (comment: any, depth = 0) => {
                   size="small"
                   onClick={() => loadTrendingArticles()}
                 >
-                  View Trending
+                  {t`View Trending`}
                 </Button>
                 <Button 
                   type="default" 
                   size="small"
                   onClick={() => window.location.href = '/dashboard/articles'}
                 >
-                  Browse All
+                  {t`Browse All`}
                 </Button>
               </div>
             </div>
@@ -4359,50 +5791,74 @@ const renderComment = (comment: any, depth = 0) => {
         </div>
       )}
     </div>
+  ) : (
+    <div className="text-center py-12 border rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <ReadOutlined className="text-5xl text-muted-foreground mb-4" />
+      <Title level={4} className="!mb-3 text-foreground">
+        {t`No Related Articles Found`}
+      </Title>
+      <Paragraph className="text-muted-foreground mb-6 max-w-md mx-auto">
+        {t`We couldn't find any articles related to this one in ${getLanguageName(currentLanguage)}. Try browsing by category or check out trending articles.`}
+      </Paragraph>
+      <Space>
+        <Button 
+          type="primary"
+          onClick={() => loadTrendingArticles()}
+        >
+          {t`View Trending Articles`}
+        </Button>
+        <Button 
+          type="default"
+          onClick={() => window.location.href = '/dashboard/articles'}
+        >
+          {t`Browse All Articles`}
+        </Button>
+      </Space>
+    </div>
   )}
 </div>
           {/* Categories Section */}
           {categories.length > 0 && (
-            <div className="mb-10">
-              <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
-                <FolderOutlined className="text-primary" />
-                Explore Categories
-              </Title>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {categories.map(category => (
-                  <Card
-                    key={category.id}
-                    hoverable
-                    className="text-center border hover:shadow-md transition-all duration-300 group"
-                    onClick={() => {
-                      window.location.href = `/dashboard/articles?category=${category.slug}`;
-                    }}
-                  >
-                    <div className="space-y-4">
-                      <div 
-                        className="w-14 h-14 rounded-full flex items-center justify-center mx-auto transition-transform group-hover:scale-110"
-                        style={{ 
-                          backgroundColor: category.color ? `${category.color}20` : '#3b82f620',
-                          color: category.color || '#3b82f6'
-                        }}
-                      >
-                        <FolderOutlined style={{ fontSize: '24px' }} />
-                      </div>
-                      <div>
-                        <Text strong className="block text-foreground text-lg mb-1">
-                          {category.name}
-                        </Text>
-                        {category.description && (
-                          <Text type="secondary" className="text-sm line-clamp-2">
-                            {category.description}
-                          </Text>
-                        )}
-                      </div>
+           <div className="mb-10">
+            <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
+              <FolderOutlined className="text-primary" />
+              {t`Explore Categories`}
+            </Title>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {categories.map(category => (
+                <Card
+                  key={category.id}
+                  hoverable
+                  className="text-center border hover:shadow-md transition-all duration-300 group"
+                  onClick={() => {
+                    window.location.href = `/dashboard/articles?category=${category.slug}`;
+                  }}
+                >
+                  <div className="space-y-4">
+                    <div 
+                      className="w-14 h-14 rounded-full flex items-center justify-center mx-auto transition-transform group-hover:scale-110"
+                      style={{ 
+                        backgroundColor: category.color ? `${category.color}20` : '#3b82f620',
+                        color: category.color || '#3b82f6'
+                      }}
+                    >
+                      <FolderOutlined style={{ fontSize: '24px' }} />
                     </div>
-                  </Card>
-                ))}
-              </div>
+                    <div>
+                      <Text strong className="block text-foreground text-lg mb-1">
+                        {category.name}
+                      </Text>
+                      {category.description && (
+                        <Text type="secondary" className="text-sm line-clamp-2">
+                          {category.description}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
+          </div>
           )}
 
           {/* Trending Articles */}
@@ -4410,7 +5866,7 @@ const renderComment = (comment: any, depth = 0) => {
             <div className="mb-10">
               <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
                 <FireOutlined className="text-orange-500" />
-                Trending Now
+                {t`Trending Now`}
               </Title>
               
               {trendingLoading ? (
@@ -4430,40 +5886,171 @@ const renderComment = (comment: any, depth = 0) => {
           )}
 
           {/* Footer CTA */}
-          <div className="mt-12 text-center">
+
+
+
+   
+            <div className="mt-12 text-center">
             <div className="p-10 bg-gradient-to-br from-primary/10 via-primary/5 to-secondary/10 rounded-3xl border">
               <div className="max-w-2xl mx-auto">
+                {/* Dynamic title with user name and article context */}
                 <Title level={3} className="!mb-4 text-foreground">
-                  Enjoyed this article?
+                  {user ? (
+                    <>
+                      {(() => {
+                        const firstName = user.name?.split(' ')[0] || 'Knowledge Seeker';
+                        
+                        return (
+                          <>
+                            {article.accessType === 'PREMIUM' ? t`Excellent choice, ` : t`Great read, `}
+                            <span className="bg-gradient-to-r pl-2 from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent font-bold">
+                              {firstName}
+                            </span>
+                            {t`!`}
+                          </>
+                        );
+                      })()}
+                      <br />
+                      <span className="text-primary">
+                        {article.accessType === 'PREMIUM' 
+                          ? t`You're accessing premium insights!` 
+                          : t`Enjoyed "${article.title}"?`}
+                      </span>
+                    </>
+                  ) : (
+                    t`Enjoyed this article?`
+                  )}
                 </Title>
+                
+                {/* Structured message based on article access type and user auth */}
                 <Paragraph className="text-muted-foreground mb-8 text-lg">
-                  Join thousands of readers who get personalized recommendations, 
-                  save their favorite articles, and never miss an update from our best writers.
+                  {(() => {
+                    // For logged-in users
+                    if (user) {
+                      if (article.accessType === 'PREMIUM') {
+                        return (
+                          <>
+                            <strong className="text-foreground">{t`You're reading premium content!`}</strong>{' '}
+                            {t`As a valued reader, you have access to exclusive insights like "${article.title}". Continue exploring our premium collection for expert analysis, in-depth research, and advanced knowledge unavailable elsewhere.`}
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <strong className="text-foreground">{t`You just read "${article.title}"!`}</strong>{' '}
+                            {t`This is just the beginning. Imagine what you could learn with our premium articles featuring exclusive insights, expert breakdowns, and advanced analysis.`}
+                          </>
+                        );
+                      }
+                    }
+                    
+                    // For non-logged users
+                    return article.accessType === 'PREMIUM' 
+                      ? t`You're previewing premium content. Join thousands of readers who access exclusive insights, save their favorite articles, and never miss expert updates.`
+                      : t`Join thousands of readers who get personalized recommendations, save their favorite articles, and never miss an update from our best writers.`;
+                  })()}
                 </Paragraph>
+                
+                {/* Action buttons based on user and article type */}
                 <Space wrap className="justify-center gap-4">
+                  {/* Main CTA - Different based on article type */}
                   <Button 
                     type="primary" 
                     size="large"
-                    onClick={() => window.location.href = '/dashboard/articles'}
-                    icon={<ReadOutlined />}
+                    onClick={() => window.location.href = article.accessType === 'PREMIUM' 
+                      ? '/dashboard/articles/all?access=premium' 
+                      : '/dashboard/articles/all'}
+                    icon={article.accessType === 'PREMIUM' ? <CrownOutlined /> : <ReadOutlined />}
                     className="px-8"
                   >
-                    Explore More Articles
+                    {article.accessType === 'PREMIUM' 
+                      ? (user ? t`More Premium` : t`Explore Premium`) 
+                      : (user ? t`Discover More` : t`Explore Articles`)}
                   </Button>
-                  <Button 
-                    size="large"
-                    onClick={() => window.location.href = '/auth/register'}
-                    className="px-8"
-                  >
-                    Join Free Today
-                  </Button>
+                  
+                  {/* Secondary CTA for FREE articles - Premium upgrade */}
+                  {user && article.accessType !== 'PREMIUM' && (
+                    <Button 
+                      size="large"
+                      onClick={() => window.location.href = '/dashboard/articles/all?access=premium'}
+                      className="px-8 bg-gradient-to-r from-purple-600 to-pink-600 border-0 text-white hover:from-purple-700 hover:to-pink-700"
+                      icon={<CrownOutlined />}
+                    >
+                      {t`Access Premium`}
+                    </Button>
+                  )}
+                  
+                  {/* Join button for non-logged users */}
+                  {!user && (
+                    <Button 
+                      size="large"
+                      onClick={() => window.location.href = '/auth/register'}
+                      className="px-8"
+                    >
+                      {t`Join Free Today`}
+                    </Button>
+                  )}
                 </Space>
+                
+                {/* Footer message with clear value proposition */}
                 <Paragraph className="text-muted-foreground mt-6 text-sm">
-                  Already have an account?{' '}
-                  <Button type="link" onClick={() => window.location.href = '/auth/login'} className="p-0">
-                    Sign in to save articles
-                  </Button>
+                  {(() => {
+                    if (user) {
+                      if (article.accessType === 'PREMIUM') {
+                        return (
+                          <>
+                            {t`As a premium content reader, you get:`}{' '}
+                            <strong className="text-foreground">
+                              {t`Exclusive insights • Expert analysis • Advanced knowledge`}
+                            </strong>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <div className="inline-flex items-center gap-1">
+                              <span className="text-muted-foreground">{t`Access more from`}</span>
+                              <Button 
+                                type="link" 
+                                onClick={() => window.location.href = `/dashboard/articles/all?cat=${article.category?.slug || 'all'}`}
+                                className="p-0 font-bold text-primary hover:text-primary/80"
+                              >
+                                {article.category ? t`${article.category.name}` : t`Expert`}
+                              </Button>
+                              <span className="text-muted-foreground">{t`category on Inlirah!`}</span>
+                              
+                            </div>
+                          </>
+                        );
+                      }
+                    } else {
+                      return (
+                        <>
+                          {t`Already have an account?`}{' '}
+                          <Button 
+                            type="link" 
+                            onClick={() => window.location.href = '/auth/login'} 
+                            className="p-0"
+                          >
+                            {t`Sign in to ${article.accessType === 'PREMIUM' ? 'access premium' : 'save articles'}`}
+                          </Button>
+                        </>
+                      );
+                    }
+                  })()}
                 </Paragraph>
+                
+                {/* Premium badge for premium articles */}
+                {article.accessType === 'PREMIUM' && (
+                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full">
+                    <CrownOutlined className="text-purple-600 dark:text-purple-400" />
+                    <span className="text-xs font-medium text-purple-800 dark:text-purple-300">
+                      {user 
+                        ? t`You have access to premium content`
+                        : t`You're previewing premium content`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4776,6 +6363,40 @@ const renderComment = (comment: any, depth = 0) => {
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-in-out;
         }
+
+        /* Add to your existing styles */
+      .article-content-wrapper {
+        min-height: 200px;
+        transition: opacity 0.3s ease;
+      }
+
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .animate-fadeIn {
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
       `}</style>
 
       <AuthModal
@@ -4792,8 +6413,8 @@ const renderComment = (comment: any, depth = 0) => {
         setUserHasAccess(true);
         setShowPaywall(false);
         notification.success({
-          message: 'Article Unlocked!',
-          description: 'You now have full access to this premium article.',
+          message: t`Article Unlocked!`,
+          description: t`You now have full access to this premium article.`,
           duration: 3,
         });
       }}
@@ -4924,4 +6545,3 @@ const ArticleSkeleton: React.FC = () => (
 );
 
 export default SimpleArticleReader;
-

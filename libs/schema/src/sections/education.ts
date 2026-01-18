@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const educationSchema = itemSchema.extend({
-  institution: z.string().min(1),
+  institution: z.string(),
   studyType: z.string(),
   area: z.string(),
   score: z.string(),

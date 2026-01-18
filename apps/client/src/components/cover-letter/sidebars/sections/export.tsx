@@ -1,10 +1,10 @@
-// client/components/cover-letter/sidebars/sections/export.tsx
+import { t, Trans } from "@lingui/macro";
 import { Button } from '@reactive-resume/ui';
-import { Download, FileText, Info, CheckCircle, Coins } from 'lucide-react';
+import { Download, FileText, Info, CheckCircle, Coins, Eye, EyeOff } from 'lucide-react';
 import { useCoverLetterStore } from "../../../../../stores/cover-letter";
 import { useAuthStore } from '@/client/stores/auth';
 import { useWallet } from '@/client/hooks/useWallet';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { exportToPDF } from '@/client/libs/export';
 import { CoinConfirmPopover } from '@/client/components/modals/coin-confirm-modal';
@@ -31,6 +31,7 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
   const [showCoinPopover, setShowCoinPopover] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportCost] = useState(10);
+  const [previewMode, setPreviewMode] = useState(false); // Track preview mode state
   
   const exportButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -38,85 +39,266 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     return `export_pdf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const ensurePreviewModeForExport = async () => {
-    // First, check if we're already in preview mode by looking for the main preview toggle button
-    const previewButton = document.querySelector('button:has(svg.lucide-eye), button:has(svg.lucide-eye-off)');
-    const isInPreviewMode = previewButton?.textContent?.includes('Edit');
+  // Find the preview toggle button from the main editor
+  const findPreviewToggleButton = (): HTMLButtonElement | null => {
+    // Look for the actual preview toggle button in the main editor
+    const strategies = [
+      // Look for the eye icon button
+      () => document.querySelector('button:has(svg.lucide-eye), button:has(svg.lucide-eye-off)') as HTMLButtonElement,
+      // Look for button with data attributes
+      () => document.querySelector('[data-preview-toggle="true"]') as HTMLButtonElement,
+      // Look for specific class names
+      () => document.querySelector('.preview-toggle') as HTMLButtonElement,
+    ];
     
-    if (!isInPreviewMode) {
-      // Click the preview button to switch to preview mode
-      if (previewButton) {
-        (previewButton as HTMLButtonElement).click();
-        // Wait a moment for the UI to update
-        await new Promise(resolve => setTimeout(resolve, 300));
+    for (const strategy of strategies) {
+      try {
+        const button = strategy();
+        if (button && button.tagName === 'BUTTON') {
+          return button;
+        }
+      } catch (error) {
+        // Continue to next strategy
       }
     }
     
-    // Now hide ONLY the editing UI elements, NOT the content
-    // Be very specific about what we hide
-    const elementsToHide = [
-      // Drag handles only
+    return null;
+  };
+
+  // Get editing element selectors - simplified version
+  const getEditingElementSelectors = (): string[] => {
+    return [
+      // Drag & resize handles
       '[data-drag-handle]',
       '.drag-handle',
       '.resize-handle',
+      '.react-resizable-handle',
       
-      // Selection rings only (not content)
-      '.ring-2[class*="border"]',
-      '.ring-2.border-blue-500',
-      '.ring-2.border-dashed',
+      // Selection and interaction
+      '.ring-2',
+      '.ring-\\[2px\\]',
+      '.ring-blue-500',
+      '.ring-dashed',
+      '[data-selected="true"]',
+      '.is-selected',
       
       // Editing controls
       '.block-controls',
-      '.resize-control',
+      '.block-toolbar',
+      '.edit-toolbar',
+      '.format-toolbar',
+      
+      // Control buttons
       '.delete-button',
       '.edit-button',
+      '.move-button',
+      '.resize-button',
+      
+      // Interactive elements
+      '[contenteditable="true"]',
       
       // Grid editing UI
       '.react-grid-item.resizing',
-      '.react-grid-item.react-draggable-dragging'
+      '.react-grid-item.react-draggable-dragging',
+      '.react-grid-placeholder',
+      
+      // Tooltips and overlays
+      '[role="tooltip"]',
+      '.tooltip',
+      '.popover',
+      '.modal-backdrop',
+      '.overlay'
     ];
+  };
+
+  // Ensure preview mode for export - SIMPLIFIED VERSION
+  const ensurePreviewModeForExport = async (): Promise<Array<{ element: HTMLElement, display: string, opacity: string }>> => {
+    console.log('🔄 Ensuring preview mode for export...');
     
-    const selectors = elementsToHide.join(', ');
-    const editingElements = document.querySelectorAll(selectors);
+    // Try to find and click the preview toggle button if it exists
+    const previewButton = findPreviewToggleButton();
+    if (previewButton) {
+      // Check if we're already in preview mode
+      const currentText = previewButton.textContent?.toLowerCase() || '';
+      const hasEyeOffIcon = previewButton.querySelector('svg.lucide-eye-off');
+      const isCurrentlyInPreview = currentText.includes('edit') || hasEyeOffIcon;
+      
+      if (!isCurrentlyInPreview) {
+        console.log('👁️ Clicking preview button to enter preview mode');
+        previewButton.click();
+        // Wait for the preview to activate
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } else {
+        console.log('✅ Already in preview mode');
+      }
+      setPreviewMode(true);
+    } else {
+      console.warn('⚠️ Could not find preview toggle button, continuing without it');
+    }
+    
+    // Get the cover letter grid element
+    const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+    if (!coverLetterGrid) {
+      console.warn('Cover letter grid not found');
+      return [];
+    }
+    
+    // Collect all editing UI elements
+    const selectors = getEditingElementSelectors();
+    const allElements: HTMLElement[] = [];
+    
+    selectors.forEach(selector => {
+      try {
+        const elements = coverLetterGrid.querySelectorAll(selector);
+        elements.forEach(element => {
+          if (element instanceof HTMLElement) {
+            allElements.push(element);
+          }
+        });
+      } catch (error) {
+        // Skip invalid selectors
+      }
+    });
+    
+    // Remove duplicates
+    const uniqueElements = Array.from(new Set(allElements));
+    
+    // Store original styles and hide elements
     const originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
     
-    editingElements.forEach((element) => {
-      const el = element as HTMLElement;
+    uniqueElements.forEach(element => {
+      // Check if element is already hidden
+      const computedStyle = window.getComputedStyle(element);
+      if (computedStyle.display === 'none' || 
+          computedStyle.visibility === 'hidden' ||
+          computedStyle.opacity === '0') {
+        return;
+      }
+      
       originalStyles.push({
-        element: el,
-        display: el.style.display,
-        opacity: el.style.opacity
+        element,
+        display: element.style.display,
+        opacity: element.style.opacity
       });
       
-      // Hide with opacity instead of display to preserve layout
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
+      // Hide element
+      element.style.opacity = '0';
+      element.style.pointerEvents = 'none';
+      element.style.visibility = 'hidden';
+    });
+    
+    console.log(`🎨 Hidden ${originalStyles.length} editing UI elements`);
+    
+    // Add export mode class to the grid
+    coverLetterGrid.classList.add('export-mode');
+    
+    // Force a reflow to ensure changes are rendered
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        coverLetterGrid.clientHeight; // Force reflow
+        setTimeout(resolve, 100);
+      });
     });
     
     return originalStyles;
   };
 
+  // Restore editing UI - SIMPLIFIED VERSION
   const restoreEditingUI = (originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }>) => {
+    console.log('🔄 Restoring editing UI...');
+    
+    // Restore all hidden elements
     originalStyles.forEach(({ element, display, opacity }) => {
-      element.style.display = display;
       element.style.opacity = opacity;
       element.style.pointerEvents = '';
+      element.style.visibility = '';
+      element.style.display = display;
     });
+    
+    // Remove export mode class
+    const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+    if (coverLetterGrid) {
+      coverLetterGrid.classList.remove('export-mode');
+    }
+    
+    // Force a reflow
+    requestAnimationFrame(() => {
+      if (coverLetterGrid) {
+        coverLetterGrid.clientHeight; // Force reflow
+      }
+    });
+    
+    // Exit preview mode if we activated it
+    if (previewMode) {
+      const previewButton = findPreviewToggleButton();
+      if (previewButton) {
+        previewButton.click();
+      }
+      setPreviewMode(false);
+    }
   };
 
-  const quickPreviewAndExport = async () => {
-    if (!coverLetter || !user) return;
+  // Add export mode styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .export-mode {
+        --export-mode: true;
+      }
+      
+      .export-mode [data-block-id] {
+        cursor: default !important;
+      }
+      
+      .export-mode [contenteditable="true"] {
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  const validateCoverLetterContent = (): { isValid: boolean; message?: string } => {
+    if (!coverLetter) {
+      return { isValid: false, message: t`No cover letter found` };
+    }
+    
+    if (!coverLetter.content?.blocks) {
+      return { isValid: false, message: t`No content blocks found` };
+    }
+    
+    const blocksWithContent = coverLetter.content.blocks.filter((block: any) => 
+      block.content && block.content.trim().length > 0
+    );
+    
+    if (blocksWithContent.length === 0) {
+      return { 
+        isValid: false, 
+        message: t`Please add content to your cover letter before exporting` 
+      };
+    }
+    
+    return { isValid: true };
+  };
+
+  // Quick preview and export - EXACTLY LIKE CoverLetterEditor
+  const quickPreviewAndExport = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!coverLetter || !user) {
+      return { success: false, error: 'No cover letter or user found' };
+    }
 
     const transactionId = generateTransactionId();
     let transactionSuccess = false;
+    let originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
     
     setIsExporting(true);
 
-    // Store original styles for restoration
-    let originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
-
     try {
       // Step 1: Reserve coins
+      console.log('💰 Reserving coins for export...');
       const transactionResult = await deductCoinsWithRollback(
         exportCost,
         `PDF Export - ${coverLetter.title}`,
@@ -128,35 +310,57 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       );
 
       if (!transactionResult.success) {
-        throw new Error('Failed to reserve coins for PDF export');
+        throw new Error(t`Failed to reserve coins for PDF export`);
       }
 
       transactionSuccess = true;
 
-      // Step 2: Switch to preview mode and hide editing UI
-      toast.info('Preparing preview for export...', { duration: 1000 });
+      // Step 2: Force preview mode and hide editing UI
+      console.log('👁️ Preparing preview for export...');
+      toast.info(t`Preparing preview for export...`, { 
+        id: 'export-prepare',
+        duration: 2000 
+      });
+      
       originalStyles = await ensurePreviewModeForExport();
       
-      // Give a moment for the preview to render
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Additional wait for preview to render
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Step 3: Show loading toast
-      const loadingToast = toast.loading('Generating PDF from preview...');
+      // Step 3: Verify we're ready to export
+      const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+      if (!coverLetterGrid) {
+        throw new Error(t`Cover letter grid not found for export`);
+      }
+      
+      // Check if content blocks are visible
+      const contentBlocks = coverLetterGrid.querySelectorAll('[data-block-id]');
+      const visibleBlocks = Array.from(contentBlocks).filter(block => {
+        const style = window.getComputedStyle(block);
+        return style.visibility !== 'hidden' && 
+               style.opacity !== '0' && 
+               style.display !== 'none';
+      });
+      
+      if (visibleBlocks.length === 0) {
+        throw new Error(t`No visible content blocks found for export`);
+      }
+      
+      console.log(`✅ Ready to export: ${visibleBlocks.length} content blocks visible`);
+
+      // Step 4: Generate PDF
+      const loadingToast = toast.loading(t`Generating PDF from preview...`, {
+        id: 'export-loading'
+      });
 
       try {
-        // DEBUG: Log what we're exporting
-        console.log('Exporting cover letter with blocks:', {
-          totalBlocks: coverLetter.content?.blocks?.length,
-          blocksWithContent: coverLetter.content?.blocks?.filter((b: any) => b.content?.trim()).length,
-          allBlocks: coverLetter.content?.blocks?.map((b: any) => ({
-            id: b.id,
-            type: b.type,
-            content: b.content?.substring(0, 50) + '...',
-            hasContent: !!b.content?.trim()
-          }))
+        console.log('📄 Exporting cover letter...', {
+          title: coverLetter.title,
+          blocks: coverLetter.content?.blocks?.length || 0,
+          blocksWithContent: coverLetter.content?.blocks?.filter((b: any) => b.content?.trim()).length || 0
         });
 
-        // Step 4: Generate PDF
+        // Export the PDF
         await exportToPDF({
           ...coverLetter,
           content: {
@@ -167,12 +371,9 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         
       } finally {
         toast.dismiss(loadingToast);
-        
-        // Step 5: Restore editing UI immediately
-        restoreEditingUI(originalStyles);
       }
 
-      // Step 6: Mark transaction as completed
+      // Step 5: Complete transaction
       await completeTransaction(transactionId, {
         result: 'success',
         coverLetterTitle: coverLetter.title,
@@ -180,67 +381,61 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         exportedAt: new Date().toISOString()
       });
 
-      toast.success(
-        <div className="space-y-1">
-          <div className="font-medium">PDF exported with preview formatting!</div>
-          <div className="text-xs text-green-600 flex items-center gap-1">
-            <Coins className="w-3 h-3" />
-            Used {exportCost} coins
-          </div>
-        </div>,
-        { duration: 3000 }
-      );
-
-      setShowCoinPopover(false);
+      console.log('✅ PDF export completed successfully');
+      return { success: true };
 
     } catch (error: any) {
-      console.error("PDF export failed:", error);
+      console.error("❌ PDF export failed:", error);
       
       // Always restore UI even on error
       if (originalStyles.length > 0) {
         restoreEditingUI(originalStyles);
       }
       
-      // Step 7: Refund coins if transaction was successful
+      // Refund coins if transaction was successful but export failed
       if (transactionSuccess) {
         try {
-          await refundTransaction(transactionId, error.message || 'PDF export failed');
+          await refundTransaction(transactionId, error.message || t`PDF export failed`);
           await fetchBalance();
-          console.log(`Refunded ${exportCost} coins`);
+          console.log(`💸 Refunded ${exportCost} coins`);
           
-          toast.info('Coins refunded due to export failure', { duration: 2000 });
+          toast.info(t`Coins refunded due to export failure`, { 
+            duration: 2000 
+          });
         } catch (refundError) {
           console.error('Failed to refund coins:', refundError);
         }
       }
 
-      toast.error('PDF export failed: ' + error.message, {
-        duration: 3000,
-      });
-
-      setShowCoinPopover(false);
+      return { 
+        success: false, 
+        error: error.message || t`PDF export failed` 
+      };
+      
     } finally {
+      // Step 6: Always restore UI
+      if (originalStyles.length > 0) {
+        restoreEditingUI(originalStyles);
+      }
+      
       setIsExporting(false);
     }
   };
 
   const handleExportPDF = async () => {
     if (!coverLetter || !user) {
-      toast.error("Please sign in to export PDF");
+      toast.error(t`Please sign in to export PDF`);
       return;
     }
 
-    // Check if cover letter has content
-    const hasContent = coverLetter.content?.blocks?.some((block: any) => 
-      block.content && block.content.trim().length > 0
-    );
-
-    if (!hasContent) {
-      toast.error("Please add content to your cover letter before exporting");
+    // Validate content first
+    const validation = validateCoverLetterContent();
+    if (!validation.isValid) {
+      toast.error(validation.message);
       return;
     }
 
-    // First check if user can afford
+    // Check if user can afford
     const affordable = await canAfford(exportCost);
     
     if (!affordable) {
@@ -248,8 +443,26 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       return;
     }
 
-    // Export immediately with quick preview
-    await quickPreviewAndExport();
+    // Export with the same logic as CoverLetterEditor
+    const result = await quickPreviewAndExport();
+    
+    if (result.success) {
+      toast.success(
+        <div className="space-y-1">
+          <div className="font-medium">{t`PDF exported successfully!`}</div>
+          <div className="text-xs text-green-600 flex items-center gap-1">
+            <Coins className="w-3 h-3" />
+            {t`Used ${exportCost} coins`}
+          </div>
+        </div>,
+        { duration: 3000 }
+      );
+      setShowCoinPopover(false);
+    } else {
+      toast.error(t`Export failed: ${result.error}`, {
+        duration: 4000,
+      });
+    }
   };
 
   const confirmExportPDF = async () => {
@@ -257,22 +470,28 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       const affordable = await canAfford(exportCost);
 
       if (!affordable) {
-        toast.error("Not enough coins");
+        toast.error(t`Not enough coins`);
         setShowCoinPopover(false);
         return;
       }
 
       if (!coverLetter) {
-        toast.error("Letter is not loaded");
+        toast.error(t`Letter is not loaded`);
         setShowCoinPopover(false);
         return;
       }
 
-      await quickPreviewAndExport();
+      const result = await quickPreviewAndExport();
+      
+      if (result.success) {
+        setShowCoinPopover(false);
+      } else {
+        toast.error(result.error || t`Export failed`);
+      }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("PDF export preparation failed:", error);
-      toast.error("Failed to prepare PDF export");
+      toast.error(t`Failed to prepare PDF export: ${error.message}`);
       setShowCoinPopover(false);
     }
   };
@@ -282,7 +501,7 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     if (goSubscription) {
       navigate("/dashboard/pricing");
     } else {
-      navigate(`/dashboard/coins?needed=${exportCost - balance}`);
+      navigate(`/dashboard/coins?needed=${Math.max(0, exportCost - balance)}`);
     }
   };
 
@@ -298,8 +517,8 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
           <Download className="w-5 h-5 text-purple-600 dark:text-purple-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Export</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Download your cover letter</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t`Export`}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t`Download your cover letter`}</p>
         </div>
       </div>
 
@@ -309,29 +528,42 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
             ref={exportButtonRef}
             onClick={handleExportPDF}
             disabled={disabled || !hasCoverLetter || !hasContent || isExporting}
-            className="w-full justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
+            className="w-full justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 relative"
             size="lg"
           >
             {isExporting ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                {t`Exporting...`}
+                {previewMode && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" title={t`Preview mode active`} />
+                )}
+              </>
             ) : (
-              <FileText className="w-4 h-4 mr-2" />
+              <>
+                <FileText className="w-4 h-4 mr-2" />
+                {t`Export as PDF`}
+              </>
             )}
-            Export as PDF
             <span className="ml-auto text-xs text-purple-100 bg-purple-800 px-2 py-1 rounded">
-              {isExporting ? 'Exporting...' : `Cost: ${exportCost} coins`}
+              {isExporting ? t`Processing...` : `${exportCost} ${t`coins`}`}
             </span>
           </Button>
 
-          {/* Simple info about preview */}
+          {/* Export status information */}
           {hasCoverLetter && hasContent && (
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800 dark:text-blue-200">
-                  <p className="font-medium">Export with Preview Formatting</p>
+                  <p className="font-medium">{t`Quick Preview Export`}</p>
                   <p className="text-xs mt-1">
-                    Your PDF will include all content blocks with clean, professional formatting.
+                    {t`Your PDF will be generated from a clean preview with all editing UI hidden.`}
+                    {previewMode && (
+                      <span className="ml-1 text-green-600 dark:text-green-400 font-medium">
+                        ({t`Preview mode active`})
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -343,42 +575,59 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <p className="font-medium">Add content to export</p>
-                  <p className="text-xs mt-1">Your cover letter needs content before you can export it.</p>
+                  <p className="font-medium">{t`Add content to export`}</p>
+                  <p className="text-xs mt-1">{t`Your cover letter needs content before you can export it.`}</p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Simple Export Status */}
+        {/* Export Status */}
         <div className="mt-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-xs text-gray-600 dark:text-gray-400 space-y-2">
             <div className="flex justify-between items-center">
-              <span>Export Ready:</span>
+              <span>{t`Export Status:`}</span>
               <span className={`font-semibold ${hasContent ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                {hasContent ? 'Ready' : 'Add Content'}
+                {hasContent ? t`Ready to Export` : t`Needs Content`}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Cost:</span>
-              <span className="font-semibold text-blue-600 dark:text-blue-400">{exportCost} coins</span>
+              <span>{t`Export Cost:`}</span>
+              <span className="font-semibold text-blue-600 dark:text-blue-400">{exportCost} {t`coins`}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Your Balance:</span>
+              <span>{t`Your Balance:`}</span>
               <span className={`font-semibold ${balance >= exportCost ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {balance} coins
+                {balance} {t`coins`}
               </span>
             </div>
             {hasCoverLetter && (
-              <div className="flex justify-between items-center">
-                <span>Blocks with Content:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {coverLetter.content.blocks.filter((b: any) => b.content?.trim()).length} / {coverLetter.content.blocks.length}
-                </span>
-              </div>
+              <>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span>{t`Content Blocks:`}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {coverLetter.content.blocks.filter((b: any) => b.content?.trim()).length} / {coverLetter.content.blocks.length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>{t`Total Characters:`}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {coverLetter.content.blocks.reduce((sum: number, b: any) => 
+                      sum + (b.content?.trim().length || 0), 0
+                    )}
+                  </span>
+                </div>
+              </>
             )}
           </div>
+          
+          {hasCoverLetter && hasContent && (
+            <div className="mt-3 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300">
+              <p className="font-medium">{t`Note:`}</p>
+              <p className="mt-1">{t`Export will automatically switch to preview mode and hide all editing UI for a clean PDF.`}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -390,8 +639,8 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         balance={balance}
         onConfirm={confirmExportPDF}
         onBuyCoins={handleBuyCoins}
-        title="Export Cover Letter as PDF"
-        description="Export your professionally formatted letter as a high-quality PDF document."
+        title={t`Export Cover Letter as PDF`}
+        description={t`Export your professionally formatted letter as a high-quality PDF document.`}
         actionType="export"
         triggerRef={exportButtonRef}
         userId={user?.id}

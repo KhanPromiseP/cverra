@@ -20,7 +20,7 @@ import { LocaleComboboxPopover } from "@/client/components/locale-combobox";
 import { useUpdateUser, useUser } from "@/client/services/user";
 
 const formSchema = z.object({
-  theme: z.enum(["system", "light", "dark"]).default("system"),
+  theme: z.enum(["light", "dark"]).default("dark"),
   locale: z.string().default("en-US"),
 });
 
@@ -83,7 +83,7 @@ export const ProfileSettings = () => {
                     {...field}
                     value={field.value}
                     options={[
-                      { label: t`System`, value: "system" },
+                      // { label: t`System`, value: "system" },
                       { label: t`Light`, value: "light" },
                       { label: t`Dark`, value: "dark" },
                     ]}

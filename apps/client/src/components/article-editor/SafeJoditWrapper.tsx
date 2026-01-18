@@ -1,6 +1,6 @@
 // components/article-editor/SafeJoditWrapper.tsx
 import React from 'react';
-import EnterpriseJoditWrapper from './JoditWrapper';
+import JoditWrapper from './JoditWrapper';
 
 interface SafeJoditWrapperProps {
   value: any; // Accept any type
@@ -53,7 +53,7 @@ const SafeJoditWrapper: React.FC<SafeJoditWrapperProps> = ({
   }, [value]);
 
   return (
-    <EnterpriseJoditWrapper
+    <JoditWrapper
       value={stringValue}
       onChange={onChange}
       disabled={disabled}

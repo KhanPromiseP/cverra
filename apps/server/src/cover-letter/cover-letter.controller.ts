@@ -18,7 +18,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { TemplateService } from './templates/template.service';
 import { CoverLetterService } from './cover-letter.service';
-import { CreateCoverLetterDto } from './dto/create-cover-letter.dto';
+import { CreateCoverLetterDto, RegenerateCompleteLetterDto, TranslateLetterDto } from './dto/create-cover-letter.dto';
 import { UpdateCoverLetterDto } from './dto/update-cover-letter.dto';
 import { EnhanceBlockDto } from './dto/enhance-block.dto';
 import { CoverLetterStyle } from '@prisma/client';
@@ -423,4 +423,148 @@ async enhanceBlock(
     );
   }
 }
+
+
+@Post(':id/regenerate-complete')
+async regenerateCompleteLetter(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string,
+  @Body() regenerateDto: RegenerateCompleteLetterDto
+) {
+  try {
+    this.logger.log(`Regenerating complete letter ${id} for user ${req.user.id}`);
+    
+    if (!id) {
+      throw new BadRequestException('Cover letter ID is required');
+    }
+    if (!regenerateDto.instructions?.trim()) {
+      throw new BadRequestException('Regeneration instructions are required');
+    }
+
+    // Log transaction ID if provided
+    if (regenerateDto.metadata?.transactionId) {
+      this.logger.log(`Transaction ID: ${regenerateDto.metadata.transactionId}`);
+    }
+
+    const result = await this.coverLetterService.regenerateCompleteLetter(
+      req.user.id,
+      id,
+      regenerateDto.instructions,
+      regenerateDto.metadata?.transactionId
+    );
+    
+    this.logger.log(`Successfully regenerated complete letter ${id} for user ${req.user.id}`);
+    
+    return result;
+  } catch (error) {
+    this.logger.error(`Failed to regenerate complete letter ${id} for user ${req.user.id}:`, error.stack);
+    
+    // Log transaction ID in error if available
+    if (regenerateDto?.metadata?.transactionId) {
+      this.logger.error(`Failed transaction ID: ${regenerateDto.metadata.transactionId}`);
+    }
+    
+    if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      throw error;
+    }
+    
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    
+    throw new InternalServerErrorException(
+      error.message || 'Failed to regenerate complete letter. Please try again.'
+    );
+  }
+}
+
+@Post(':id/translate-enhanced')
+async translateLetterEnhanced(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string,
+  @Body() translateDto: TranslateLetterDto
+) {
+  try {
+    this.logger.log(`Enhanced translation for letter ${id} to ${translateDto.targetLanguage}`);
+    
+    const result = await this.coverLetterService.translateLetterPreservingStructure(
+      req.user.id,
+      id,
+      translateDto
+    );
+    
+    return result;
+  } catch (error) {
+    this.logger.error(`Translation failed:`, error.stack);
+    throw new InternalServerErrorException(
+      error.message || 'Failed to translate letter'
+    );
+  }
+}
+
+@Get(':id/translations')
+async getLetterTranslations(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string
+) {
+  try {
+    const translations = await this.coverLetterService.getLetterTranslations(req.user.id, id);
+    
+    return {
+      success: true,
+      data: translations,
+      count: translations.length
+    };
+  } catch (error) {
+    this.logger.error(`Failed to get translations:`, error);
+    throw new InternalServerErrorException('Failed to get translations');
+  }
+}
+
+@Post(':id/switch-language')
+async switchLanguage(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string,
+  @Body() body: { language: string } // Make sure this matches what you're sending
+) {
+  try {
+    this.logger.log(`📱 Switch language request received:`, {
+      userId: req.user.id,
+      letterId: id,
+      requestedLanguage: body.language
+    });
+    
+    const result = await this.coverLetterService.switchToLanguage(
+      req.user.id,
+      id,
+      body.language
+    );
+    
+    this.logger.log(`✅ Switch language successful:`, {
+      letterId: result.coverLetter?.id,
+      language: result.language
+    });
+    
+    return result;
+  } catch (error) {
+    this.logger.error(`❌ Failed to switch language:`, error);
+    this.logger.error(`Error details:`, error.stack);
+    
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+    
+    throw new InternalServerErrorException('Failed to switch language');
+  }
+}
+
+
+@Get(':id/translation-chain')
+async getTranslationChain(
+  @Request() req: AuthenticatedRequest,
+  @Param('id') id: string
+) {
+  return this.coverLetterService.findAllTranslationsForLetter(req.user.id, id);
+}
+
 }

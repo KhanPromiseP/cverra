@@ -68,6 +68,13 @@ export const configSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_CALLBACK_URL: z.string().url().optional(),
 
+  // Add these new properties:
+  APP_URL: z.string().default("http://localhost:3000"),
+  APP_NAME: z.string().default("Cverra"),
+  SUPPORT_EMAIL: z.string().default("support@cverra.com"),
+  // SMTP_URL: z.string().optional(),
+  // MAIL_FROM: z.string().optional(),
+  
   // Google (OAuth, Optional)
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

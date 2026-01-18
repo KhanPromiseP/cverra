@@ -1,4 +1,4 @@
-// components/ArticleAdminNavbar.tsx - PROFESSIONAL VERSION
+import { t, Trans } from "@lingui/macro";
 import React from 'react';
 import { Card, Button, Space, Tag } from 'antd';
 import { 
@@ -21,55 +21,55 @@ interface ArticleAdminNavbarProps {
 
 const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({ 
   currentPath = typeof window !== 'undefined' ? window.location.pathname : '/',
-  title = 'Article Admin'
+  title = t`Article Admin`
 }) => {
   
   const navItems = [
     { 
       key: 'dashboard',
-      label: 'Dashboard',
+      label: t`Dashboard`,
       icon: <DashboardOutlined />,
       path: '/dashboard/article-admin'
     },
     { 
       key: 'articles',
-      label: 'All Articles',
+      label: t`All Articles`,
       icon: <FileTextOutlined />,
       path: '/dashboard/article-admin/articles'
     },
     { 
       key: 'new-article',
-      label: 'New Article',
+      label: t`New Article`,
       icon: <PlusOutlined />,
       path: '/dashboard/article-admin/articles/new'
     },
     { 
       key: 'drafts',
-      label: 'Drafts',
+      label: t`Drafts`,
       icon: <EditOutlined />,
       path: '/dashboard/article-admin/articles/drafts'
     },
     { 
       key: 'scheduled',
-      label: 'Scheduled',
+      label: t`Scheduled`,
       icon: <ScheduleOutlined />,
       path: '/dashboard/article-admin/articles/scheduled'
     },
     { 
       key: 'categories',
-      label: 'Categories',
+      label: t`Categories`,
       icon: <FolderOutlined />,
       path: '/dashboard/article-admin/categories'
     },
     { 
       key: 'translations',
-      label: 'Translations',
+      label: t`Translations`,
       icon: <TranslationOutlined />,
       path: '/dashboard/article-admin/translations'
     },
     { 
       key: 'settings',
-      label: 'Settings',
+      label: t`Settings`,
       icon: <SettingOutlined />,
       path: '/dashboard/article-admin/settings'
     },
@@ -111,7 +111,7 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
             icon={<PlusOutlined />}
             onClick={() => handleNavigation('/dashboard/article-admin/articles/new')}
           >
-            New Article
+            {t`New Article`}
           </Button>
         </Space>
       </div>

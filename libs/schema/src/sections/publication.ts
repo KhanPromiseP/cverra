@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const publicationSchema = itemSchema.extend({
-  name: z.string().min(1),
+  name: z.string(),
   publisher: z.string(),
   date: z.string(),
   summary: z.string(),

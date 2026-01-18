@@ -9,7 +9,8 @@ import {
   Input, 
   Tag,
   Empty,
-  Skeleton
+  Skeleton,
+  
 } from 'antd';
 import { 
   SearchOutlined,
@@ -19,54 +20,128 @@ import {
   ArrowRightOutlined,
   CompassOutlined,
   SortAscendingOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  
 } from '@ant-design/icons';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import articleApi from '../../services/articleApi';
+import { t } from "@lingui/macro";
+import { useLingui } from "@lingui/react";
+import axios from 'axios'; // Use axios like KnowledgeHubSection
 import './CategoriesPage.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 
-// Define a more specific type for category
 interface CategoryItem {
   id: string;
   name: string;
   slug: string;
-  color?: string;
   description?: string;
   articleCount?: number;
+  color?: string;
   featured?: boolean;
   trending?: boolean;
   tags?: string[];
   createdAt?: string;
   updatedAt?: string;
+  isTranslated?: boolean;
+  translationLanguage?: string;
 }
 
 const CategoriesPage = () => {
   const navigate = useNavigate();
+  const { i18n } = useLingui();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'popular' | 'recent' | 'name'>('popular');
+  
+  // Get current language from Lingui (exactly like KnowledgeHubSection)
+  const currentLanguage = i18n.locale.split('-')[0];
 
-  // Fetch categories
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  // Helper function to generate random colors (same as KnowledgeHubSection)
+  const getRandomColor = () => {
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0', 
+      '#118AB2', '#EF476F', '#073B4C', '#7209B7',
+      '#FF9A3C', '#3D84B8', '#F6416C', '#00B8A9'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
 
+  // Fetch categories from API (using same pattern as KnowledgeHubSection)
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await articleApi.getCategories();
-      const categoriesData = response.data || [];
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
+      
+      console.log('📡 Fetching categories in language:', currentLanguage);
+      
+      // Use axios with same endpoint as KnowledgeHubSection
+      const response = await axios.get('/api/articles/categories/all', {
+        params: {
+          language: currentLanguage
+        }
+      });
+      
+      console.log('API Response:', response.data);
+      
+      if (response.data && response.data.success) {
+        const categoriesData = response.data.data || [];
+        
+        // Process categories exactly like KnowledgeHubSection
+        const processedCategories = categoriesData.map((cat: any) => ({
+          id: cat?.id || `cat-${Date.now()}`,
+          name: cat?.name || t`Unnamed Category`,
+          slug: cat?.slug || 'uncategorized',
+          description: cat?.description || '',
+          articleCount: cat?.articleCount || cat?._count?.articles || 0,
+          color: cat?.color || getRandomColor(),
+          featured: cat?.featured || false,
+          trending: cat?.trending || false,
+          tags: cat?.tags || [],
+          createdAt: cat?.createdAt,
+          updatedAt: cat?.updatedAt,
+          isTranslated: cat?.isTranslated || false,
+          translationLanguage: cat?.translationLanguage || 'en',
+        }));
+        
+        console.log('✅ Processed categories:', processedCategories);
+        setCategories(processedCategories);
+      } else {
+        console.warn('No categories found or API error:', response.data);
+        setCategories([]);
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to fetch categories:', error.message);
       setCategories([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch data when language changes (same as KnowledgeHubSection)
+  useEffect(() => {
+    console.log('🔄 Language changed to:', currentLanguage);
+    fetchCategories();
+  }, [currentLanguage]);
+
+  // Simple language change function using Lingui (optional, can remove)
+  const changeLanguage = (lang: 'en' | 'fr') => {
+    console.log('🌐 Changing language to:', lang);
+    
+    // Update Lingui locale
+    i18n.activate(lang);
+    
+    // Update localStorage for persistence
+    localStorage.setItem('preferred-language', lang);
+  };
+
+  // Get category tag (same as KnowledgeHubSection)
+  const getCategoryTag = (articleCount: number) => {
+    if (articleCount === 0) return t`Explore`;
+    if (articleCount === 1) return t`1 Article`;
+    return t`${articleCount} Articles`;
   };
 
   // Filter and sort categories
@@ -97,12 +172,12 @@ const CategoriesPage = () => {
     });
 
   const handleCategoryClick = (categorySlug: string) => {
-    navigate(`/dashboard/articles?category=${categorySlug}`);
+    navigate(`/dashboard/articles/all?cat=${categorySlug}&lang=${currentLanguage}`);
   };
 
   // Render category card
   const renderCategoryCard = (category: CategoryItem) => {
-    const categoryColor = category.color || '#3b82f6';
+    const categoryColor = category.color || getRandomColor();
     const articleCount = category.articleCount || 0;
 
     return (
@@ -147,11 +222,11 @@ const CategoriesPage = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileTextOutlined className="text-gray-400" />
-                  <span className="font-medium">{articleCount} articles</span>
+                  <span className="font-medium">{getCategoryTag(articleCount)}</span>
                 </div>
                 {category.featured && (
                   <Tag color="gold" icon={<StarOutlined />}>
-                    Featured
+                    {t`Featured`}
                   </Tag>
                 )}
               </div>
@@ -182,7 +257,7 @@ const CategoriesPage = () => {
                   handleCategoryClick(category.slug);
                 }}
               >
-                Explore Topic
+                {t`Explore Topic`}
               </Button>
             </div>
           </div>
@@ -193,6 +268,7 @@ const CategoriesPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-6">
@@ -202,13 +278,34 @@ const CategoriesPage = () => {
                 <CompassOutlined className="text-2xl" />
               </div>
               <Title level={1} className="!text-white !mb-0 text-4xl md:text-5xl">
-                Knowledge Library
+                {t`Knowledge Library`}
               </Title>
             </div>
             <Paragraph className="text-xl text-white/90 max-w-3xl mx-auto">
-              Explore our curated collection of topics. Each category is a gateway to specialized knowledge, 
-              expert insights, and actionable content designed to accelerate your learning journey.
+              {t`Explore our curated collection of topics. Each category is a gateway to specialized knowledge, expert insights, and actionable content designed to accelerate your learning journey.`}
             </Paragraph>
+
+            {/* Buttons  */}
+            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+              <button
+              onClick={() => window.history.back()}
+              className="inline-flex bg-background rounded-lg px-12 p-2 items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              <span className="font-medium">{t`Back`}</span>
+            </button>
+
+              <Button
+                size="large"
+                type="link"
+                ghost
+                className="border-2 h-10 px-6 hover:shadow-3xl border-white text-white  hover:bg-white"
+                icon={<CompassOutlined />}
+                onClick={() => navigate('/dashboard/articles/all')}
+              >
+                Browse All Articles
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -220,7 +317,7 @@ const CategoriesPage = () => {
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
             <div className="flex-1 w-full">
               <Search
-                placeholder="Search topics, descriptions, or tags..."
+                placeholder={t`Search topics, descriptions, or tags...`}
                 allowClear
                 size="large"
                 prefix={<SearchOutlined />}
@@ -236,21 +333,21 @@ const CategoriesPage = () => {
                 icon={<SearchOutlined />}
                 onClick={() => setSortBy('popular')}
               >
-                Most Popular
+                {t`Most Popular`}
               </Button>
               <Button
                 type={sortBy === 'recent' ? 'primary' : 'default'}
                 icon={<ClockCircleOutlined />}
                 onClick={() => setSortBy('recent')}
               >
-                Recently Updated
+                {t`Recently Updated`}
               </Button>
               <Button
                 type={sortBy === 'name' ? 'primary' : 'default'}
                 icon={<SortAscendingOutlined />}
                 onClick={() => setSortBy('name')}
               >
-                A to Z
+                {t`A to Z`}
               </Button>
             </div>
           </div>
@@ -260,8 +357,8 @@ const CategoriesPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <Text className="text-gray-600 dark:text-gray-400">
             {searchTerm 
-              ? `Found ${filteredCategories.length} topics matching "${searchTerm}"`
-              : `Showing all ${categories.length} topics`}
+              ? t`Found ${filteredCategories.length} topics matching "${searchTerm}"`
+              : t`Showing all ${categories.length} topics`}
           </Text>
           {searchTerm && (
             <Button
@@ -269,7 +366,7 @@ const CategoriesPage = () => {
               onClick={() => setSearchTerm('')}
               className="text-blue-600 hover:text-blue-800"
             >
-              Clear Search
+              {t`Clear Search`}
             </Button>
           )}
         </div>
@@ -303,7 +400,7 @@ const CategoriesPage = () => {
                     console.log('Load more clicked - implement pagination if needed');
                   }}
                 >
-                  Show All Topics
+                  {t`Show All Topics`}
                 </Button>
               </div>
             )}
@@ -314,21 +411,19 @@ const CategoriesPage = () => {
               description={
                 <div className="text-center">
                   <Title level={4} className="!mb-4">
-                    No topics found
+                    {t`No topics found`}
                   </Title>
                   <Paragraph className="text-gray-500 mb-8">
                     {searchTerm 
-                      ? `No topics match "${searchTerm}". Try different keywords.`
-                      : 'No topics available at the moment.'}
+                      ? t`No topics match "${searchTerm}". Try different keywords.`
+                      : t`No topics available at the moment.`}
                   </Paragraph>
-                  {searchTerm && (
-                    <Button 
-                      type="primary"
-                      onClick={() => setSearchTerm('')}
-                    >
-                      Clear Search
-                    </Button>
-                  )}
+                  <Button 
+                    type="primary"
+                    onClick={() => fetchCategories()}
+                  >
+                    {t`Retry Loading Categories`}
+                  </Button>
                 </div>
               }
             />
@@ -342,10 +437,10 @@ const CategoriesPage = () => {
               <div>
                 <Title level={2} className="!mb-2">
                   <StarOutlined className="text-yellow-500 mr-3" />
-                  Featured Topics
+                  {t`Featured Topics`}
                 </Title>
                 <Text className="text-gray-600 dark:text-gray-400">
-                  Handpicked categories our editors recommend
+                  {t`Handpicked categories our editors recommend`}
                 </Text>
               </div>
             </div>
@@ -364,8 +459,8 @@ const CategoriesPage = () => {
                         <div 
                           className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0"
                           style={{ 
-                            backgroundColor: `${category.color || '#3b82f6'}20`,
-                            color: category.color || '#3b82f6'
+                            backgroundColor: `${category.color || getRandomColor()}20`,
+                            color: category.color || getRandomColor()
                           }}
                         >
                           <FolderOutlined className="text-2xl" />
@@ -376,17 +471,17 @@ const CategoriesPage = () => {
                               {category.name}
                             </Title>
                             <Tag color="gold" icon={<StarOutlined />}>
-                              Featured
+                              {t`Featured`}
                             </Tag>
                           </div>
                           <Paragraph className="text-gray-600 dark:text-gray-400 mb-4">
-                            {category.description || 'Explore this featured topic for premium content.'}
+                            {category.description || t`Explore this featured topic for premium content.`}
                           </Paragraph>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <span className="text-gray-500">
                                 <FileTextOutlined className="mr-1" />
-                                {category.articleCount || 0} articles
+                                {getCategoryTag(category.articleCount || 0)}
                               </span>
                             </div>
                             <Button 
@@ -397,7 +492,7 @@ const CategoriesPage = () => {
                                 handleCategoryClick(category.slug);
                               }}
                             >
-                              Explore Now
+                              {t`Explore Now`}
                             </Button>
                           </div>
                         </div>
@@ -413,20 +508,20 @@ const CategoriesPage = () => {
         {!loading && categories.length === 0 && (
           <div className="mt-12 text-center">
             <Card className="max-w-2xl mx-auto">
-              <Title level={3} className="!mb-4">No Categories Available</Title>
+              <Title level={3} className="!mb-4">
+                {t`No Categories Available`}
+              </Title>
               <Paragraph className="text-gray-600 mb-6">
-                It looks like no categories have been created yet. Categories help organize content and make it easier for users to find what they're looking for.
+                {t`It looks like no categories have been created yet. Categories help organize content and make it easier for users to find what they're looking for.`}
               </Paragraph>
               <Button 
                 type="primary" 
                 size="large"
                 icon={<FolderOutlined />}
-                onClick={() => {
-                  // You could navigate to an admin page or refresh
-                  fetchCategories();
-                }}
+                onClick={() => fetchCategories()}
+                loading={loading}
               >
-                Check Again
+                {t`Retry Loading Categories`}
               </Button>
             </Card>
           </div>

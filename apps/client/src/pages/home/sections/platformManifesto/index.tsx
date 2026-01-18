@@ -1,5 +1,6 @@
 // components/home/PlatformManifestoSection.tsx
 import React from 'react';
+import { t } from "@lingui/macro";
 import { 
   ArrowRight, 
   Brain, 
@@ -24,41 +25,41 @@ import { Link } from "react-router";
 export const PlatformManifestoSection = () => {
   const manifestoPillars = [
     {
-      title: "Resume Builder",
-      subtitle: "Positioning Documents",
-      description: "Your resume is not a document. It's positioning. We treat it with the strategic importance it deserves.",
+      title: t`Resume Builder`,
+      subtitle: t`Positioning Documents`,
+      description: t`Your resume is not a document. It's positioning. We treat it with the strategic importance it deserves.`,
       icon: FileText,
       color: "from-blue-500 to-cyan-500",
       principles: [
-        "Every element serves a strategic purpose",
-        "Design communicates before content does",
-        "Clarity is your competitive advantage"
+        t`Every element serves a strategic purpose`,
+        t`Design communicates before content does`,
+        t`Clarity is your competitive advantage`
       ],
       link: "/dashboard/resumes"
     },
     {
-      title: "Letter Writer",
-      subtitle: "Intentional Narratives",
-      description: "Cover letters are not templates. They're intentional narratives crafted for specific conversations.",
+      title: t`Letter Writer`,
+      subtitle: t`Intentional Narratives`,
+      description: t`Letters are not templates. They're intentional narratives crafted for specific conversations.`,
       icon: Envelope,
       color: "from-purple-500 to-pink-500",
       principles: [
-        "Every word carries intention",
-        "Format is stewardship of your message",
-        "AI enhances, never replaces thought"
+        t`Every word carries intention`,
+        t`Format is stewardship of your message`,
+        t`AI enhances, never replaces thought`
       ],
       link: "/dashboard/cover-letters"
     },
     {
-      title: "Knowledge Hub",
-      subtitle: "Distilled Thinking",
-      description: "Articles are not content. They're distilled thinking that transforms information into understanding.",
+      title: t`Knowledge Hub`,
+      subtitle: t`Distilled Thinking`,
+      description: t`Articles are not content. They're distilled thinking that transforms information into understanding.`,
       icon: BookOpen,
       color: "from-amber-500 to-orange-500",
       principles: [
-        "Depth over volume",
-        "Insight over information",
-        "Wisdom applied, not just shared"
+        t`Depth over volume`,
+        t`Insight over information`,
+        t`Wisdom applied, not just shared`
       ],
       link: "/dashboard/articles"
     }
@@ -66,20 +67,20 @@ export const PlatformManifestoSection = () => {
 
   const platformPhilosophy = [
     {
-      statement: "Most platforms optimize for noise.",
-      contrast: "We optimize for clarity.",
+      statement: t`Most platforms optimize for noise.`,
+      contrast: t`We optimize for clarity.`,
       icon: Brain,
       color: "text-blue-600 dark:text-blue-400"
     },
     {
-      statement: "Most people are overwhelmed with information,",
-      contrast: "yet starving for understanding.",
+      statement: t`Most people are overwhelmed with information,`,
+      contrast: t`yet starving for understanding.`,
       icon: Lightbulb,
       color: "text-purple-600 dark:text-purple-400"
     },
     {
-      statement: "This platform exists because",
-      contrast: "excellence is a discipline, not a gift.",
+      statement: t`This platform exists because`,
+      contrast: t`excellence is a discipline, not a gift.`,
       icon: Trophy,
       color: "text-amber-600 dark:text-amber-400"
     }
@@ -116,7 +117,7 @@ export const PlatformManifestoSection = () => {
         />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-6">
+      <div className="relative max-w-6xl mx-auto px-5">
         {/* Manifesto Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -126,30 +127,30 @@ export const PlatformManifestoSection = () => {
         >
           <Badge 
             variant="secondary"
-            className="mb-6 px-6 py-3 text-lg font-semibold uppercase tracking-wider bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full"
+            className="mb-5 px-6 py-2 text-lg font-semibold uppercase tracking-wider bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full"
           >
             <Diamond className="w-5 h-5 mr-2" weight="fill" />
-            The Cverra Manifesto
+            {t`The Inlirah Manifesto`}
           </Badge>
 
-          <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-8">
-            <span className="block text-gray-900 dark:text-white mb-4">
-              Most Platforms Optimize for Noise
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-4">
+            <span className="block text-gray-900 dark:text-white mb-1">
+              {t`Most Platforms Optimize for Noise`}
             </span>
             <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-amber-600 bg-clip-text text-transparent">
-              We Optimize for Clarity
+              {t`We Optimize for Clarity`}
             </span>
           </h2>
 
           <p className="text-2xl text-gray-600 dark:text-gray-300 leading-relaxed">
-            This is not a place for shortcuts. This is not a place for trends.
+            {t`This is not a place for shortcuts. This is not a place for trends.`}
             <br />
-            This is a place for minds that value insight over hype.
+            {t`This is a place for minds that value insight over hype.`}
           </p>
         </motion.div>
 
         {/* Three Pillars */}
-        <div className="grid md:grid-cols-3 gap-8 mb-20">
+        <div className="grid md:grid-cols-3 gap-4 mb-10">
           {manifestoPillars.map((pillar, index) => (
             <motion.div
               key={index}
@@ -192,12 +193,12 @@ export const PlatformManifestoSection = () => {
                   ))}
                 </div>
 
-                {/* CTA Button - Now with proper link */}
+                {/* CTA Button */}
                 <Link 
                   to={pillar.link}
                   className="w-full mt-8 py-3 px-6 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 text-gray-800 dark:text-gray-200 font-semibold hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
                 >
-                  Explore {pillar.title}
+                  {t`Explore`} {pillar.title}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </Card>
@@ -248,25 +249,19 @@ export const PlatformManifestoSection = () => {
         >
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-12 text-white shadow-2xl">
             <h3 className="text-3xl font-bold mb-6">
-              Ready to Build with Intention?
+              {t`Ready to Build with Intention?`}
             </h3>
             <p className="text-blue-100 text-xl mb-8 max-w-2xl mx-auto">
-              Join thousands of professionals who have chosen clarity over noise, 
-              depth over volume, and excellence over shortcuts.
+              {t`Join thousands of professionals who have chosen clarity over noise, depth over volume, and excellence over shortcuts.`}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                to="/dashboard/resumes"
+                to="/dashboard"
                 className="bg-white text-blue-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-2xl shadow-lg text-lg text-center"
               >
-                Start Your Journey
+                {t`Start Your Journey`}
               </Link>
-              <Link 
-                to="/dashboard"
-                className="bg-white/20 hover:bg-white/30 text-white font-semibold px-8 py-4 rounded-2xl border border-white/30 transition-all duration-300 text-lg text-center"
-              >
-                Read Full Manifesto
-              </Link>
+              
             </div>
           </div>
         </motion.div>

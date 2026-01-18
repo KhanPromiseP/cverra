@@ -1,14 +1,15 @@
+import { t, Trans } from "@lingui/macro";
 import { Check } from 'lucide-react';
 import { Button } from '@reactive-resume/ui';
 import { DropdownMenu } from '../ui/dropdown-menu';
 
 const styles = [
-  { value: 'Modern', description: 'Clean, contemporary design with professional language' },
-  { value: 'Traditional', description: 'Classic, formal structure with conservative language' },
-  { value: 'Executive', description: 'Sophisticated, strategic language for leadership roles' },
-  { value: 'Creative', description: 'Innovative, personal approach for creative industries' },
-  { value: 'Minimalist', description: 'Concise, direct language with clean structure' },
-  { value: 'Professional', description: 'Balanced approach emphasizing skills and value' }
+  { value: t`Modern`, description: t`Clean, contemporary design with professional language` },
+  { value: t`Traditional`, description: t`Classic, formal structure with conservative language` },
+  { value: t`Executive`, description: t`Sophisticated, strategic language for leadership roles` },
+  { value: t`Creative`, description: t`Innovative, personal approach for creative industries` },
+  { value: t`Minimalist`, description: t`Concise, direct language with clean structure` },
+  { value: t`Professional`, description: t`Balanced approach emphasizing skills and value` }
 ];
 
 interface StyleSelectorProps {

@@ -1,4 +1,53 @@
+/* components/articles/AllArticlesPage.css */
 
+/* Best solution - Sticky sidebar */
+.articles-layout-container {
+  display: block;
+}
+
+.fixed-sidebar-container {
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 40px);
+  overflow-y: auto;
+  align-self: flex-start;
+}
+
+/* For desktop layout */
+@media (min-width: 1024px) {
+  .articles-layout-container {
+    display: grid;
+    grid-template-columns: 1fr 3fr; /* 25% 75% ratio */
+    gap: 24px;
+    align-items: start;
+  }
+  
+  .main-content-with-fixed-sidebar {
+    padding-left: 0;
+    height: 100%;
+  }
+  
+  /* Ensure the sidebar card takes full height */
+  .fixed-sidebar-container .ant-card {
+    height: 100%;
+  }
+  
+  /* Force the grid item to not stretch */
+  .fixed-sidebar-container {
+    height: fit-content;
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 1024px) {
+  .fixed-sidebar-container {
+    position: static;
+    height: auto;
+    margin-bottom: 24px;
+  }
+}
 
 /* Custom scrollbar */
 .custom-scrollbar {
@@ -56,6 +105,10 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
+.dark .article-card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
 /* Loading animation */
 @keyframes pulse {
   0%, 100% {
@@ -70,19 +123,6 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Responsive grid */
-.grid-responsive {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
-@media (max-width: 640px) {
-  .grid-responsive {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
-}
-
 /* Sticky header */
 .sticky-header {
   position: sticky;
@@ -95,3 +135,177 @@
 .dark .sticky-header {
   background: rgba(26, 32, 44, 0.8);
 }
+
+/* Glassmorphism effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-effect {
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dark mode text contrast improvements */
+.dark .ant-typography {
+  color: #f7fafc;
+}
+
+.dark .ant-typography-secondary {
+  color: #a0aec0;
+}
+
+/* Button dark mode improvements */
+.dark .ant-btn-default {
+  border-color: #4a5568;
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+.dark .ant-btn-default:hover {
+  border-color: #718096;
+  background: #4a5568;
+  color: #ffffff;
+}
+
+/* Input dark mode improvements */
+.dark .ant-input {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #f7fafc;
+}
+
+.dark .ant-input::placeholder {
+  color: #a0aec0;
+}
+
+.dark .ant-input:hover {
+  border-color: #718096;
+}
+
+.dark .ant-input:focus {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+/* Select dark mode improvements */
+.dark .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #f7fafc;
+}
+
+.dark .ant-select-dropdown {
+  background: #2d3748;
+  border: 1px solid #4a5568;
+}
+
+.dark .ant-select-item {
+  color: #e2e8f0;
+}
+
+.dark .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #4a5568;
+}
+
+/* Card dark mode improvements */
+.dark .ant-card {
+  background: #050505;
+  border-color: #4a5568;
+}
+
+/* Tag dark mode improvements */
+.dark .ant-tag {
+  border: 1px solid;
+}
+
+/* Divider dark mode */
+.dark .ant-divider {
+  border-color: #4a5568;
+}
+
+/* Empty state dark mode */
+.dark .ant-empty-description {
+  color: #a0aec0;
+}
+
+/* Slider dark mode */
+.dark .ant-slider-track {
+  background: #4299e1;
+}
+
+.dark .ant-slider-handle {
+  border-color: #4299e1;
+  background: #2d3748;
+}
+
+.dark .ant-slider-rail {
+  background: #4a5568;
+}
+
+/* Radio button dark mode */
+.dark .ant-radio-button-wrapper {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.dark .ant-radio-button-wrapper:not(.ant-radio-button-wrapper-disabled):hover {
+  color: #4299e1;
+}
+
+.dark .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: #4299e1;
+  border-color: #4299e1;
+}
+
+/* Date picker dark mode */
+.dark .ant-picker {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #f7fafc;
+}
+
+.dark .ant-picker-input > input {
+  color: #f7fafc;
+}
+
+.dark .ant-picker-suffix {
+  color: #a0aec0;
+}
+
+.dark .ant-picker-panel {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.dark .ant-picker-header {
+  color: #f7fafc;
+  border-bottom-color: #4a5568;
+}
+
+.dark .ant-picker-cell {
+  color: #a0aec0;
+}
+
+.dark .ant-picker-cell-in-view {
+  color: #e2e8f0;
+}
+
+/* Badge dark mode */
+.dark .ant-badge-count {
+  box-shadow: 0 0 0 1px #2d3748;
+}
+
+
+

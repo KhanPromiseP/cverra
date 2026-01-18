@@ -1,7 +1,7 @@
-// client/components/cover-letter/sidebars/sections/statistics.tsx
+import { t, Trans } from "@lingui/macro";
+import { useState, useEffect } from 'react';
 import { BarChart3, Clock, FileText, Edit, Target, CheckCircle, AlertCircle } from 'lucide-react';
 import { useCoverLetterStore } from "../../../../../stores/cover-letter";
-import { useState, useEffect } from 'react';
 
 interface StatisticsSectionProps {
   disabled?: boolean;
@@ -16,7 +16,7 @@ interface WritingMetrics {
 
 export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) => {
   const { coverLetter } = useCoverLetterStore();
-  const [timeSpent, setTimeSpent] = useState<string>('0 min');
+  const [timeSpent, setTimeSpent] = useState<string>(t`0 min`);
   const [writingMetrics, setWritingMetrics] = useState<WritingMetrics | null>(null);
 
   // Calculate real statistics from cover letter content
@@ -49,14 +49,14 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      }) : 'Never',
+      }) : t`Never`,
 
     created: coverLetter?.createdAt ? 
       new Date(coverLetter.createdAt).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-      }) : 'Unknown'
+      }) : t`Unknown`
   };
 
   // Calculate time spent based on creation and updates
@@ -67,11 +67,11 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
       const minutes = Math.max(1, Math.round((updated - created) / (1000 * 60)));
       
       if (minutes < 60) {
-        setTimeSpent(`${minutes} min`);
+        setTimeSpent(t`${minutes} min`);
       } else {
         const hours = Math.floor(minutes / 60);
         const remainingMinutes = minutes % 60;
-        setTimeSpent(remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`);
+        setTimeSpent(remainingMinutes > 0 ? t`${hours}h ${remainingMinutes}m` : t`${hours}h`);
       }
     }
   }, [coverLetter]);
@@ -122,40 +122,40 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
 
     // Determine grade
     const getGrade = (score: number): string => {
-      if (score >= 90) return 'A+';
-      if (score >= 80) return 'A';
-      if (score >= 70) return 'B';
-      if (score >= 60) return 'C';
-      return 'D';
+      if (score >= 90) return t`A+`;
+      if (score >= 80) return t`A`;
+      if (score >= 70) return t`B`;
+      if (score >= 60) return t`C`;
+      return t`D`;
     };
 
     const getReadability = (score: number): WritingMetrics['readability'] => {
-      if (score >= 80) return 'Excellent';
-      if (score >= 65) return 'Good';
-      if (score >= 50) return 'Fair';
-      return 'Poor';
+      if (score >= 80) return t`Excellent`;
+      if (score >= 65) return t`Good`;
+      if (score >= 50) return t`Fair`;
+      return t`Poor`;
     };
 
     // Generate suggestions
     const suggestions: string[] = [];
     if (stats.wordCount < 150) {
-      suggestions.push('Consider adding more detail to strengthen your letter');
+      suggestions.push(t`Consider adding more detail to strengthen your letter`);
     } else if (stats.wordCount > 500) {
-      suggestions.push('Try to be more concise - aim for 250-400 words');
+      suggestions.push(t`Try to be more concise - aim for 250-400 words`);
     }
 
     if (avgSentenceLength > 25) {
-      suggestions.push('Break up long sentences for better readability');
+      suggestions.push(t`Break up long sentences for better readability`);
     } else if (avgSentenceLength < 10) {
-      suggestions.push('Combine some short sentences for better flow');
+      suggestions.push(t`Combine some short sentences for better flow`);
     }
 
     if (paragraphs < 3) {
-      suggestions.push('Add more paragraphs to structure your content better');
+      suggestions.push(t`Add more paragraphs to structure your content better`);
     }
 
     if (suggestions.length === 0 && score > 70) {
-      suggestions.push('Great job! Your cover letter looks well-structured');
+      suggestions.push(t`Great job! Your cover letter looks well-structured`);
     }
 
     setWritingMetrics({
@@ -197,20 +197,20 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
           <BarChart3 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Statistics</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Real-time writing analytics</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t`Statistics`}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t`Real-time writing analytics`}</p>
         </div>
       </div>
 
       {!hasCoverLetter ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Create a cover letter to see statistics</p>
+          <p className="text-sm">{t`Create a cover letter to see statistics`}</p>
         </div>
       ) : !hasContent ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <Edit className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Add content to see writing statistics</p>
+          <p className="text-sm">{t`Add content to see writing statistics`}</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -219,7 +219,7 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center border border-blue-200 dark:border-blue-800">
               <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
               <div className="text-xl font-bold text-blue-900 dark:text-blue-100">{stats.wordCount}</div>
-              <div className="text-xs text-blue-700 dark:text-blue-300">Words</div>
+              <div className="text-xs text-blue-700 dark:text-blue-300">{t`Words`}</div>
             </div>
 
             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center border border-green-200 dark:border-green-800">
@@ -227,13 +227,13 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
               <div className="text-xl font-bold text-green-900 dark:text-green-100">
                 {stats.filledBlocks}/{stats.blockCount}
               </div>
-              <div className="text-xs text-green-700 dark:text-green-300">Blocks Used</div>
+              <div className="text-xs text-green-700 dark:text-green-300">{t`Blocks Used`}</div>
             </div>
 
             <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center border border-purple-200 dark:border-purple-800">
               <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
               <div className="text-sm font-bold text-purple-900 dark:text-purple-100">{timeSpent}</div>
-              <div className="text-xs text-purple-700 dark:text-purple-300">Time Spent</div>
+              <div className="text-xs text-purple-700 dark:text-purple-300">{t`Time Spent`}</div>
             </div>
 
             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-center border border-orange-200 dark:border-orange-800">
@@ -241,7 +241,7 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
               <div className={`text-lg font-bold ${writingMetrics ? getScoreColor(writingMetrics.grade) : 'text-orange-600 dark:text-orange-400'}`}>
                 {writingMetrics?.grade || '--'}
               </div>
-              <div className="text-xs text-orange-700 dark:text-orange-300">Score</div>
+              <div className="text-xs text-orange-700 dark:text-orange-300">{t`Score`}</div>
             </div>
           </div>
 
@@ -250,26 +250,26 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
             <div className="p-4 bg-gradient-to-r from-gray-50 to-teal-50 dark:from-gray-800 dark:to-teal-900/20 rounded-lg border border-gray-200 dark:border-gray-700">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                Writing Analysis
+                {t`Writing Analysis`}
               </h4>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Overall Score:</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{t`Overall Score:`}</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">
                     {writingMetrics.score}/100
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Readability:</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{t`Readability:`}</span>
                   <span className={`text-sm font-semibold ${getReadabilityColor(writingMetrics.readability)}`}>
                     {writingMetrics.readability}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Characters:</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{t`Characters:`}</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">
                     {stats.characterCount.toLocaleString()}
                   </span>
@@ -281,7 +281,7 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">Suggestions</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t`Suggestions`}</span>
                   </div>
                   <ul className="space-y-1">
                     {writingMetrics.suggestions.map((suggestion, index) => (
@@ -300,17 +300,17 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
           <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
               <div className="flex justify-between items-center">
-                <span>Last edited:</span>
+                <span>{t`Last edited:`}</span>
                 <span className="font-medium text-gray-900 dark:text-white">{stats.lastEdited}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Created:</span>
+                <span>{t`Created:`}</span>
                 <span className="font-medium text-gray-900 dark:text-white">{stats.created}</span>
               </div>
               {coverLetter?.content?.lastSaved && (
                 <div className="flex justify-between items-center">
-                  <span>Auto-saved:</span>
-                  <span className="font-medium text-green-600 dark:text-green-400">Active</span>
+                  <span>{t`Auto-saved:`}</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">{t`Active`}</span>
                 </div>
               )}
             </div>

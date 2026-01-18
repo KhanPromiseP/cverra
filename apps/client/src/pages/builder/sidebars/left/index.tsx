@@ -260,7 +260,11 @@ export const LeftSidebar = () => {
           />
 
           {/* Custom Sections */}
-          {Object.values(customSections).map((section) => (
+          {/* {Object.values(customSections).map((section) => ( */}
+          
+          {Object.values(customSections)
+            .filter(section => section !== null && typeof section === 'object')
+            .map((section) => (
             <Fragment key={section.id}>
               <Separator />
 

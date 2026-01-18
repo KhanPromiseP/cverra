@@ -1,4 +1,4 @@
-// dto/category.dto.ts - CORRECTED VERSION
+// dto/category.dto.ts
 import { 
   IsString, 
   IsOptional, 
@@ -6,7 +6,8 @@ import {
   IsInt, 
   Min, 
   ValidateIf,
-  IsNotEmpty
+  IsNotEmpty,
+  IsArray
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -21,22 +22,17 @@ export class CreateCategoryDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    // Handle ColorPicker returning Color object or different formats
     if (!value) return undefined;
     
-    // If it's an object with toHexString method (Ant Design ColorPicker)
     if (typeof value === 'object' && value.toHexString) {
       return value.toHexString();
     }
     
-    // If it's an object with hex property
     if (typeof value === 'object' && value.hex) {
       return value.hex;
     }
     
-    // If it's already a string
     if (typeof value === 'string') {
-      // Ensure it starts with #
       return value.startsWith('#') ? value : `#${value}`;
     }
     
@@ -48,7 +44,6 @@ export class CreateCategoryDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    // Handle checkbox value transformation
     if (value === 'true' || value === true || value === 1 || value === '1') {
       return true;
     }
@@ -66,6 +61,22 @@ export class CreateCategoryDto {
   @IsInt({ message: 'Order must be an integer' })
   @Min(0, { message: 'Order must be at least 0' })
   order?: number;
+
+  // Translation fields
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean({ message: 'autoTranslate must be a boolean' })
+  autoTranslate?: boolean = true;
+
+  @IsOptional()
+  @IsArray()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(lang => lang.trim());
+    }
+    return value;
+  })
+  targetLanguages?: string[] = ['fr', 'es', 'de'];
 }
 
 export class UpdateCategoryDto {
@@ -80,22 +91,17 @@ export class UpdateCategoryDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    // Handle ColorPicker returning Color object or different formats
     if (!value) return undefined;
     
-    // If it's an object with toHexString method (Ant Design ColorPicker)
     if (typeof value === 'object' && value.toHexString) {
       return value.toHexString();
     }
     
-    // If it's an object with hex property
     if (typeof value === 'object' && value.hex) {
       return value.hex;
     }
     
-    // If it's already a string
     if (typeof value === 'string') {
-      // Ensure it starts with #
       return value.startsWith('#') ? value : `#${value}`;
     }
     
@@ -107,7 +113,6 @@ export class UpdateCategoryDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    // Handle checkbox value transformation
     if (value === 'true' || value === true || value === 1 || value === '1') {
       return true;
     }
@@ -125,4 +130,20 @@ export class UpdateCategoryDto {
   @IsInt({ message: 'Order must be an integer' })
   @Min(0, { message: 'Order must be at least 0' })
   order?: number;
+
+  // Translation fields
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean({ message: 'autoTranslate must be a boolean' })
+  autoTranslate?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(lang => lang.trim());
+    }
+    return value;
+  })
+  targetLanguages?: string[];
 }

@@ -23,6 +23,9 @@ import { GuestGuard } from "./guards/guest";
 import { authLoader } from "./loaders/auth";
 // Example in your router configuration
 import { PrivacyPolicyPage } from "../pages/home/components/privacy-policy";
+import { AboutPage } from "../pages/home/components/about";
+import { ContactPage } from "../pages/home/components/contact";
+import { TermsOfServicePage } from "../pages/home/components/terms-of-service";
 import { LearnMorePage } from "../pages/home/sections/hero/learn-more";
 
 import CoverLettersPage from "../pages/dashboard/cover-letters/page";
@@ -32,9 +35,12 @@ import { CoverLetterWizardPage } from '../pages/dashboard/cover-letters/wizard/p
 import { DashboardHomePage } from "../pages/dashboard/page";
 
 import { SubscriptionPage } from "../pages/SubscriptionPage";
+import  NotificationsPage from "../pages/NotificationsPage";
 
 import { PaymentSuccessPage } from '../pages/PaymentSuccessPage';
+
 import { InvoicePage } from '../pages/InvoicePage';
+import PublicProfilePage from "../pages/dashboard/profile/PublicProfilePage";
 
 // Import Admin Components
 import { AdminGuard } from './guards/admin';
@@ -59,9 +65,12 @@ import ArticlePage from "../pages/articles/article/ArticlePage";
 
 // Add this import
 import UserProfilePage from "../pages/dashboard/profile/page";
+import Myarticles from "../pages/dashboard/myarticles/page";
 
 import CategoriesPage from "../components/articles/CategoriesPage";
 import AllArticlesPage from '../components/articles/AllArticlesPage';
+
+import { DocumentationPage } from "../pages/documentation/DocumentationPage"
 
 
 
@@ -77,16 +86,23 @@ export const routes = createRoutesFromElements(
 
       <Route element={<DashboardLayout />}>
         {/* Articles Routes - PUBLIC */}
+        <Route path="dashboard" index element={<DashboardHomePage />} />
         <Route path="/dashboard/articles" element={<ArticlesPage />} />
         <Route path="/dashboard/article/:slug" element={<ArticlePage />} />
 
         <Route path="/dashboard/categories" element={<CategoriesPage />} />
 
         <Route path="/dashboard/articles/all" element={<AllArticlesPage />} />
+
+        <Route path="/dashboard/pricing" element={<SubscriptionPage />} />
+        <Route path="/profile/:username" element={<PublicProfilePage />} />
       </Route>
 
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-      <Route path="/learn-more" element={<LearnMorePage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+      <Route path="/docs" element={<DocumentationPage />} />
 
       {/* Public Payment Callback Routes (Tranzak redirects here) */}
       <Route path="/payments/callback/tranzak/success" element={<PaymentSuccessPage />} />
@@ -136,15 +152,17 @@ export const routes = createRoutesFromElements(
         <Route element={<AuthGuard />}>
           <Route element={<DashboardLayout />}>
             {/* Dashboard Home */}
-            <Route index element={<DashboardHomePage />} />
+            {/* <Route index element={<DashboardHomePage />} /> */}
             <Route path="resumes" element={<ResumesPage />} />
             <Route path="cover-letters" element={<CoverLettersPage />} />
             
             {/* Add the wizard route under dashboard */}
             <Route path="cover-letters/wizard" element={<CoverLetterWizardPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="pricing" element={<SubscriptionPage />} />
+
             <Route path="profile" element={<UserProfilePage />} />
+            <Route path="myarticles" element={<Myarticles />} />
+            <Route path="notifications" element={<NotificationsPage />} />
 
             {/* ARTICLE ADMIN ROUTES - Now directly under DashboardLayout */}
             <Route path="article-admin">

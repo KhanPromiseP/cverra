@@ -1,4 +1,5 @@
-// client/pages/dashboard/cover-letters/wizard/page.tsx
+
+import { t } from "@lingui/macro";
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CoverLetterWizard } from '@/client/components/cover-letter/cover-letter-wizard';
@@ -22,11 +23,11 @@ export const CoverLetterWizardPage = () => {
         throw new Error('No cover letter ID returned from server');
       }
       
-      toast.success('Cover letter generated successfully!');
+      toast.success(t`Cover letter generated successfully!`);
       navigate(`/builder/cover-letter/${coverLetterId}/edit`);
     } catch (error) {
       console.error('Failed to generate cover letter:', error);
-      toast.error('Failed to generate cover letter. Please try again.');
+      toast.error(t`Failed to generate cover letter. Please try again.`);
     } finally {
       setIsGenerating(false);
     }

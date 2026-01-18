@@ -102,6 +102,17 @@ export const CreateResumeCard = ({ compact = false }: CreateResumeCardProps) => 
           <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/20 to-transparent opacity-50" />
         </button>
 
+
+        {/* Features */}
+        <div className="mt-12 text-center">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {t`start from scrash`}
+          </p>
+        </div>
+
+        
+        
+
         {/* Quick action indicator */}
         <motion.div
           className="mt-8"
@@ -110,7 +121,7 @@ export const CreateResumeCard = ({ compact = false }: CreateResumeCardProps) => 
         >
           {/* eslint-disable-next-line lingui/no-unlocalized-strings */}
           <KeyboardShortcut className="rounded-full bg-gray-900/10 px-4 py-2 text-xs font-semibold text-gray-700 backdrop-blur-sm dark:bg-white/10 dark:text-gray-200">
-            Click or press ⌘N
+            {t`Click or press ⌘N`}
           </KeyboardShortcut>
         </motion.div>
 

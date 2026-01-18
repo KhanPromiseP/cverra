@@ -43,7 +43,7 @@ export class WalletController {
     return { status: 'success', newBalance: wallet.balance };
   }
 
-  @Post('deduct-with-rollback')
+@Post('deduct-with-rollback')
 async deductWithRollback(@Body() body: any) {
   // Extract transactionId from multiple possible locations
   const transactionId = 
@@ -57,19 +57,28 @@ async deductWithRollback(@Body() body: any) {
     transactionId
   };
   
-  const result = await this.walletService.tryDeductWithRollback(
-    body.userId,
-    body.amount,
-    transactionId,
-    body.description,
-    metadata
-  );
-  
-  return { 
-    status: 'pending', 
-    transactionId,
-    balance: result.wallet.balance 
-  };
+  try {
+    const result = await this.walletService.tryDeductWithRollback(
+      body.userId,
+      body.amount,
+      transactionId,
+      body.description,
+      metadata
+    );
+    
+    return { 
+      status: 'pending', 
+      transactionId,
+      balance: result?.wallet?.balance || 0 // Use optional chaining and default value
+    };
+  } catch (error) {
+    return { 
+      status: 'failed', 
+      transactionId,
+      message: error.message,
+      balance: 0
+    };
+  }
 }
 
   @Post('complete-transaction/:transactionId')

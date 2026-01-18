@@ -1,3 +1,4 @@
+import { t, Trans } from "@lingui/macro";
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
 import api from '@/client/api/axios';
@@ -8,6 +9,7 @@ import { Logo } from "@/client/components/logo";
 import { LocaleSwitch } from "@/client/components/locale-switch";
 import { ThemeSwitch } from "@/client/components/theme-switch";
 import { motion } from "framer-motion";
+import { Header } from "@/client/pages/home/components/header";
 
 interface SubscriptionDetails {
   planName: string;
@@ -61,26 +63,7 @@ interface InvoiceData {
 
 type InvoiceMode = 'view' | 'download' | 'html';
 
-const Header = () => (
-  <motion.header
-    className="fixed inset-x-0 top-0 z-50"
-    initial={{ opacity: 0, y: -50 }}
-    animate={{ opacity: 1, y: 0, transition: { delay: 0.3, duration: 0.3 } }}
-  >
-    <div className="backdrop-blur-md bg-white/10 border-b border-gray-300 shadow-md dark:bg-gray-900/10 dark:border-gray-700">
-      <div className="container mx-auto flex items-center justify-between px-6 py-4 sm:px-12">
-        <div className="flex items-center">
-          <Logo className="-ml-3" size={72} />
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <LocaleSwitch />
-          <ThemeSwitch />
-        </div>
-      </div>
-    </div>
-  </motion.header>
-);
+<Header />
 
 export const InvoicePage = () => {
   const { paymentId } = useParams();
@@ -93,12 +76,12 @@ export const InvoicePage = () => {
 
   // Company information
   const companyInfo = {
-    name: 'Cverra',
-    email: 'support@cverra.com',
+    name: 'Inlirah',
+    email: 'support@inlirah.com',
     phone: '+(237) 680-834-767',
     address: 'Bamenda, Northwest Region, Cameroon',
-    website: 'https://cverra.com',
-    description: 'Next-Gen Career Platform - Your Complete Career Success Suite'
+    website: 'https://Inlirah.com',
+    description: t`Next-Gen Career Platform - Your Complete Career Success Suite`
   };
 
   // Determine mode from URL
@@ -131,7 +114,7 @@ export const InvoicePage = () => {
         }
       } catch (error: any) {
         console.error('Failed to fetch invoice:', error);
-        toast.error('Failed to load invoice');
+        toast.error(t`Failed to load invoice`);
       } finally {
         setLoading(false);
       }
@@ -144,8 +127,8 @@ export const InvoicePage = () => {
 
   // Safe data access helper functions
   const getUserName = () => {
-    if (!invoice) return 'Customer';
-    return invoice.payment?.user?.name || user?.name || 'Customer';
+    if (!invoice) return t`Customer`;
+    return invoice.payment?.user?.name || user?.name || t`Customer`;
   };
 
   const getUserEmail = () => {
@@ -159,50 +142,105 @@ export const InvoicePage = () => {
   };
 
   const getPaymentMethod = () => {
-    if (!invoice || !invoice.payment) return '';
+  if (!invoice || !invoice.payment) return '';
+  
+  // Check multiple possible locations for payment method data
+  const metadata = invoice.payment.metadata;
+  
+  // Case 1: Detailed payment method object in metadata
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const paymentMethod = (metadata as any).paymentMethod;
     
-    // Check multiple possible locations for payment method data
-    const metadata = invoice.payment.metadata;
-    
-    // Case 1: Detailed payment method object in metadata
-    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
-      const paymentMethod = (metadata as any).paymentMethod;
-      
-      if (paymentMethod && typeof paymentMethod === 'object' && paymentMethod.displayName) {
-        let displayText = paymentMethod.displayName;
+    if (paymentMethod && typeof paymentMethod === 'object') {
+      // Check if there's a specific method type (like 'visa', 'mastercard', 'mtn', 'orange')
+      if (paymentMethod.method) {
+        const methodType = paymentMethod.method.toLowerCase();
         
-        if (paymentMethod.network) {
-          displayText += ` (${paymentMethod.network})`;
+        // Format based on method type
+        switch (methodType) {
+          case 'visa':
+          case 'mastercard':
+          case 'card':
+            const cardType = paymentMethod.method.toUpperCase();
+            const last4 = paymentMethod.accountNumber ? 
+              `**** ${paymentMethod.accountNumber.slice(-4)}` : '';
+            return `${cardType} ${last4}`.trim();
+            
+          case 'mtn':
+          case 'orange':
+          case 'mobile_money':
+            const network = paymentMethod.network || paymentMethod.method.toUpperCase();
+            const wallet = paymentMethod.mobileWallet || '';
+            const phone = paymentMethod.accountNumber || '';
+            return `${network} ${wallet} ${phone}`.trim();
+            
+          default:
+            if (paymentMethod.displayName) {
+              return paymentMethod.displayName;
+            }
+            return paymentMethod.method.toUpperCase();
         }
-        if (paymentMethod.mobileWallet) {
-          displayText += ` - ${paymentMethod.mobileWallet}`;
-        }
-        if (paymentMethod.accountNumber) {
-          displayText += ` - ${paymentMethod.accountNumber}`;
-        }
-        
-        return displayText;
       }
       
-      // Case 2: Simple payment method string in metadata
-      if (typeof paymentMethod === 'string') {
-        return paymentMethod;
+      // If no method but has displayName
+      if (paymentMethod.displayName) {
+        return paymentMethod.displayName;
       }
     }
     
-    // Case 3: Fallback to provider-based detection
-    const provider = invoice.payment.provider || '';
-    switch (provider.toUpperCase()) {
-      case 'TRANZAK':
-        return 'Mobile Money';
-      case 'STRIPE':
-        return 'Credit/Debit Card';
-      case 'MOCK':
-        return 'Test Payment';
-      default:
-        return provider;
+    // Case 2: Check for direct paymentMethod string
+    if ((metadata as any).paymentMethod && typeof (metadata as any).paymentMethod === 'string') {
+      return (metadata as any).paymentMethod;
     }
-  };
+  }
+  
+  // Case 3: Check if there's provider-specific metadata
+  // Tranzak often sends payment details in metadata.paymentMethod or metadata.method
+  if (metadata) {
+    const method = (metadata as any).method || (metadata as any).paymentMethodType;
+    if (method) {
+      const methodStr = method.toString().toLowerCase();
+      if (methodStr.includes('visa') || methodStr.includes('mastercard') || methodStr.includes('card')) {
+        return t`Credit/Debit Card`;
+      }
+      if (methodStr.includes('mtn') || methodStr.includes('orange') || methodStr.includes('mobile')) {
+        return t`Mobile Money`;
+      }
+      return method.toString();
+    }
+  }
+  
+  // Case 4: Fallback with provider detection (but more specific)
+  const provider = invoice.payment.provider || '';
+  const providerUpper = provider.toUpperCase();
+  
+  if (providerUpper.includes('TRANZAK')) {
+    // Don't assume mobile money for Tranzak - check if we have more info
+    if (invoice.payment.metadata) {
+      const meta = invoice.payment.metadata as any;
+      // Try to extract from metadata
+      if (meta.paymentMethod) {
+        if (typeof meta.paymentMethod === 'string') {
+          return meta.paymentMethod;
+        } else if (meta.paymentMethod.displayName) {
+          return meta.paymentMethod.displayName;
+        }
+      }
+    }
+    // Default to generic if no specifics found
+    return t`Payment via Tranzak`;
+  }
+  
+  if (providerUpper.includes('STRIPE')) {
+    return t`Credit/Debit Card`;
+  }
+  
+  if (providerUpper.includes('MOCK')) {
+    return t`Test Payment`;
+  }
+  
+  return provider || t`Unknown`;
+};
 
   const getStatus = () => {
     if (!invoice) return '';
@@ -230,23 +268,23 @@ export const InvoicePage = () => {
   };
 
   const getServiceDescription = () => {
-    if (!invoice) return 'Virtual Coins Package';
+    if (!invoice) return t`Virtual Coins Package`;
     
     if (invoice.isSubscription && invoice.subscriptionDetails) {
       return `${invoice.subscriptionDetails.planName} (${invoice.subscriptionDetails.interval})`;
     }
     
-    return `${invoice.coins.toLocaleString()} Career Coins`;
+    return `${invoice.coins.toLocaleString()} ${t`Career Coins`}`;
   };
 
   const getServiceDetails = () => {
-    if (!invoice) return 'Virtual currency for accessing premium career tools';
+    if (!invoice) return t`Virtual currency for accessing premium career tools`;
     
     if (invoice.isSubscription) {
-      return `Recurring subscription plan including ${invoice.coins.toLocaleString()} coins per ${invoice.subscriptionDetails?.interval.toLowerCase()} for AI resume builder, cover letter generator, and professional growth features`;
+      return t`Recurring subscription plan including ${invoice.coins.toLocaleString()} coins per ${invoice.subscriptionDetails?.interval.toLowerCase()} for AI resume builder, cover letter generator, and professional growth features`;
     }
     
-    return 'Virtual currency for accessing premium career tools, AI resume builder, cover letter generator, and professional growth features';
+    return t`Virtual currency for accessing premium career tools, AI resume builder, cover letter generator, and professional growth features`;
   };
 
   const getSubscriptionPeriod = () => {
@@ -264,27 +302,27 @@ export const InvoicePage = () => {
       day: 'numeric'
     });
     
-    return `Billing Period: ${startDate} - ${endDate}`;
+    return t`Billing Period: ${startDate} - ${endDate}`;
   };
 
   const getThankYouMessage = () => {
-    if (!invoice) return 'Thank you for your purchase!';
+    if (!invoice) return t`Thank you for your purchase!`;
     
     if (invoice.isSubscription) {
-      return 'Thank you for subscribing to Cverra!';
+      return t`Thank you for subscribing to Inlirah!`;
     }
     
-    return 'Thank you for investing in your career success!';
+    return t`Thank you for investing in your career success!`;
   };
 
   const getCoinsMessage = () => {
     if (!invoice) return '';
     
     if (invoice.isSubscription) {
-      return `Your ${invoice.coins.toLocaleString()} coins have been added and will renew automatically.`;
+      return t`Your ${invoice.coins.toLocaleString()} coins have been added and will renew automatically.`;
     }
     
-    return `Your ${invoice.coins.toLocaleString()} Career Coins are ready to use for premium features.`;
+    return t`Your ${invoice.coins.toLocaleString()} Career Coins are ready to use for premium features.`;
   };
 
   const downloadInvoice = async () => {
@@ -302,14 +340,14 @@ export const InvoicePage = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      toast.success('Invoice downloaded successfully');
+      toast.success(t`Invoice downloaded successfully`);
       
       if (mode === 'download') {
         navigate(`/payments/invoice/${paymentId}`);
       }
     } catch (error) {
       console.error('Failed to download invoice:', error);
-      toast.error('Failed to download invoice');
+      toast.error(t`Failed to download invoice`);
     }
   };
 
@@ -320,11 +358,11 @@ export const InvoicePage = () => {
   // HTML-only view (minimal UI for printing/export)
   if (mode === 'html') {
     if (loading) {
-      return <div>Loading invoice...</div>;
+      return <div>{t`Loading invoice...`}</div>;
     }
 
     if (!invoice) {
-      return <div>Invoice not found</div>;
+      return <div>{t`Invoice not found`}</div>;
     }
 
     return (
@@ -338,15 +376,15 @@ export const InvoicePage = () => {
                   <span className="text-white font-bold text-lg">C</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Cverra</h1>
-                  <p className="text-gray-600">Next-Gen Career Platform</p>
-                  <p className="text-sm text-gray-500">Your Complete Career Success Suite</p>
+                  <h1 className="text-2xl font-bold text-gray-900">{t`Inlirah`}</h1>
+                  <p className="text-gray-600">{t`Next-Gen Career Platform`}</p>
+                  <p className="text-sm text-gray-500">{t`Your Complete Career Success Suite`}</p>
                 </div>
               </div>
               <div className="text-right">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">INVOICE</h2>
-                <p className="text-gray-600">Transaction #{getTransactionId()}</p>
-                <p className="text-gray-600">Date: {getFormattedDate()}</p>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">{t`INVOICE`}</h2>
+                <p className="text-gray-600">{t`Transaction #${getTransactionId()}`}</p>
+                <p className="text-gray-600">{t`Date: ${getFormattedDate()}`}</p>
               </div>
             </div>
           </div>
@@ -354,17 +392,34 @@ export const InvoicePage = () => {
           {/* From/To Section */}
           <div className="grid grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">From:</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">{t`From:`}</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="font-semibold text-gray-900">{companyInfo.name}</p>
                 <p className="text-gray-600">{companyInfo.description}</p>
                 <p className="text-gray-600">{companyInfo.email}</p>
                 <p className="text-gray-600">{companyInfo.website}</p>
               </div>
-              <p className="text-sm text-gray-500 mt-2">Customer since: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+            
+                <p className="text-sm text-gray-500 mt-2">
+                  {t`Customer since:`} {invoice?.subscriptionDetails?.periodStart
+                    ? new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })
+                    : user?.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+                      : t`N/A`}
+                </p>
+
+                
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">To:</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">{t`To:`}</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="font-semibold text-gray-900">{getUserName()}</p>
                 <p className="text-gray-600">{getUserEmail()}</p>
@@ -375,14 +430,14 @@ export const InvoicePage = () => {
           {/* Service Details */}
           <div className="mb-8">
             <h3 className="font-semibold text-gray-900 mb-4 text-lg">
-              {invoice.isSubscription ? 'Subscription Details' : 'Service Details'}
+              {invoice.isSubscription ? t`Subscription Details` : t`Service Details`}
             </h3>
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Description</th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Amount</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">{t`Description`}</th>
+                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">{t`Amount`}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -396,16 +451,16 @@ export const InvoicePage = () => {
                         {invoice.isSubscription && invoice.subscriptionDetails && (
                           <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
                             <p className="text-sm text-blue-700 font-medium">
-                              Subscription Details:
+                              {t`Subscription Details:`}
                             </p>
                             <p className="text-sm text-blue-600 mt-1">
-                              • {invoice.coins.toLocaleString()} coins per {invoice.subscriptionDetails.interval.toLowerCase()}
+                              • {t`${invoice.coins.toLocaleString()} coins per ${invoice.subscriptionDetails.interval.toLowerCase()}`}
                             </p>
                             <p className="text-sm text-blue-600">
-                              • Billing period: {new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString()} - {new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString()}
+                              • {t`Billing period: ${new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString()} - ${new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString()}`}
                             </p>
                             <p className="text-sm text-blue-600">
-                              • {invoice.subscriptionDetails.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} recurring payment
+                              • {invoice.subscriptionDetails.interval === 'MONTHLY' ? t`Monthly` : t`Annual`} {t`recurring payment`}
                             </p>
                           </div>
                         )}
@@ -423,18 +478,18 @@ export const InvoicePage = () => {
           {/* Payment Summary */}
           <div className="grid grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4 text-lg">Payment Summary</h3>
+              <h3 className="font-semibold text-gray-900 mb-4 text-lg">{t`Payment Summary`}</h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Service Price:</span>
+                  <span className="text-gray-600">{t`Service Price:`}</span>
                   <span className="text-gray-900">{invoice.currency} {invoice.amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tax:</span>
+                  <span className="text-gray-600">{t`Tax:`}</span>
                   <span className="text-gray-900">$0.00</span>
                 </div>
                 <div className="flex justify-between border-t border-gray-300 pt-2">
-                  <span className="font-semibold text-gray-900">Total:</span>
+                  <span className="font-semibold text-gray-900">{t`Total:`}</span>
                   <span className="font-semibold text-gray-900">{invoice.currency} {invoice.amount.toFixed(2)}</span>
                 </div>
               </div>
@@ -446,46 +501,46 @@ export const InvoicePage = () => {
                 <div className="w-32 h-32 bg-white flex items-center justify-center border border-gray-300">
                   <QrCodeIcon className="h-16 w-16 text-gray-400" />
                 </div>
-                <p className="text-center text-sm text-gray-600 mt-2">Scan to verify</p>
+                <p className="text-center text-sm text-gray-600 mt-2">{t`Scan to verify`}</p>
               </div>
             </div>
           </div>
 
           {/* Transaction Details */}
           <div className="bg-gray-50 p-6 rounded-lg mb-6">
-            <h3 className="font-semibold text-gray-900 mb-4 text-lg">Transaction Details</h3>
+            <h3 className="font-semibold text-gray-900 mb-4 text-lg">{t`Transaction Details`}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600">Transaction ID:</p>
+                <p className="text-sm text-gray-600">{t`Transaction ID:`}</p>
                 <p className="font-semibold text-gray-900">{getTransactionId()}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Payment Date:</p>
+                <p className="text-sm text-gray-600">{t`Payment Date:`}</p>
                 <p className="font-semibold text-gray-900">{getFormattedDateTime()}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Payment Method:</p>
+                <p className="text-sm text-gray-600">{t`Payment Method:`}</p>
                 <p className="font-semibold text-gray-900">{getPaymentMethod()}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Status:</p>
+                <p className="text-sm text-gray-600">{t`Status:`}</p>
                 <p className={`font-semibold ${
                   getStatus() === 'SUCCESS' ? 'text-green-600' : 'text-yellow-600'
                 }`}>
-                  {getStatus() === 'SUCCESS' ? 'Completed' : getStatus()}
+                  {getStatus() === 'SUCCESS' ? t`Completed` : getStatus()}
                 </p>
               </div>
               {invoice.isSubscription && (
                 <>
                   <div className="col-span-2">
-                    <p className="text-sm text-gray-600">Subscription Type:</p>
+                    <p className="text-sm text-gray-600">{t`Subscription Type:`}</p>
                     <p className="font-semibold text-blue-600">
-                      Recurring {invoice.subscriptionDetails?.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} Billing
+                      {t`Recurring ${invoice.subscriptionDetails?.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} Billing`}
                     </p>
                   </div>
                   {invoice.subscriptionDetails && (
                     <div className="col-span-2">
-                      <p className="text-sm text-gray-600">Next Billing Date:</p>
+                      <p className="text-sm text-gray-600">{t`Next Billing Date:`}</p>
                       <p className="font-semibold text-gray-900">
                         {new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -509,14 +564,14 @@ export const InvoicePage = () => {
               {getCoinsMessage()}
             </p>
             <p className="text-gray-600 mt-2">
-              Need help? Contact support: {companyInfo.email}
+              {t`Need help? Contact support:`} {companyInfo.email}
             </p>
           </div>
 
           {/* Footer */}
           <div className="border-t border-gray-300 pt-6 text-center">
             <p className="text-sm text-gray-500">
-              Invoice generated on {getFormattedDateTime()}
+              {t`Invoice generated on ${getFormattedDateTime()}`}
             </p>
           </div>
         </div>
@@ -533,10 +588,10 @@ export const InvoicePage = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Loading Invoice...
+              {t`Loading Invoice...`}
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Please wait while we load your invoice details.
+              {t`Please wait while we load your invoice details.`}
             </p>
           </div>
         </div>
@@ -551,16 +606,16 @@ export const InvoicePage = () => {
         <div className="pt-24 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Invoice Not Found
+              {t`Invoice Not Found`}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              The requested invoice could not be found.
+              {t`The requested invoice could not be found.`}
             </p>
             <button
               onClick={() => navigate('/dashboard')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
             >
-              Go to Dashboard
+              {t`Go to Dashboard`}
             </button>
           </div>
         </div>
@@ -578,7 +633,7 @@ export const InvoicePage = () => {
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-3">
               <DocumentTextIcon className="h-8 w-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Invoice</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t`Invoice`}</h1>
             </div>
             <div className="flex gap-3">
               <button
@@ -586,21 +641,21 @@ export const InvoicePage = () => {
                 className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
-                Download PDF
+                {t`Download PDF`}
               </button>
               <button
                 onClick={printInvoice}
                 className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <DocumentTextIcon className="h-5 w-5" />
-                Print
+                {t`Print`}
               </button>
               <button
                 onClick={() => navigate('/dashboard')}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <HomeIcon className="h-5 w-5" />
-                Dashboard
+                {t`Dashboard`}
               </button>
             </div>
           </div>
@@ -613,15 +668,15 @@ export const InvoicePage = () => {
                 <div className="flex items-center space-x-4">
                   <Logo className="text-white" size={48} />
                   <div>
-                    <h2 className="text-2xl font-bold">Cverra</h2>
-                    <p className="text-blue-100">Next-Gen Career Platform</p>
-                    <p className="text-blue-100 text-sm">Your Complete Career Success Suite</p>
+                    <h2 className="text-2xl font-bold">{t`Inlirah`}</h2>
+                    <p className="text-blue-100">{t`Next-Gen Career Platform`}</p>
+                    <p className="text-blue-100 text-sm">{t`Your Complete Career Success Suite`}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-bold">{invoice.invoiceNumber}</p>
-                  <p className="text-blue-100">Transaction #{getTransactionId()}</p>
-                  <p className="text-blue-100">Date: {getFormattedDate()}</p>
+                  <p className="text-blue-100">{t`Transaction #${getTransactionId()}`}</p>
+                  <p className="text-blue-100">{t`Date: ${getFormattedDate()}`}</p>
                 </div>
               </div>
             </div>
@@ -631,19 +686,31 @@ export const InvoicePage = () => {
               {/* From/To Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">From:</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t`From:`}</h3>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                     <p className="font-semibold text-gray-900 dark:text-white">{companyInfo.name}</p>
                     <p className="text-gray-600 dark:text-gray-300">{companyInfo.description}</p>
                     <p className="text-gray-600 dark:text-gray-300">{companyInfo.email}</p>
                     <p className="text-gray-600 dark:text-gray-300">{companyInfo.website}</p>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Customer since: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  <p className="text-sm text-gray-500 mt-2">
+                    {t`Customer since:`} {invoice?.subscriptionDetails?.periodStart
+                      ? new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+                      : user?.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })
+                        : t`N/A`}
                   </p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">To:</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t`To:`}</h3>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                     <p className="font-semibold text-gray-900 dark:text-white">{getUserName()}</p>
                     <p className="text-gray-600 dark:text-gray-300">{getUserEmail()}</p>
@@ -654,14 +721,14 @@ export const InvoicePage = () => {
               {/* Service Details */}
               <div className="mb-8">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">
-                  {invoice.isSubscription ? 'Subscription Details' : 'Service Details'}
+                  {invoice.isSubscription ? t`Subscription Details` : t`Service Details`}
                 </h3>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Description</th>
-                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">Amount</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t`Description`}</th>
+                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">{t`Amount`}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -675,16 +742,16 @@ export const InvoicePage = () => {
                             {invoice.isSubscription && invoice.subscriptionDetails && (
                               <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
                                 <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                                  Subscription Details:
+                                  {t`Subscription Details:`}
                                 </p>
                                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                                  • {invoice.coins.toLocaleString()} coins per {invoice.subscriptionDetails.interval.toLowerCase()}
+                                  • {t`${invoice.coins.toLocaleString()} coins per ${invoice.subscriptionDetails.interval.toLowerCase()}`}
                                 </p>
                                 <p className="text-sm text-blue-600 dark:text-blue-400">
-                                  • Billing period: {new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString()} - {new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString()}
+                                  • {t`Billing period: ${new Date(invoice.subscriptionDetails.periodStart).toLocaleDateString()} - ${new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString()}`}
                                 </p>
                                 <p className="text-sm text-blue-600 dark:text-blue-400">
-                                  • {invoice.subscriptionDetails.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} recurring payment
+                                  • {invoice.subscriptionDetails.interval === 'MONTHLY' ? t`Monthly` : t`Annual`} {t`recurring payment`}
                                 </p>
                               </div>
                             )}
@@ -702,18 +769,18 @@ export const InvoicePage = () => {
               {/* Payment Summary & QR Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">Payment Summary</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">{t`Payment Summary`}</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Service Price:</span>
+                      <span className="text-gray-600 dark:text-gray-400">{t`Service Price:`}</span>
                       <span className="text-gray-900 dark:text-white">{invoice.currency} {invoice.amount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Tax:</span>
+                      <span className="text-gray-600 dark:text-gray-400">{t`Tax:`}</span>
                       <span className="text-gray-900 dark:text-white">$0.00</span>
                     </div>
                     <div className="flex justify-between border-t border-gray-300 dark:border-gray-600 pt-3">
-                      <span className="font-semibold text-lg text-gray-900 dark:text-white">Total:</span>
+                      <span className="font-semibold text-lg text-gray-900 dark:text-white">{t`Total:`}</span>
                       <span className="font-semibold text-lg text-gray-900 dark:text-white">{invoice.currency} {invoice.amount.toFixed(2)}</span>
                     </div>
                   </div>
@@ -726,7 +793,7 @@ export const InvoicePage = () => {
                       <QrCodeIcon className="h-20 w-20 text-gray-400 dark:text-gray-300" />
                     </div>
                     <p className="text-center text-sm text-gray-600 dark:text-gray-300 mt-3">
-                      Scan to verify transaction
+                      {t`Scan to verify transaction`}
                     </p>
                   </div>
                 </div>
@@ -734,39 +801,39 @@ export const InvoicePage = () => {
 
               {/* Transaction Details */}
               <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-6">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">Transaction Details</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">{t`Transaction Details`}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Transaction ID:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{t`Transaction ID:`}</p>
                     <p className="font-semibold text-gray-900 dark:text-white">{getTransactionId()}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Payment Date:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{t`Payment Date:`}</p>
                     <p className="font-semibold text-gray-900 dark:text-white">{getFormattedDateTime()}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Payment Method:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{t`Payment Method:`}</p>
                     <p className="font-semibold text-gray-900 dark:text-white">{getPaymentMethod()}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Status:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{t`Status:`}</p>
                     <p className={`font-semibold ${
                       getStatus() === 'SUCCESS' ? 'text-green-600' : 'text-yellow-600'
                     }`}>
-                      {getStatus() === 'SUCCESS' ? 'Completed' : getStatus()}
+                      {getStatus() === 'SUCCESS' ? t`Completed` : getStatus()}
                     </p>
                   </div>
                   {invoice.isSubscription && (
                     <>
                       <div className="md:col-span-2">
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Subscription Type:</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{t`Subscription Type:`}</p>
                         <p className="font-semibold text-blue-600 dark:text-blue-400">
-                          Recurring {invoice.subscriptionDetails?.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} Billing
+                          {t`Recurring ${invoice.subscriptionDetails?.interval === 'MONTHLY' ? 'Monthly' : 'Annual'} Billing`}
                         </p>
                       </div>
                       {invoice.subscriptionDetails && (
                         <div className="md:col-span-2">
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Next Billing Date:</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{t`Next Billing Date:`}</p>
                           <p className="font-semibold text-gray-900 dark:text-white">
                             {new Date(invoice.subscriptionDetails.periodEnd).toLocaleDateString('en-US', {
                               year: 'numeric',
@@ -790,7 +857,7 @@ export const InvoicePage = () => {
                   {getCoinsMessage()}
                 </p>
                 <p className="text-gray-600 dark:text-gray-300 mt-2">
-                  Need help? Contact support: {companyInfo.email}
+                  {t`Need help? Contact support:`} {companyInfo.email}
                 </p>
               </div>
 
@@ -802,13 +869,13 @@ export const InvoicePage = () => {
                   rel="noopener noreferrer"
                   className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                 >
-                  Open in new tab
+                  {t`Open in new tab`}
                 </a>
                 <button
-                  onClick={() => navigate('/subscriptions')}
+                  onClick={() => navigate('/dashboard/pricing')}
                   className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                 >
-                  {invoice.isSubscription ? 'Manage Subscription' : 'Buy more coins'}
+                  {invoice.isSubscription ? t`Manage Subscription` : t`Buy more coins`}
                 </button>
               </div>
             </div>
@@ -817,7 +884,7 @@ export const InvoicePage = () => {
           {/* Footer Note */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Invoice generated on {getFormattedDateTime()}
+              {t`Invoice generated on ${getFormattedDateTime()}`}
             </p>
           </div>
         </div>

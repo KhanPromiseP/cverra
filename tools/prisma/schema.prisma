@@ -26,6 +26,47 @@ enum Role {
   SUPER_ADMIN
 }
 
+enum AIBuilderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AIBuilderSource {
+  TEXT
+  PDF
+  DOC
+  LINKEDIN
+}
+
+
+// Add to enums
+enum ContactSubject {
+  SUPPORT
+  BILLING
+  FEEDBACK
+  BUSINESS
+  OTHER
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  RESPONDED
+  CLOSED
+}
+
+
+enum CategoryTranslationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+
+
 // Update User model to include role AND article relations
 model User {
   id               String   @id @default(cuid())
@@ -36,7 +77,7 @@ model User {
   locale           String   @default("en-US")
   emailVerified    Boolean  @default(false)
   twoFactorEnabled Boolean  @default(false)
-  role             Role     @default(USER) // Add this line
+  role             Role     @default(USER)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   provider         Provider
@@ -67,6 +108,17 @@ model User {
   PremiumAccess          PremiumAccess[]
   Notification           Notification[]
   Achievement            Achievement[]
+
+  // ========== NOTIFICATION RELATIONS ==========
+  sentNotifications    Notification[]            @relation("NotificationActor")
+  notificationSettings UserNotificationSettings?
+
+  resumeBuilderJobs ResumeBuilderJob[]
+
+
+  // ========== CONTACT RELATIONS ==========
+  contacts Contact[]
+  
 }
 
 model Secrets {
@@ -84,11 +136,119 @@ model Secrets {
   @@unique([userId, id])
 }
 
+
+// Add to models
+model Contact {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  subject   ContactSubject
+  message   String        @db.Text
+  status    ContactStatus @default(NEW)
+  
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  ipAddress String?
+  userAgent String?
+  metadata  Json?         @default("{}")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  respondedAt DateTime?
+  
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([subject])
+  
+  @@map("contacts")
+}
+
+model ResumeBuilderJob {
+  id String @id @default(cuid())
+
+  // User information
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Job tracking
+  requestId      String          @unique
+  sourceType     AIBuilderSource
+  textLength     Int?
+  characterCount Int?
+
+  // AI Configuration
+  aiModel            String?
+  enhanceWithAI      Boolean @default(true)
+  includeSuggestions Boolean @default(true)
+  targetTemplate     String?
+
+  // Cost and payment
+  cost          Int     @default(0)
+  coinsDeducted Int?
+  transactionId String?
+
+  // Status and results
+  status       AIBuilderStatus @default(PENDING)
+  errorMessage String?
+  confidence   Float? // 0-1 confidence score
+  needsReview  Boolean         @default(true)
+
+  // Extracted sections
+  extractedBasics    Boolean @default(false)
+  extractedWork      Boolean @default(false)
+  extractedEducation Boolean @default(false)
+  extractedSkills    Boolean @default(false)
+  extractedProjects  Boolean @default(false)
+
+  // Result resume
+  resultResumeId String?
+  resultResume   Resume? @relation("AIBuilderResult", fields: [resultResumeId], references: [id])
+
+  // Metadata
+  metadata Json?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Indexes
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceType])
+  @@map("resume_builder_jobs")
+}
+
+model ResumeBuilderCost {
+  id          String  @id @default(cuid())
+  action      String  @unique // e.g., "text_extraction", "ai_building", "pdf_processing"
+  baseCost    Int     @default(0)
+  minCost     Int     @default(0)
+  maxCost     Int     @default(100)
+  description String?
+  isActive    Boolean @default(true)
+
+  // Additional configuration
+  dependsOnLength  Boolean @default(false) // Whether cost depends on text length
+  lengthMultiplier Float? // Multiplier per character/word
+  lengthThresholds Json? // Different costs for different lengths
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("resume_builder_costs")
+}
+
+// Update CoverLetter model
 model CoverLetter {
   id         String           @id @default(cuid())
   title      String
   slug       String
-  content    Json // Stores all blocks and layout
+  content    Json
   style      CoverLetterStyle @default(Modern)
   visibility Visibility       @default(private)
   userId     String
@@ -98,9 +258,21 @@ model CoverLetter {
   isPublic   Boolean          @default(false)
   layout     String?
 
+  // Translation support
+  language     String        @default("en") // Language code
+  originalId   String? // Points to original letter if this is a translation
+  translations CoverLetter[] @relation("TranslationVersions")
+  parent       CoverLetter?  @relation("TranslationVersions", fields: [originalId], references: [id])
+
+  // Translation metadata in content
+  // content should have: {..., translationInfo: {originalLanguage: "en", translatedFrom: "letter-123"}}
+
   @@unique([userId, id])
   @@unique([userId, slug])
-  @@index(fields: [userId])
+  @@unique([userId, slug, language]) // Ensure unique slug per language
+  @@index([userId])
+  @@index([originalId])
+  @@index([language])
 }
 
 enum CoverLetterStyle {
@@ -129,12 +301,14 @@ model Resume {
   updatedAt  DateTime    @updatedAt
 
   // Translation relations
-  ResumeTranslation    ResumeTranslation[]
-  ResumeTranslationJob ResumeTranslationJob[]
+  ResumeTranslation ResumeTranslation[]
 
   // NEW: Relations for translation records
   originalTranslations ResumeTranslationRecord[] @relation("OriginalResume")
   translatedCopies     ResumeTranslationRecord[] @relation("TranslatedResume")
+
+  aiBuilderJobs        ResumeBuilderJob[]     @relation("AIBuilderResult")
+  ResumeTranslationJob ResumeTranslationJob[]
 
   @@unique([userId, id])
   @@unique([userId, slug])
@@ -191,6 +365,7 @@ enum TransactionSource {
   BONUS
   MANUAL_ADJUSTMENT
   SYSTEM
+  AI_BUILDER
 }
 
 enum TransactionType {
@@ -303,6 +478,7 @@ enum UsageAction {
   AI_RESUME_ENHANCEMENT
   AI_LETTER_GENERATION
   TEMPLATE_PREMIUM
+  AI_RESUME_BUILDER
 }
 
 // ========== ARTICLE SYSTEM ==========
@@ -328,28 +504,92 @@ enum TranslationStatus {
   FAILED
 }
 
-// Dynamic categories managed from admin panel
+// Dynamic categories managed from admin panel with auto ai translation
 model ArticleCategory {
   id           String  @id @default(cuid())
   name         String
   slug         String  @unique
   description  String?
-  icon         String? // Icon name or URL
-  color        String? // Hex color for UI
-  order        Int     @default(0) // For sorting in UI
+  icon         String?
+  color        String?
+  order        Int     @default(0)
   isActive     Boolean @default(true)
   articleCount Int     @default(0)
 
-  articles Article[]
+  // Translation fields
+  autoTranslate      Boolean  @default(true)
+  targetLanguages    String[] @default(["fr", "es", "de"])
+  availableLanguages String[] @default(["en"])
 
-  // Many-to-many with UserReadingProfile
-  favoredBy UserReadingProfile[]
+  // Relations
+  articles         Article[]
+  favoredBy        UserReadingProfile[]
+  translations     CategoryTranslation[]
+  translationJobs  CategoryTranslationJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([order])
+}
+
+// Add Category Translation model
+model CategoryTranslation {
+  id        String                 @id @default(cuid())
+  category  ArticleCategory        @relation(fields: [categoryId], references: [id])
+  categoryId String
+  language  String // ISO code: "fr", "es", "de", etc.
+
+  // Translated fields
+  name        String
+  description String?
+  slug        String // Translated slug
+
+  // Translation metadata
+  status       CategoryTranslationStatus @default(COMPLETED)
+  translatedBy String                    @default("AI")
+  aiModel      String?
+  confidence   Float                     @default(0.95)
+  attemptCount Int                       @default(0)
+
+  // Quality control
+  needsReview  Boolean   @default(false)
+  qualityScore Int?      // 1-5 score
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, language])
+  @@index([categoryId])
+  @@index([language])
+  @@index([status])
+}
+
+// Add Category Translation Job model
+model CategoryTranslationJob {
+  id             String                   @id @default(cuid())
+  category       ArticleCategory          @relation(fields: [categoryId], references: [id])
+  categoryId     String
+  targetLanguage String
+  status         CategoryTranslationStatus @default(PENDING)
+  priority       Int                       @default(1)
+  attemptCount   Int                       @default(0)
+  errorMessage   String?
+
+  // AI settings
+  aiModel  String  @default("llama-3.3-70b-versatile")
+  useCache Boolean @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@unique([categoryId, targetLanguage])
+  @@index([categoryId])
+  @@index([status])
+  @@index([priority])
 }
 
 // Main article model - optimized for engagement
@@ -391,11 +631,11 @@ model Article {
   isEditorPick Boolean       @default(false)
   isPopular    Boolean       @default(false)
 
-  featuredRanking  Int      @default(3)
-  trendingScore    Int      @default(50)
-  contentType      String   @default("STANDARD")
-  readingLevel     String   @default("INTERMEDIATE")
-  timeToRead       Int      @default(5)
+  featuredRanking Int    @default(3)
+  trendingScore   Int    @default(50)
+  contentType     String @default("STANDARD")
+  readingLevel    String @default("INTERMEDIATE")
+  timeToRead      Int    @default(5)
 
   // Engagement Metrics (Updated in real-time)
   viewCount       Int @default(0)
@@ -444,23 +684,94 @@ model Article {
   @@index([accessType])
 }
 
+// Add to your schema.prisma - Update Notification model
+enum NotificationType {
+  LIKE
+  COMMENT
+  REPLY
+  ACHIEVEMENT
+  PREMIUM
+  SYSTEM
+  RECOMMENDATION
+  DIGEST
+  READING_MILESTONE
+  ARTICLE_PUBLISHED
+  COMMENT_REPLY
+  MENTION
+}
+
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  type      String // 'ARTICLE_PUBLISHED', 'COMMENT_REPLY', 'SYSTEM', etc.
-  title     String
-  message   String
-  data      Json?
-  read      Boolean   @default(false)
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id String @id @default(cuid())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // User who receives the notification
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Notification details
+  type    NotificationType
+  title   String
+  message String
+
+  // Actor (who triggered the notification)
+  actorId String?
+  actor   User?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  // Target (what the notification is about)
+  targetType  String? // 'ARTICLE', 'COMMENT', 'USER', 'ACHIEVEMENT'
+  targetId    String?
+  targetTitle String? // For quick display
+  targetSlug  String? // For navigation
+
+  // Additional data
+  metadata Json @default("{}")
+
+  // Read status
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes
   @@index([userId])
-  @@index([read])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@index([type])
   @@index([createdAt])
+}
+
+// Add this model for notification preferences
+model UserNotificationSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Email preferences
+  emailArticleLikes        Boolean @default(true)
+  emailArticleComments     Boolean @default(true)
+  emailCommentReplies      Boolean @default(true)
+  emailAchievements        Boolean @default(true)
+  emailReadingDigest       Boolean @default(true)
+  emailRecommendations     Boolean @default(true)
+  emailSystemAnnouncements Boolean @default(true)
+
+  // Push notification preferences
+  pushArticleLikes      Boolean @default(true)
+  pushArticleComments   Boolean @default(true)
+  pushCommentReplies    Boolean @default(true)
+  pushAchievements      Boolean @default(true)
+  pushReadingMilestones Boolean @default(true)
+
+  // Digest frequency
+  digestFrequency String @default("WEEKLY") // DAILY, WEEKLY, MONTHLY, NEVER
+
+  // Quiet hours
+  quietStartHour Int @default(22) // 10 PM
+  quietEndHour   Int @default(7) // 7 AM
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // PremiumAccess model (optional but recommended for tracking)
@@ -730,10 +1041,11 @@ model UserReadingProfile {
   favoriteTags       String[]          @default([])
 
   // Reading habits
-  averageReadingTime   Int       @default(0) // seconds
-  preferredReadingTime String? // "morning", "afternoon", "evening"
-  readingStreak        Int       @default(0) // consecutive days
-  lastReadAt           DateTime?
+  averageReadingTime        Int       @default(0) // seconds
+  preferredReadingTimeOfDay String? // "morning", "afternoon", "evening" - RENAMED
+  preferredSessionDuration  Int? // minutes - NEW FIELD for session length
+  readingStreak             Int       @default(0) // consecutive days
+  lastReadAt                DateTime?
 
   // Content preferences
   preferredContentType String? // "articles", "guides", "videos"

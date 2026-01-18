@@ -59,7 +59,7 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-3">
       <Helmet>
         <title>
           {t`Create your account`} - {t`Cverra`}
@@ -72,12 +72,8 @@ export const RegisterPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-3 text-center"
       >
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full text-sm font-semibold mb-2">
-          <Rocket className="w-4 h-4" weight="fill" />
-          {t`Start Your Journey`}
-        </div>
         
-        <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+        <h2 className="mt-4 text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
           {t`Create your account`}
         </h2>
         
@@ -85,7 +81,7 @@ export const RegisterPage = () => {
           {t`Join thousands of professionals advancing their careers with Cverra`}
         </p>
 
-        <div className="pt-4">
+        <div className="pt-2">
           <h6 className="text-gray-500 dark:text-gray-400">
             <span>{t`Already have an account?`}</span>
             <Button asChild variant="link" className="px-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold group">
@@ -120,7 +116,7 @@ export const RegisterPage = () => {
         <Form {...form}>
           <form
             ref={formRef}
-            className="flex flex-col gap-y-6"
+            className="flex flex-col gap-y-2"
             onSubmit={form.handleSubmit(onSubmit)}
           >
             {/* Name Field */}
@@ -137,10 +133,10 @@ export const RegisterPage = () => {
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
                         placeholder={t({
-                          message: "John Doe",
+                          message: "Khan Pro",
                           context: "Localized version of a placeholder name.",
                         })}
-                        className="pl-11 pr-4 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
+                        className="pl-11 pr-4 py-2 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
                         {...field}
                       />
                     </div>
@@ -163,9 +159,9 @@ export const RegisterPage = () => {
                     <div className="relative">
                       <At className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
-                        className="lowercase pl-11 pr-4 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
+                        className="lowercase pl-11 pr-4 py-2 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
                         placeholder={t({
-                          message: "john.doe",
+                          message: "Khan.Pro",
                           context: "Localized version of a placeholder username.",
                         })}
                         {...field}
@@ -190,9 +186,9 @@ export const RegisterPage = () => {
                     <div className="relative">
                       <Envelope className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
-                        className="lowercase pl-11 pr-4 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
+                        className="lowercase pl-11 pr-4 py-2 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
                         placeholder={t({
-                          message: "john.doe@example.com",
+                          message: "khan@example.com",
                           context: "Localized version of a placeholder email.",
                         })}
                         {...field}
@@ -218,7 +214,7 @@ export const RegisterPage = () => {
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
                         type={showPassword ? "text" : "password"}
-                        className="pl-11 pr-11 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
+                        className="pl-11 pr-11 py-2 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
                         placeholder="Create a strong password"
                         {...field}
                       />
@@ -254,15 +250,15 @@ export const RegisterPage = () => {
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 text-base"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 text-base"
               >
                 {loading ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     {t`Creating account...`}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Rocket className="w-4 h-4" weight="fill" />
                     {t`Create Your Account`}
                   </div>
@@ -278,7 +274,7 @@ export const RegisterPage = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-center pt-6 border-t border-gray-200 dark:border-gray-700"
+        className="text-center pt-3 border-t border-gray-200 dark:border-gray-700"
       >
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {t`By creating an account, you agree to our`}{" "}

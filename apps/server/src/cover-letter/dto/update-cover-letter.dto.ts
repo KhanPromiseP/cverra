@@ -16,5 +16,21 @@ export class UpdateCoverLetterDto {
 
   @IsOptional()
   @IsString()
-  layout?: string; 
+  layout?: string;
+
+  @IsOptional()
+  @IsObject()
+  structure?: any;
+
+  @IsOptional()
+  @IsObject()
+  userData?: any;
+
+  @IsOptional()
+  @IsObject()
+  jobData?: any;
+
+  @IsOptional()
+  @IsString()
+  updatedAt?: string;
 }

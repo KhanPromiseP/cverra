@@ -1,7 +1,7 @@
+import { t, Trans } from "@lingui/macro";
 import { useState, useEffect } from 'react';
 import { Button } from '@reactive-resume/ui';
 import { Layout, Check, Star, Eye, Download, RefreshCw, Wifi, Info, X, MapPin, Calendar, User, Building, Mail, Phone } from "lucide-react"; 
-import { t } from "@lingui/macro";
 
 import { useCoverLetterStore } from "../../../../../stores/cover-letter";
 import { coverLetterService } from "@/client/services/cover-letter.service";
@@ -49,7 +49,7 @@ export const TemplateSection = () => {
   const [previewTemplate, setPreviewTemplate] = useState<CoverLetterTemplate | null>(null);
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>([]);
 
-  const currentCoverLetterCategory = coverLetter?.content?.category || 'Job Application';
+  const currentCoverLetterCategory = coverLetter?.content?.category || t`Job Application`;
 
   useEffect(() => {
     const loadTemplates = async () => {
@@ -64,8 +64,8 @@ export const TemplateSection = () => {
         
         setTemplates(transformedTemplates);
       } catch (error) {
-        console.error('Failed to load templates:', error);
-        toast.error('Failed to load templates');
+        console.error(t`Failed to load templates:`, error);
+        toast.error(t`Failed to load templates`);
         setTemplates([]);
       } finally {
         setIsLoading(false);
@@ -82,7 +82,7 @@ export const TemplateSection = () => {
 
   const handleTemplateSelect = async (template: CoverLetterTemplate) => {
     if (!coverLetter?.id) {
-      toast.error('Please save your cover letter first');
+      toast.error(t`Please save your cover letter first`);
       return;
     }
     
@@ -116,10 +116,10 @@ export const TemplateSection = () => {
         });
       }
       
-      toast.success(`Applied ${template.name} template`);
+      toast.success(t`Applied ${template.name} template`);
     } catch (error) {
-      console.error('Failed to apply template:', error);
-      toast.error('Failed to apply template');
+      console.error(t`Failed to apply template:`, error);
+      toast.error(t`Failed to apply template`);
     } finally {
       setIsApplying(false);
     }
@@ -269,21 +269,21 @@ export const TemplateSection = () => {
                       }}
                     >
                       <div className="font-bold text-gray-900 dark:text-white text-lg">
-                        John Doe
+                        {t`John Doe`}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400 mt-2 space-y-1 text-sm">
                         <div className={`flex items-center gap-2 ${structure.contactInfoPosition === 'center' ? 'justify-center' : structure.contactInfoPosition === 'right' ? 'justify-end' : 'justify-start'}`}>
                       
-                          <span>john.doe@email.com</span>
+                          <span>{t`john.doe@email.com`}</span>
                         </div>
                         <div className={`flex items-center gap-2 ${structure.contactInfoPosition === 'center' ? 'justify-center' : structure.contactInfoPosition === 'right' ? 'justify-end' : 'justify-start'}`}>
                        
-                          <span>(555) 123-4567</span>
+                          <span>{t`(555) 123-4567`}</span>
                         </div>
                         {structure.includeAddress && (
                           <div className={`flex items-center gap-2 ${structure.contactInfoPosition === 'center' ? 'justify-center' : structure.contactInfoPosition === 'right' ? 'justify-end' : 'justify-start'}`}>
                      
-                            <span>123 Main St, City, State 1</span>
+                            <span>{t`123 Main St, City, State 1`}</span>
                           </div>
                         )}
                       </div>
@@ -317,16 +317,16 @@ export const TemplateSection = () => {
                   >
                     <div className="space-y-2 text-sm">
                       <div className="font-medium text-gray-900 dark:text-white">
-                        Hiring Manager
+                        {t`Hiring Manager`}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400">
-                        Acme Corporation
+                        {t`Acme Corporation`}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400">
-                        123 Business Ave,
+                        {t`123 Business Ave,`}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400">
-                        New York, NY 10001
+                        {t`New York, NY 10001`}
                       </div>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ export const TemplateSection = () => {
                     }}
                   >
                     <div className="font-semibold text-gray-900 dark:text-white">
-                      Subject: Application for Senior Software Engineer Position
+                      {t`Subject: Application for Senior Software Engineer Position`}
                     </div>
                   </div>
                 )}
@@ -356,7 +356,7 @@ export const TemplateSection = () => {
                   }}
                 >
                   <div className="text-gray-700 dark:text-gray-300">
-                    Dear Hiring Manager,
+                    {t`Dear Hiring Manager,`}
                   </div>
                 </div>
 
@@ -374,16 +374,14 @@ export const TemplateSection = () => {
                         marginBottom: getParagraphSpacing(structure.paragraphSpacing),
                       }}
                     >
-                      This is a sample paragraph demonstrating the {structure.paragraphSpacing} spacing 
-                      and {structure.lineHeight || 'normal'} line height of the {previewTemplate.name} template. 
-                      The content would be replaced with your actual cover letter text when generated.
+                      {t`This is a sample paragraph demonstrating the ${structure.paragraphSpacing} spacing and ${structure.lineHeight || 'normal'} line height of the ${previewTemplate.name} template. The content would be replaced with your actual cover letter text when generated.`}
                     </div>
                   ))}
                 </div>
 
                 {/* Closing */}
                 <div className="mb-4 text-gray-700 dark:text-gray-300">
-                  Sincerely,
+                  {t`Sincerely,`}
                 </div>
 
                 {/* Signature */}
@@ -394,13 +392,10 @@ export const TemplateSection = () => {
                     marginTop: getMarginSize(structure.marginSize)
                   }}
                 >
-                  <div className="font-medium text-gray-900 dark:text-white">John Doe</div>
+                  <div className="font-medium text-gray-900 dark:text-white">{t`John Doe`}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Senior Software Engineer
+                    {t`Senior Software Engineer`}
                   </div>
-                  {/* <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                    Acme Corporation • (555) 123-4567
-                  </div> */}
                 </div>
               </div>
             </div>
@@ -410,29 +405,29 @@ export const TemplateSection = () => {
               <div className="space-y-4">
                 <h4 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  Template Features
+                  {t`Template Features`}
                 </h4>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                    <span className="text-gray-600 dark:text-gray-400">Category</span>
+                    <span className="text-gray-600 dark:text-gray-400">{t`Category`}</span>
                     <span className="font-medium capitalize">{previewTemplate.category}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                    <span className="text-gray-600 dark:text-gray-400">Style</span>
+                    <span className="text-gray-600 dark:text-gray-400">{t`Style`}</span>
                     <span className="font-medium capitalize">{previewTemplate.style}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                    <span className="text-gray-600 dark:text-gray-400">Premium</span>
+                    <span className="text-gray-600 dark:text-gray-400">{t`Premium`}</span>
                     <span className={`font-medium ${previewTemplate.premium ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {previewTemplate.premium ? 'Premium' : 'Free'}
+                      {previewTemplate.premium ? t`Premium` : t`Free`}
                     </span>
                   </div>
                   {previewTemplate.recommendedFor && (
   <div className="space-y-4">
     {/* Recommended For */}
     <div className="py-2 border-b border-gray-100 dark:border-gray-700">
-      <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">Recommended For</span>
+      <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">{t`Recommended For`}</span>
       <div className="flex flex-wrap gap-1">
         {previewTemplate.recommendedFor.slice(0, 5).map((purpose) => (
           <span
@@ -448,7 +443,7 @@ export const TemplateSection = () => {
     {/* Tags */}
     {previewTemplate.tags && previewTemplate.tags.length > 0 && (
       <div className="py-2 border-b border-gray-100 dark:border-gray-700">
-        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">Tags</span>
+        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">{t`Tags`}</span>
         <div className="flex flex-wrap gap-1">
           {previewTemplate.tags.slice(0, 6).map((tag) => (
             <span
@@ -465,7 +460,7 @@ export const TemplateSection = () => {
     {/* Ideal For */}
     {previewTemplate.idealFor && previewTemplate.idealFor.length > 0 && (
       <div className="py-2 border-b border-gray-100 dark:border-gray-700">
-        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">Ideal For</span>
+        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">{t`Ideal For`}</span>
         <div className="flex flex-wrap gap-1">
           {previewTemplate.idealFor.slice(0, 4).map((role) => (
             <span
@@ -482,7 +477,7 @@ export const TemplateSection = () => {
     {/* Features */}
     {previewTemplate.features && previewTemplate.features.length > 0 && (
       <div className="py-2 border-b border-gray-100 dark:border-gray-700">
-        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">Key Features</span>
+        <span className="text-gray-600 dark:text-gray-400 block mb-2 font-medium">{t`Key Features`}</span>
         <div className="space-y-1">
           {previewTemplate.features.slice(0, 4).map((feature, index) => (
             <div key={index} className="flex items-start gap-2 text-sm">
@@ -497,11 +492,11 @@ export const TemplateSection = () => {
     {/* Usage Count (if available) */}
     {previewTemplate.usageCount !== undefined && (
       <div className="py-2 border-b border-gray-100 dark:border-gray-700">
-        <span className="text-gray-600 dark:text-gray-400 block mb-1 font-medium">Popularity</span>
+        <span className="text-gray-600 dark:text-gray-400 block mb-1 font-medium">{t`Popularity`}</span>
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-700 dark:text-gray-300">
-            Used by {previewTemplate.usageCount}+ users
+            {t`Used by ${previewTemplate.usageCount}+ users`}
           </span>
         </div>
       </div>
@@ -511,12 +506,12 @@ export const TemplateSection = () => {
     <div className="flex flex-wrap gap-2 pt-2">
       {previewTemplate.isFeatured && (
         <span className="px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-full font-medium">
-          ⭐ Featured
+          ⭐ {t`Featured`}
         </span>
       )}
       {previewTemplate.isPopular && (
         <span className="px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-full font-medium">
-          🔥 Popular
+          🔥 {t`Popular`}
         </span>
       )}
     </div>
@@ -528,7 +523,7 @@ export const TemplateSection = () => {
               <div className="space-y-4">
                 <h4 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center gap-2">
                   <Layout className="w-5 h-5 text-purple-600" />
-                  Layout Structure
+                  {t`Layout Structure`}
                 </h4>
                 
                 <div className="space-y-3 max-h-100 overflow-y-auto">
@@ -558,7 +553,7 @@ export const TemplateSection = () => {
               onClick={() => setPreviewTemplate(null)}
               className="flex-1"
             >
-              Close Preview
+              {t`Close Preview`}
             </Button>
             <Button
               onClick={() => {
@@ -571,12 +566,12 @@ export const TemplateSection = () => {
               {isApplying ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                  Applying...
+                  {t`Applying...`}
                 </>
               ) : (
                 <>
                   <Download className="w-4 h-4 mr-2" />
-                  Apply Template
+                  {t`Apply Template`}
                 </>
               )}
             </Button>
@@ -599,7 +594,7 @@ export const TemplateSection = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-3" />
-            <span className="text-gray-600 dark:text-gray-400">Loading templates...</span>
+            <span className="text-gray-600 dark:text-gray-400">{t`Loading templates...`}</span>
           </div>
         </div>
       </section>
@@ -617,8 +612,8 @@ export const TemplateSection = () => {
         </div>
         <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <Layout className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium mb-2">No templates available</p>
-          <p className="text-sm">Please try again later or contact support.</p>
+          <p className="text-lg font-medium mb-2">{t`No templates available`}</p>
+          <p className="text-sm">{t`Please try again later or contact support.`}</p>
         </div>
       </section>
     );
@@ -634,7 +629,7 @@ export const TemplateSection = () => {
         </div>
         <div className="flex items-center space-x-2">
           <div className="text-sm text-gray-500">
-            {coverLetter?.layout ? `Current: ${templates.find(t => t.layout === coverLetter.layout)?.name || coverLetter.layout}` : 'No template selected'}
+            {coverLetter?.layout ? t`Current: ${templates.find(t => t.layout === coverLetter.layout)?.name || coverLetter.layout}` : t`No template selected`}
           </div>
         </div>
       </div>
@@ -645,13 +640,13 @@ export const TemplateSection = () => {
           <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              Showing templates for your letter type
+              {t`Showing templates for your letter type`}
             </div>
             <div className="text-sm text-blue-700 dark:text-blue-300 capitalize">
               {currentCoverLetterCategory}
             </div>
             <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Only templates specifically designed for {currentCoverLetterCategory.toLowerCase()} are shown
+              {t`Only templates specifically designed for ${currentCoverLetterCategory.toLowerCase()} are shown`}
             </div>
           </div>
         </div>
@@ -659,7 +654,7 @@ export const TemplateSection = () => {
 
       {/* Template Count */}
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} available for {currentCoverLetterCategory.toLowerCase()}
+        {filteredTemplates.length} {t`template${filteredTemplates.length !== 1 ? 's' : ''}`} {t`available for ${currentCoverLetterCategory.toLowerCase()}`}
       </div>
 
       {filteredTemplates.length === 0 ? (
@@ -667,19 +662,18 @@ export const TemplateSection = () => {
           <div className="mb-4">
             <Layout className="w-16 h-16 mx-auto text-gray-400 mb-3" />
             <div className="font-medium text-gray-600 dark:text-gray-400 text-lg mb-2">
-              No templates found for "{currentCoverLetterCategory}"
+              {t`No templates found for "${currentCoverLetterCategory}"`}
             </div>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md mx-auto">
-            There are no templates specifically designed for {currentCoverLetterCategory.toLowerCase()} letters yet.
-            Our team is working on adding more templates for this category.
+            {t`There are no templates specifically designed for ${currentCoverLetterCategory.toLowerCase()} letters yet. Our team is working on adding more templates for this category.`}
           </p>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast.info('Contact support to request templates for this category')}
+            onClick={() => toast.info(t`Contact support to request templates for this category`)}
           >
-            Request Templates
+            {t`Request Templates`}
           </Button>
         </div>
       ) : (
@@ -699,7 +693,7 @@ export const TemplateSection = () => {
                 {template.premium && (
                   <div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
                     <Star className="w-3 h-3 fill-current" />
-                    <span>Premium</span>
+                    <span>{t`Premium`}</span>
                   </div>
                 )}
 
@@ -718,7 +712,7 @@ export const TemplateSection = () => {
                         handlePreview(template);
                       }}
                       className="h-8 w-8 p-0 bg-white dark:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
-                      title="Preview Template"
+                      title={t`Preview Template`}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -746,7 +740,7 @@ export const TemplateSection = () => {
                     key={purpose}
                     className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-200 dark:border-green-800"
                   >
-                    Ideal for: {purpose}
+                    {t`Ideal for:`} {purpose}
                   </div>
                 ))}
               </div>
@@ -755,8 +749,7 @@ export const TemplateSection = () => {
 
           <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/10 rounded-lg border border-gray-200 dark:border-gray-700">
             <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
-              💡 All templates shown are specifically designed for {currentCoverLetterCategory.toLowerCase()} letters. 
-              Click the eye icon to preview, or click the template card to apply.
+              💡 {t`All templates shown are specifically designed for ${currentCoverLetterCategory.toLowerCase()} letters. Click the eye icon to preview, or click the template card to apply.`}
             </p>
           </div>
         </>

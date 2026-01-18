@@ -1,4 +1,4 @@
-// components/search/SmartSearch.tsx
+import { t, Trans } from "@lingui/macro";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Input, 
@@ -31,7 +31,7 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { articleApi } from '../../services/articleApi'; // Updated import
+import { articleApi } from '../../services/articleApi';
 import type { Category } from '../../services/articleApi';
 import debounce from 'lodash/debounce';
 
@@ -39,7 +39,6 @@ const { Text, Title } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-// Update the SearchResult interface to use the Article type
 interface SearchResult {
   id: string;
   title: string;
@@ -145,7 +144,6 @@ const SmartSearch: React.FC = () => {
 
     setLoading(true);
     try {
-      // Convert filters to the expected format
       const searchFilters = {
         category: currentFilters.category,
         tags: currentFilters.tags,
@@ -200,20 +198,20 @@ const SmartSearch: React.FC = () => {
   };
 
   const clearFilters = () => {
-  const clearedFilters = {
-    category: [] as string[], // Explicit type
-    tags: [] as string[],
-    readingTime: [1, 60] as [number, number], // Tuple type
-    publishedDate: null,
-    accessType: [] as string[],
-    sortBy: 'relevance' as 'relevance' | 'recent' | 'popular' | 'reading_time',
+    const clearedFilters = {
+      category: [] as string[],
+      tags: [] as string[],
+      readingTime: [1, 60] as [number, number],
+      publishedDate: null,
+      accessType: [] as string[],
+      sortBy: 'relevance' as 'relevance' | 'recent' | 'popular' | 'reading_time',
+    };
+    setFilters(clearedFilters);
+    
+    if (searchQuery) {
+      performSearch(searchQuery, clearedFilters);
+    }
   };
-  setFilters(clearedFilters);
-  
-  if (searchQuery) {
-    performSearch(searchQuery, clearedFilters);
-  }
-};
 
   const renderHighlightedText = (text: string, highlights: string[] = []) => {
     if (!highlights.length) return text;
@@ -221,7 +219,6 @@ const SmartSearch: React.FC = () => {
     const parts = [];
     let lastIndex = 0;
     
-    // Sort highlights by position
     const sortedHighlights = highlights
       .map(h => ({ start: text.toLowerCase().indexOf(h.toLowerCase()), end: h.length }))
       .filter(h => h.start >= 0)
@@ -252,7 +249,7 @@ const SmartSearch: React.FC = () => {
     {
       label: (
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Text strong>Trending Searches</Text>
+          <Text strong>{t`Trending Searches`}</Text>
           <FireOutlined style={{ color: '#ff4d4f' }} />
         </Space>
       ),
@@ -269,7 +266,7 @@ const SmartSearch: React.FC = () => {
     {
       label: (
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Text strong>Recent Searches</Text>
+          <Text strong>{t`Recent Searches`}</Text>
           <HistoryOutlined />
         </Space>
       ),
@@ -297,7 +294,7 @@ const SmartSearch: React.FC = () => {
     {
       label: (
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Text strong>Suggestions</Text>
+          <Text strong>{t`Suggestions`}</Text>
         </Space>
       ),
       options: suggestions.map(suggestion => ({
@@ -316,9 +313,9 @@ const SmartSearch: React.FC = () => {
     <Card
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Text strong>Advanced Filters</Text>
+          <Text strong>{t`Advanced Filters`}</Text>
           <Button type="link" size="small" onClick={clearFilters}>
-            Clear All
+            {t`Clear All`}
           </Button>
         </Space>
       }
@@ -326,13 +323,13 @@ const SmartSearch: React.FC = () => {
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Category</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>{t`Category`}</Text>
           {loadingCategories ? (
             <Spin size="small" />
           ) : (
             <Select
               mode="multiple"
-              placeholder="Select categories"
+              placeholder={t`Select categories`}
               style={{ width: '100%' }}
               value={filters.category}
               onChange={(value) => handleFilterChange('category', value)}
@@ -358,7 +355,7 @@ const SmartSearch: React.FC = () => {
         </div>
 
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Reading Time</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>{t`Reading Time`}</Text>
           <Slider
             range
             min={1}
@@ -374,22 +371,22 @@ const SmartSearch: React.FC = () => {
             }}
           />
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {filters.readingTime[0]} - {filters.readingTime[1]} minutes
+            {filters.readingTime[0]} - {filters.readingTime[1]} {t`minutes`}
           </Text>
         </div>
 
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Published Date</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>{t`Published Date`}</Text>
           <RangePicker
             style={{ width: '100%' }}
             value={filters.publishedDate}
             onChange={(dates) => handleFilterChange('publishedDate', dates)}
-            placeholder={['Start Date', 'End Date']}
+            placeholder={[t`Start Date`, t`End Date`]}
           />
         </div>
 
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Content Type</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>{t`Content Type`}</Text>
           <Checkbox.Group
             value={filters.accessType}
             onChange={(value) => handleFilterChange('accessType', value)}
@@ -399,13 +396,13 @@ const SmartSearch: React.FC = () => {
               <Checkbox value="free">
                 <Space>
                   <GlobalOutlined />
-                  <span>Free Articles</span>
+                  <span>{t`Free Articles`}</span>
                 </Space>
               </Checkbox>
               <Checkbox value="premium">
                 <Space>
                   <CrownOutlined style={{ color: '#722ed1' }} />
-                  <span>Premium Articles</span>
+                  <span>{t`Premium Articles`}</span>
                 </Space>
               </Checkbox>
             </Space>
@@ -413,16 +410,16 @@ const SmartSearch: React.FC = () => {
         </div>
 
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>Sort By</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>{t`Sort By`}</Text>
           <Select
             style={{ width: '100%' }}
             value={filters.sortBy}
             onChange={(value) => handleFilterChange('sortBy', value)}
           >
-            <Option value="relevance">Relevance</Option>
-            <Option value="recent">Most Recent</Option>
-            <Option value="popular">Most Popular</Option>
-            <Option value="reading_time">Reading Time</Option>
+            <Option value="relevance">{t`Relevance`}</Option>
+            <Option value="recent">{t`Most Recent`}</Option>
+            <Option value="popular">{t`Most Popular`}</Option>
+            <Option value="reading_time">{t`Reading Time`}</Option>
           </Select>
         </div>
       </Space>
@@ -450,7 +447,7 @@ const SmartSearch: React.FC = () => {
                 <Divider style={{ margin: '8px 0' }} />
                 <div style={{ padding: '0 12px 12px' }}>
                   <Text strong style={{ marginBottom: 8, display: 'block' }}>
-                    Quick Results
+                    {t`Quick Results`}
                   </Text>
                   {quickResults.map(result => (
                     <div
@@ -481,7 +478,7 @@ const SmartSearch: React.FC = () => {
                             {result.category.name}
                           </Tag>
                           <Text type="secondary" style={{ fontSize: '10px' }}>
-                            <ClockCircleOutlined /> {result.readingTime} min
+                            <ClockCircleOutlined /> {result.readingTime} {t`min`}
                           </Text>
                         </Space>
                       </Space>
@@ -500,7 +497,7 @@ const SmartSearch: React.FC = () => {
       >
         <Input
           size="large"
-          placeholder="Search for articles, topics, or authors..."
+          placeholder={t`Search for articles, topics, or authors...`}
           prefix={<SearchOutlined />}
           suffix={
             <Space>
@@ -534,7 +531,7 @@ const SmartSearch: React.FC = () => {
 
       {/* Quick Actions */}
       <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Text type="secondary" style={{ marginRight: 8 }}>Try:</Text>
+        <Text type="secondary" style={{ marginRight: 8 }}>{t`Try:`}</Text>
         {trendingSearches.slice(0, 5).map((search, index) => (
           <Tag
             key={index}

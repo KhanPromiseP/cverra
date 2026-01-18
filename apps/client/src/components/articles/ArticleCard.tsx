@@ -19,6 +19,8 @@ import {
   ArrowRightOutlined,
   CoffeeOutlined
 } from '@ant-design/icons';
+import { useLingui } from '@lingui/react';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 import { Article } from '@/client/services/articleApi';
 import { useAuthStore } from '@/client/stores/auth';
 import './ArticleCard.css';
@@ -47,20 +49,25 @@ export interface ArticleCardData {
   author?: {
     name?: string;
     picture?: string;
-    [key: string]: any; // Allow additional properties
+    [key: string]: any;
   };
   category?: {
     name?: string;
     color?: string;
     id?: string;
     slug?: string;
-    [key: string]: any; // Allow additional properties
+    [key: string]: any;
   };
   tags?: string[];
   availableLanguages?: string[];
   isPreview?: boolean;
   price?: number;
   isPremium?: boolean;
+  
+  // Translation support
+  translations?: Record<string, { title: string; excerpt: string }>;
+  language?: string; // Keep for backward compatibility
+  
   // Allow any other properties
   [key: string]: any;
 }
@@ -128,6 +135,33 @@ const extractPlainText = (content: any): string => {
   return String(content);
 };
 
+// Fallback language priority (most specific to least)
+const getBestAvailableTranslation = (
+  translations: Record<string, { title: string; excerpt: string }> | undefined,
+  preferredLocale: string,
+  fallbackLocales: string[] = ['en', 'en-US']
+): string | null => {
+  if (!translations) return null;
+  
+  // Try exact match first
+  if (translations[preferredLocale]) return preferredLocale;
+  
+  // Try language code without region (e.g., 'en' for 'en-US')
+  const languageCode = preferredLocale.split('-')[0];
+  if (translations[languageCode]) return languageCode;
+  
+  // Try fallback locales
+  for (const fallback of fallbackLocales) {
+    if (translations[fallback]) return fallback;
+  }
+  
+  // Try any available translation as last resort
+  const availableLocales = Object.keys(translations);
+  if (availableLocales.length > 0) return availableLocales[0];
+  
+  return null;
+};
+
 const ArticleCard: React.FC<ArticleCardProps> = ({
   article,
   variant = 'default',
@@ -148,16 +182,18 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   const [isLiked, setIsLiked] = useState(article.isLiked || false);
   const [isSaved, setIsSaved] = useState(article.isSaved || false);
   const [likeCount, setLikeCount] = useState(article.likeCount || 0);
-
-  // Helper function
-const hasActiveSubscription = (user: any): boolean => {
-  return user?.subscription?.status === 'ACTIVE';
-};
+  
+  // Get current UI language from Lingui
+  const { i18n } = useLingui();
+  const currentLocale = i18n.locale; // e.g., 'en', 'fr', 'es-ES'
+  
+  // Helper function to check user subscription
+  const hasActiveSubscription = (user: any): boolean => {
+    return user?.subscription?.status === 'ACTIVE';
+  };
 
   const isPremiumAccess = article.accessType === 'PREMIUM' && 
     (hasActiveSubscription(user) || article.isPreview === false);
-
-    
 
   const readingTimeColor = (article.readingTime || 5) < 3 ? 'text-green-500' :
                           (article.readingTime || 5) < 8 ? 'text-yellow-500' :
@@ -165,13 +201,34 @@ const hasActiveSubscription = (user: any): boolean => {
 
   const getReadingTimeLabel = () => {
     const readingTime = article.readingTime || 5;
-    if (readingTime < 3) return 'Quick Read';
-    if (readingTime < 8) return 'Medium Read';
-    return 'Deep Dive';
+    if (readingTime < 3) return t`Quick Read`;
+    if (readingTime < 8) return t`Medium Read`;
+    return t`Deep Dive`;
   };
 
-  // Get article excerpt or create one from content
-  const getExcerpt = (): string => {
+  // --- Enhanced helper functions for translation ---
+  const getTranslatedTitle = (): string => {
+    // Priority: Current UI locale > Article-specific language > English > Original
+    if (article.translations) {
+      const bestLocale = getBestAvailableTranslation(article.translations, currentLocale);
+      if (bestLocale && article.translations[bestLocale]?.title) {
+        return truncateText(article.translations[bestLocale].title, 60);
+      }
+    }
+    
+    // Fallback to original title
+    return truncateText(article.title, 60);
+  };
+
+  const getTranslatedExcerpt = (): string => {
+    if (article.translations) {
+      const bestLocale = getBestAvailableTranslation(article.translations, currentLocale);
+      if (bestLocale && article.translations[bestLocale]?.excerpt) {
+        return truncateText(article.translations[bestLocale].excerpt, 120);
+      }
+    }
+    
+    // Fallback chain: excerpt > content > empty
     if (article.excerpt) {
       return truncateText(article.excerpt, 120);
     }
@@ -184,8 +241,14 @@ const hasActiveSubscription = (user: any): boolean => {
     return '';
   };
 
-  // Get short excerpt for compact/minimal views
-  const getShortExcerpt = (): string => {
+  const getShortTranslatedExcerpt = (): string => {
+    if (article.translations) {
+      const bestLocale = getBestAvailableTranslation(article.translations, currentLocale);
+      if (bestLocale && article.translations[bestLocale]?.excerpt) {
+        return truncateText(article.translations[bestLocale].excerpt, 80);
+      }
+    }
+    
     if (article.excerpt) {
       return truncateText(article.excerpt, 80);
     }
@@ -197,6 +260,12 @@ const hasActiveSubscription = (user: any): boolean => {
     
     return '';
   };
+
+  // Language indicator properties
+  const hasTranslations = article.translations && Object.keys(article.translations).length > 0;
+  const availableLocales = article.translations ? Object.keys(article.translations) : [];
+  const isTranslatedToCurrentLang = article.translations?.[currentLocale] || 
+                                   article.translations?.[currentLocale.split('-')[0]];
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -242,7 +311,7 @@ const hasActiveSubscription = (user: any): boolean => {
           onShare?.(article.id);
         }}
       >
-        Share
+        <Trans>Share</Trans>
       </Menu.Item>
       <Menu.Item 
         key="report" 
@@ -252,7 +321,7 @@ const hasActiveSubscription = (user: any): boolean => {
           onReport?.(article.id);
         }}
       >
-        Report
+        <Trans>Report</Trans>
       </Menu.Item>
       {article.accessType === 'PREMIUM' && !isPremiumAccess && (
         <Menu.Item 
@@ -263,11 +332,43 @@ const hasActiveSubscription = (user: any): boolean => {
             navigate('/dashboard/subscription');
           }}
         >
-          Upgrade to Premium
+          <Trans>Upgrade to Premium</Trans>
         </Menu.Item>
       )}
     </Menu>
   );
+
+  // Language indicator component
+  const LanguageIndicator = () => {
+    if (!hasTranslations || variant === 'compact' || variant === 'minimal') return null;
+    
+    return (
+      <Tooltip 
+        title={
+          <div>
+            <div className="font-semibold mb-1">
+              <Trans>Available in {availableLocales.length} languages</Trans>
+            </div>
+            <div className="text-xs">
+              {availableLocales.map(lang => (
+                <span key={lang} className="inline-block mr-2 mb-1">
+                  {lang.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
+        }
+      >
+        <div className={`absolute bottom-2 right-2 px-2 py-1 rounded text-xs font-medium ${
+          isTranslatedToCurrentLang 
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+        }`}>
+          {isTranslatedToCurrentLang ? t`🌍 Translated` : t`🌍 Multi-Lang`}
+        </div>
+      </Tooltip>
+    );
+  };
 
   const renderFeaturedLayout = () => (
     <div className="flex flex-col md:flex-row items-stretch h-full min-h-[320px]">
@@ -276,7 +377,7 @@ const hasActiveSubscription = (user: any): boolean => {
         {article.coverImage ? (
           <img
             src={article.coverImage}
-            alt={article.title}
+            alt={getTranslatedTitle()}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -285,16 +386,18 @@ const hasActiveSubscription = (user: any): boolean => {
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-blue-500/20">
             <div className="text-6xl font-bold text-indigo-500/30">
-              {article.title?.charAt(0) || 'A'}
+              {getTranslatedTitle()?.charAt(0) || 'A'}
             </div>
           </div>
         )}
         
         <div className="absolute top-4 left-4">
           <span className="px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-lg">
-            <StarOutlined className="mr-1" /> Featured
+            <StarOutlined className="mr-1" /> <Trans>Featured</Trans>
           </span>
         </div>
+        
+        <LanguageIndicator />
       </div>
 
       {/* Content */}
@@ -321,11 +424,11 @@ const hasActiveSubscription = (user: any): boolean => {
           )}
 
           <Title level={3} className="mb-3 text-2xl font-bold text-foreground dark:text-white line-clamp-2">
-            {truncateText(article.title, 60)}
+            {getTranslatedTitle()}
           </Title>
           
           <Paragraph className="text-muted-foreground dark:text-gray-400 mb-4 text-base line-clamp-3 min-h-[72px]">
-            {getExcerpt()}
+            {getTranslatedExcerpt()}
           </Paragraph>
 
           {showTags && (article.tags?.length ?? 0) > 0 && (
@@ -369,7 +472,7 @@ const hasActiveSubscription = (user: any): boolean => {
             className="bg-gradient-to-r from-indigo-500 to-blue-500 border-0"
             onClick={handleCardClick}
           >
-            Read Article <ArrowRightOutlined />
+            <Trans>Read Article</Trans> <ArrowRightOutlined />
           </Button>
         </div>
       </div>
@@ -383,7 +486,7 @@ const hasActiveSubscription = (user: any): boolean => {
         {article.coverImage ? (
           <img
             src={article.coverImage}
-            alt={article.title}
+            alt={getTranslatedTitle()}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -392,7 +495,7 @@ const hasActiveSubscription = (user: any): boolean => {
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 dark:from-gray-700 dark:to-gray-600">
             <div className="text-5xl font-bold text-primary/30 dark:text-gray-500">
-              {article.title?.charAt(0) || 'A'}
+              {getTranslatedTitle()?.charAt(0) || 'A'}
             </div>
           </div>
         )}
@@ -406,9 +509,9 @@ const hasActiveSubscription = (user: any): boolean => {
           }`}>
             <CrownOutlined /> 
             {isPremiumAccess ? (
-              <><CheckCircleOutlined className="mr-1" /> UNLOCKED</>
+              <><CheckCircleOutlined className="mr-1" /> <Trans>UNLOCKED</Trans></>
             ) : (
-              'PREMIUM'
+              <Trans>PREMIUM</Trans>
             )}
           </div>
         )}
@@ -416,7 +519,7 @@ const hasActiveSubscription = (user: any): boolean => {
         {/* Quick Read Badge */}
         {variant === 'compact' && article.readingTime && article.readingTime < 5 && (
           <div className="absolute top-2 right-2 px-2 py-1 rounded text-xs font-medium bg-green-500/90 text-white">
-            <CoffeeOutlined className="mr-1" /> Quick Read
+            <CoffeeOutlined className="mr-1" /> <Trans>Quick Read</Trans>
           </div>
         )}
         
@@ -433,17 +536,33 @@ const hasActiveSubscription = (user: any): boolean => {
             <div className="flex gap-1">
               {article.isFeatured && (
                 <span className="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-                  <StarOutlined className="mr-1" /> Featured
+                  <StarOutlined className="mr-1" /> <Trans>Featured</Trans>
                 </span>
               )}
               {article.isTrending && (
                 <span className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-300 border border-red-500/30">
-                  <FireOutlined className="mr-1" /> Trending
+                  <FireOutlined className="mr-1" /> <Trans>Trending</Trans>
                 </span>
               )}
             </div>
           </div>
         </div>
+        
+        {/* Language indicator for default layout */}
+        {hasTranslations && (
+          <div className="absolute top-2 right-2">
+            <Tooltip title={<Trans>Available in {availableLocales.length} languages</Trans>}>
+              <div className={`px-2 py-1 rounded text-xs font-medium ${
+                isTranslatedToCurrentLang 
+                  ? 'bg-green-500/90 text-white' 
+                  : 'bg-blue-500/90 text-white'
+              }`}>
+                <GlobalOutlined className="mr-1" />
+                {availableLocales.length}
+              </div>
+            </Tooltip>
+          </div>
+        )}
         
         {/* Quick actions overlay */}
         {showActions && (
@@ -475,11 +594,16 @@ const hasActiveSubscription = (user: any): boolean => {
       {/* Article Content */}
       <div className="mb-3 min-h-[72px] flex flex-col justify-between">
         <h3 className="font-semibold text-base mb-2 text-foreground dark:text-gray-100 line-clamp-2">
-          {truncateText(article.title, 60)}
+          {getTranslatedTitle()}
+          {hasTranslations && variant !== 'minimal' && (
+            <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
+              ({availableLocales.length} <Trans>langs</Trans>)
+            </span>
+          )}
         </h3>
         {variant !== 'minimal' && (
           <p className="text-sm text-muted-foreground dark:text-gray-400 line-clamp-3 flex-grow">
-            {getExcerpt()}
+            {getTranslatedExcerpt()}
           </p>
         )}
       </div>
@@ -521,7 +645,7 @@ const hasActiveSubscription = (user: any): boolean => {
         <div className="flex items-center gap-1">
           <ClockCircleOutlined className={`text-xs ${readingTimeColor}`} />
           <span className={`text-xs ${readingTimeColor}`}>
-            {article.readingTime || 5} min
+            {article.readingTime || 5} <Trans>min</Trans>
           </span>
         </div>
       </div>
@@ -551,10 +675,10 @@ const hasActiveSubscription = (user: any): boolean => {
         
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground dark:text-gray-500">
-            {article.readingTime || 5} min read
+            {article.readingTime || 5} <Trans>min read</Trans>
           </span>
-          {(article.availableLanguages?.length ?? 0)> 1 && (
-            <Tooltip title={`Available in ${article.availableLanguages?.length || 0} languages`}>
+          {(article.availableLanguages?.length ?? 0) > 1 && (
+            <Tooltip title={<Trans>Available in {article.availableLanguages?.length || 0} languages</Trans>}>
               <GlobalOutlined className="text-blue-400 dark:text-blue-400 cursor-pointer" />
             </Tooltip>
           )}
@@ -584,12 +708,12 @@ const hasActiveSubscription = (user: any): boolean => {
           {article.accessType === 'PREMIUM' && !isPremiumAccess ? (
             <>
               <LockOutlined />
-              Unlock Premium
+              <Trans>Unlock Premium</Trans>
             </>
           ) : (
             <>
               <ArrowRightOutlined />
-              Read Article
+              <Trans>Read Article</Trans>
             </>
           )}
         </button>
@@ -604,7 +728,7 @@ const hasActiveSubscription = (user: any): boolean => {
         {article.coverImage ? (
           <img
             src={article.coverImage}
-            alt={article.title}
+            alt={getTranslatedTitle()}
             className="w-full h-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -613,7 +737,7 @@ const hasActiveSubscription = (user: any): boolean => {
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-2xl font-bold text-primary/30">
-              {article.title?.charAt(0) || 'A'}
+              {getTranslatedTitle()?.charAt(0) || 'A'}
             </div>
           </div>
         )}
@@ -623,16 +747,22 @@ const hasActiveSubscription = (user: any): boolean => {
             <CrownOutlined className="text-xs text-yellow-500 bg-black/50 p-0.5 rounded-tl" />
           </div>
         )}
+        
+        {hasTranslations && (
+          <div className="absolute bottom-0 left-0">
+            <GlobalOutlined className="text-xs text-blue-400 bg-black/50 p-0.5 rounded-tr" />
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
         <div>
           <h4 className="font-semibold text-sm mb-1 text-foreground dark:text-gray-100 line-clamp-2">
-            {truncateText(article.title, 50)}
+            {getTranslatedTitle()}
           </h4>
           <p className="text-xs text-muted-foreground dark:text-gray-400 line-clamp-2 mb-2">
-            {getShortExcerpt()}
+            {getShortTranslatedExcerpt()}
           </p>
         </div>
         <div className="flex items-center justify-between text-xs">
@@ -641,7 +771,7 @@ const hasActiveSubscription = (user: any): boolean => {
           </span>
           <span className="flex items-center gap-1">
             <ClockCircleOutlined className="text-gray-400" />
-            {article.readingTime || 5} min
+            {article.readingTime || 5} <Trans>min</Trans>
           </span>
         </div>
       </div>

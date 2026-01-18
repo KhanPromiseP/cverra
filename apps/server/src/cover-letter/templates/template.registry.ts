@@ -92,7 +92,7 @@ export class TemplateRegistry {
   private static readonly templates: CoverLetterTemplate[] = [
     // ==================== JOB APPLICATION TEMPLATES ====================
     {
-      id: 'modern-professional',
+      id: 'professional',
       name: 'Modern Professional',
       category: 'Job Application',
       style: CoverLetterStyle.Modern,
@@ -120,7 +120,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',  
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Technology', 'Corporate', 'Startups', 'Professional Services'],
       tags: ['modern', 'professional', 'tech', 'corporate'],
@@ -176,6 +187,8 @@ export class TemplateRegistry {
       margin: 10,
       padding: 5
     },
+
+    
     
     // Background - subtle gradient
     backgroundStyle: {
@@ -221,7 +234,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Design', 'Marketing', 'Creative Industries', 'Advertising'],
       tags: ['creative', 'innovative', 'design', 'modern'],
@@ -254,7 +278,19 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Engineering', 'IT', 'Data Science', 'Technical Roles'],
       tags: ['technical', 'structured', 'detailed', 'engineering'],
@@ -265,7 +301,230 @@ export class TemplateRegistry {
       usageCount: 50
     },
 
+
+
+   {
+      id: 'technical-craft',
+      name: 'Technical Craft',
+      category: 'Job Application',
+      style: CoverLetterStyle.Technical,
+      description: 'Structured layout emphasizing technical skills, projects, and certifications',
+      premium: false,
+      layout: 'craft',
+      structure: {
+        // headerAlignment: 'left',
+        contactInfoPosition: 'left',
+        datePosition: 'left',
+        recipientInfoPosition: 'left', // Added for formal letters
+        subjectLinePosition: 'center', // Added for formal letters
+        greetingAlignment: 'left',
+        paragraphSpacing: 'compact',
+        signatureAlignment: 'left',
+        includeAddress: true,
+        includeAddresseeInfo: true, // Critical for formal letters
+        showSubjectLine: true, // New field
+        lineHeight: 'normal',
+        marginSize: 'medium',
+        fontStyle: 'sans-serif',
+
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['blue', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
+       // Subject line styling - UPPERCASE and underlined
+      subjectLineStyle: {
+        textTransform: 'uppercase',
+        textDecoration: 'bold',
+        fontWeight: 'bold',
+        fontSize: 'normal',
+        textAlign: 'center'
+      },
+      
+
+      },
+      recommendedFor: ['Engineering', 'IT', 'Data Science', 'Technical Roles'],
+      tags: ['technical', 'structured', 'detailed', 'engineering'],
+      idealFor: ['Software Developers', 'Data Scientists', 'IT Specialists'],
+      features: ['Technical focus', 'Structured sections', 'Skill emphasis'],
+      isFeatured: true, 
+      isPopular: true, 
+      usageCount: 50
+    },
+
+
+
+
+
     // ==================== INTERNSHIP APPLICATION TEMPLATES ====================
+    {
+      id: 'technical-expert',
+      name: 'Technical Expert',
+      category: 'Internship Application',
+      style: CoverLetterStyle.Technical,
+      description: 'Structured layout emphasizing technical skills, projects, and certifications',
+      premium: false,
+      layout: 'technical',
+      structure: {
+        // headerAlignment: 'left',
+        contactInfoPosition: 'right',
+        datePosition: 'right',
+        recipientInfoPosition: 'left', // Added for formal letters
+        subjectLinePosition: 'center', // Added for formal letters
+        greetingAlignment: 'left',
+        paragraphSpacing: 'compact',
+        signatureAlignment: 'left',
+        includeAddress: true,
+        includeAddresseeInfo: true, // Critical for formal letters
+        showSubjectLine: true, // New field
+        lineHeight: 'normal',
+        marginSize: 'medium',
+        fontStyle: 'sans-serif',  
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
+      },
+      recommendedFor: ['Engineering', 'IT', 'Data Science', 'Technical Roles'],
+      tags: ['technical', 'structured', 'detailed', 'engineering'],
+      idealFor: ['Software Developers', 'Data Scientists', 'IT Specialists'],
+      features: ['Technical focus', 'Structured sections', 'Skill emphasis'],
+      isFeatured: true, 
+      isPopular: true, 
+      usageCount: 50
+    },
+
+    {
+      id: 'executive-leadership',
+      name: 'Executive Leadership',
+      category: 'Internship Application',
+      style: CoverLetterStyle.Executive,
+      description: 'Sophisticated layout for executive-level positions with premium styling',
+      premium: true,
+      layout: 'executive',
+      structure: {
+        contactInfoPosition: 'right',
+        datePosition: 'right',
+        greetingAlignment: 'left',
+        paragraphSpacing: 'balanced',
+        signatureAlignment: 'left',
+        subjectLinePosition: 'center',
+        recipientInfoPosition: 'left',
+        includeAddress: true,
+        includeAddresseeInfo: true,
+        showSubjectLine: true,
+        lineHeight: 'normal',
+        marginSize: 'large',
+        fontStyle: 'serif',
+        
+        // Subject line styling - UPPERCASE and underlined
+        subjectLineStyle: {
+          textTransform: 'uppercase',
+          textDecoration: 'underline',
+          fontWeight: 'bold',
+          fontSize: 'normal',
+          textAlign: 'center'
+        },
+        
+        // Border - full border around page
+        borderStyle: {
+          enabled: true,
+          type: 'solid',
+          width: 'medium',
+          color: '#000000',
+          radius: 'medium',
+          sides: 'all',
+          margin: 10,
+          padding: 5
+        },
+        
+        // Background - subtle gradient
+        backgroundStyle: {
+          type: 'gradient',
+          gradient: {
+            type: 'linear',
+            colors: ['white', '#e4e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+      
+      },
+      recommendedFor: ['Executives', 'Senior Management', 'Leadership Roles'],
+      tags: ['executive', 'leadership', 'sophisticated', 'premium'],
+      idealFor: ['CEOs', 'Directors', 'Senior Managers'],
+      features: ['Sophisticated design', 'Executive appeal', 'Premium styling'],
+      isFeatured: true,
+      isPopular: true,
+      usageCount: 500
+
+    },
+
+    {
+      id: 'modern-professional',
+      name: 'Modern Professional',
+      category: 'Internship Application',
+      style: CoverLetterStyle.Modern,
+      description: 'Clean, contemporary design optimized for tech and corporate job applications',
+      premium: false,
+      layout: 'modern',
+      structure: {
+        // headerAlignment: 'right',
+        contactInfoPosition: 'right',
+        datePosition: 'right',
+        recipientInfoPosition: 'left', // Added for formal letters
+        subjectLinePosition: 'center', // Added for formal letters
+         subjectLineStyle: {
+          textTransform: 'uppercase',
+          textDecoration: 'underline',
+          fontWeight: 'bold',
+          fontSize: 'normal',
+          textAlign: 'center'
+        },
+        greetingAlignment: 'left',
+        paragraphSpacing: 'compact',
+        signatureAlignment: 'left',
+        includeAddress: true,
+        includeAddresseeInfo: true, // Critical for formal letters
+        showSubjectLine: true, // New field
+        lineHeight: 'normal',
+        marginSize: 'medium',
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
+      },
+      recommendedFor: ['Technology', 'Corporate', 'Startups', 'Professional Services'],
+      tags: ['modern', 'professional', 'tech', 'corporate'],
+      idealFor: ['Software Engineers', 'Marketing Professionals', 'Project Managers'],
+      features: ['Clean lines', 'Professional spacing', 'Modern typography'],
+      isFeatured: true, 
+      isPopular: true, 
+      usageCount: 50
+
+    },
+
     {
       id: 'student-enthusiast',
       name: 'Student Enthusiast',
@@ -288,7 +547,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['College Students', 'Recent Graduates', 'Entry-level Positions'],
       tags: ['student', 'enthusiastic', 'modern', 'youthful'],
@@ -299,6 +569,7 @@ export class TemplateRegistry {
       usageCount: 50
 
     },
+
     {
       id: 'academic-achiever',
       name: 'Academic Achiever',
@@ -319,9 +590,20 @@ export class TemplateRegistry {
         includeAddress: true,
         includeAddresseeInfo: true, // Critical for formal letters
         showSubjectLine: true, // New field
-        lineHeight: 'normal',
+        lineHeight: 'relaxed',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Research Internships', 'Academic Programs', 'Laboratory Positions'],
       tags: ['academic', 'research', 'formal', 'detailed'],
@@ -332,6 +614,9 @@ export class TemplateRegistry {
       usageCount: 50
 
     },
+
+
+
 
     // ==================== SCHOLARSHIP/ACADEMIC REQUEST TEMPLATES ====================
     {
@@ -356,13 +641,25 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Scholarships', 'Grants', 'Research Funding', 'Academic Awards'],
       tags: ['scholarship', 'academic', 'formal', 'funding'],
       idealFor: ['Scholarship Applicants', 'Research Grant Seekers', 'Academic Award Candidates'],
       features: ['Formal academic style', 'Professional presentation', 'Funding focus']
     },
+    
     {
       id: 'research-proposal',
       name: 'Research Proposal',
@@ -385,7 +682,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Research Proposals', 'Academic Projects', 'Scientific Funding'],
       tags: ['research', 'technical', 'proposal', 'academic'],
@@ -416,7 +724,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Business Partnerships', 'Corporate Collaborations', 'Strategic Alliances'],
       tags: ['corporate', 'partnership', 'executive', 'professional'],
@@ -445,7 +764,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Startups', 'Innovative Companies', 'Tech Partnerships'],
       tags: ['startup', 'modern', 'collaboration', 'innovative'],
@@ -476,7 +806,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Contract Negotiations', 'Salary Discussions', 'Offer Letters'],
       tags: ['negotiation', 'professional', 'balanced', 'formal'],
@@ -505,7 +846,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'relaxed',
         marginSize: 'large',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Executive Contracts', 'High-level Negotiations', 'Board Positions'],
       tags: ['executive', 'negotiation', 'premium', 'formal'],
@@ -514,6 +866,61 @@ export class TemplateRegistry {
     },
 
     // ==================== RECOMMENDATION REQUEST TEMPLATES ====================
+
+    {
+      id: 'professional',
+      name: 'Modern Professional',
+      category: 'Job Application',
+      style: CoverLetterStyle.Modern,
+      description: 'Clean, contemporary design optimized for tech and corporate job applications',
+      premium: false,
+      layout: 'modern',
+      structure: {
+        // headerAlignment: 'right',
+        contactInfoPosition: 'right',
+        datePosition: 'right',
+        recipientInfoPosition: 'left', // Added for formal letters
+        subjectLinePosition: 'center', // Added for formal letters
+         subjectLineStyle: {
+          textTransform: 'uppercase',
+          textDecoration: 'underline',
+          fontWeight: 'bold',
+          fontSize: 'normal',
+          textAlign: 'center'
+        },
+        greetingAlignment: 'left',
+        paragraphSpacing: 'compact',
+        signatureAlignment: 'left',
+        includeAddress: true,
+        includeAddresseeInfo: true, // Critical for formal letters
+        showSubjectLine: true, // New field
+        lineHeight: 'normal',
+        marginSize: 'medium',
+        fontStyle: 'sans-serif',  
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
+      },
+      recommendedFor: ['Technology', 'Corporate', 'Startups', 'Professional Services'],
+      tags: ['modern', 'professional', 'tech', 'corporate'],
+      idealFor: ['Software Engineers', 'Marketing Professionals', 'Project Managers'],
+      features: ['Clean lines', 'Professional spacing', 'Modern typography'],
+      isFeatured: true, 
+      isPopular: true, 
+      usageCount: 50
+
+    },
+
+
+
     {
       id: 'professional-recommendation',
       name: 'Professional Recommendation',
@@ -528,6 +935,13 @@ export class TemplateRegistry {
         datePosition: 'right',
         recipientInfoPosition: 'left', // Added for formal letters
         subjectLinePosition: 'center', // Added for formal letters
+        subjectLineStyle: {
+          textTransform: 'uppercase',
+          textDecoration: 'underline',
+          fontWeight: 'bold',
+          fontSize: 'normal',
+          textAlign: 'center'
+        },
         greetingAlignment: 'left',
         paragraphSpacing: 'compact',
         signatureAlignment: 'left',
@@ -536,13 +950,28 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Professional References', 'Job Applications', 'Academic Programs'],
       tags: ['recommendation', 'professional', 'request', 'polite'],
       idealFor: ['Job Seekers', 'Graduate Applicants', 'Professional Candidates'],
-      features: ['Polite tone', 'Professional request', 'Clear structure']
+      features: ['Polite tone', 'Professional request', 'Clear structure'],
+      isFeatured: true, 
+      isPopular: true, 
+      usageCount: 50
     },
+
     {
       id: 'academic-reference',
       name: 'Academic Reference',
@@ -565,7 +994,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Academic References', 'Graduate School', 'Research Positions'],
       tags: ['academic', 'reference', 'formal', 'educational'],
@@ -596,7 +1036,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'relaxed',
         marginSize: 'medium',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Professional Apologies', 'Customer Service', 'Business Communications'],
       tags: ['apology', 'sincere', 'formal', 'professional'],
@@ -625,7 +1076,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Personal Relationships', 'Informal Apologies', 'Friendly Communications'],
       tags: ['personal', 'apology', 'simple', 'heartfelt'],
@@ -656,7 +1118,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'relaxed',
         marginSize: 'medium',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Thank You Notes', 'Professional Gratitude', 'Personal Appreciation'],
       tags: ['appreciation', 'gratitude', 'warm', 'traditional'],
@@ -685,7 +1158,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Business Relationships', 'Corporate Thanks', 'Professional Networks'],
       tags: ['professional', 'thanks', 'business', 'corporate'],
@@ -716,7 +1200,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'relaxed',
         marginSize: 'large',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Family Communications', 'Personal Letters', 'Heartfelt Messages'],
       tags: ['family', 'warm', 'personal', 'traditional'],
@@ -745,7 +1240,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Modern Families', 'Contemporary Communications', 'Casual Updates'],
       tags: ['modern', 'family', 'contemporary', 'casual'],
@@ -776,7 +1282,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'large',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Visa Applications', 'Embassy Correspondence', 'Official Government Requests'],
       tags: ['visa', 'official', 'formal', 'government'],
@@ -805,7 +1322,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Business Travel', 'Corporate Visa Applications', 'Professional Visits'],
       tags: ['business', 'visa', 'professional', 'corporate'],
@@ -836,7 +1364,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Customer Complaints', 'Service Issues', 'Formal Grievances'],
       tags: ['complaint', 'professional', 'formal', 'firm'],
@@ -865,7 +1404,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'relaxed',
         marginSize: 'large',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Executive Complaints', 'High-level Issues', 'Corporate Grievances'],
       tags: ['executive', 'complaint', 'premium', 'corporate'],
@@ -896,7 +1446,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['General Business', 'Official Communications', 'Professional Correspondence'],
       tags: ['universal', 'professional', 'versatile', 'business'],
@@ -925,7 +1486,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'tight',
         marginSize: 'small',
-        fontStyle: 'sans-serif'
+        fontStyle: 'sans-serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+
       },
       recommendedFor: ['Simple Communications', 'Direct Messages', 'Minimalist Correspondence'],
       tags: ['minimalist', 'simple', 'direct', 'clean'],
@@ -946,6 +1518,13 @@ export class TemplateRegistry {
         datePosition: 'right',
         recipientInfoPosition: 'left', // Added for formal letters
         subjectLinePosition: 'center', // Added for formal letters
+         subjectLineStyle: {
+          textTransform: 'uppercase',
+          textDecoration: 'underline',
+          fontWeight: 'bold',
+          fontSize: 'normal',
+          textAlign: 'center'
+        },
         greetingAlignment: 'left',
         paragraphSpacing: 'compact',
         signatureAlignment: 'left',
@@ -954,7 +1533,18 @@ export class TemplateRegistry {
         showSubjectLine: true, // New field
         lineHeight: 'normal',
         marginSize: 'medium',
-        fontStyle: 'serif'
+        fontStyle: 'serif',
+
+        backgroundStyle: {
+          type: 'solid',
+          gradient: {
+            type: 'radial',
+            colors: ['white', '#e6e8f0'],
+            direction: "45deg"
+          },
+          opacity: 1
+      },
+      
       },
       recommendedFor: ['Traditional Communications', 'Formal Letters', 'Classic Correspondence'],
       tags: ['traditional', 'formal', 'classic', 'time-honored'],

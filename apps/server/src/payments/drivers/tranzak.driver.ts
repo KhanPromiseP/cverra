@@ -97,7 +97,6 @@ export class TranzakDriver implements IPaymentDriver {
     }
   }
 
-  // ... rest of your methods remain the same
   private headers(token: string) {
     return {
       Authorization: `Bearer ${token}`,
@@ -344,18 +343,31 @@ private extractPaymentMethodDetails(tranzakData: any): {
   verifyWebhookSignature(rawBody: string, headers: Record<string, string | string[] | undefined>) {
     if (!this.webhookSecret) {
       console.warn('Webhook secret not configured. Signature verification skipped.');
-      return true;
+      return true; // Or false based on your security requirements
     }
 
-    const signatureHeader = headers['x-tranzak-signature'];
-    if (!signatureHeader) return false;
+    const signatureHeader = headers['x-tranzak-signature'] || headers['x-signature'];
+    if (!signatureHeader) {
+      console.warn('Missing signature header');
+      return false;
+    }
 
     const crypto = require('crypto');
     const hmac = crypto.createHmac('sha256', this.webhookSecret);
     hmac.update(rawBody, 'utf8');
     const digest = hmac.digest('hex');
+    
+    const signature = Array.isArray(signatureHeader) 
+      ? signatureHeader[0] 
+      : String(signatureHeader);
 
-    return String(signatureHeader) === digest;
+    // Use constant-time comparison to prevent timing attacks
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(digest),
+      Buffer.from(signature)
+    );
+    
+    return isValid;
   }
 
   private getMockResponse(amount: number, currency: string, metadata: any, transactionId?: string): PaymentInitiationResult {

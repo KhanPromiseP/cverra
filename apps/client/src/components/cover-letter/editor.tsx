@@ -1,4 +1,4 @@
-// client/components/cover-letter/editor.tsx
+import { t, Trans } from "@lingui/macro";
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useBreakpoint } from "@reactive-resume/hooks";
 import {
@@ -54,6 +54,7 @@ import { useAuthStore } from '@/client/stores/auth';
 import { useWallet } from '@/client/hooks/useWallet';
 
 import { CoinConfirmPopover } from '../modals/coin-confirm-modal';
+import { autoSaveService } from '../../services/uto-save.service';
 
 interface CoverLetterEditorProps {
   mode?: 'create' | 'edit';
@@ -81,6 +82,10 @@ const EditorContent = () => {
   const [showCoinPopover, setShowCoinPopover] = useState(false);
   const [exportCost] = useState(10);
   const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle');
+
 
   // Get builder store for sidebar state
   const sheet = useBuilderStore((state) => state.sheet);
@@ -98,6 +103,38 @@ const EditorContent = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+
+  useEffect(() => {
+    return () => {
+      console.log('Cleaning up auto-save timeout on unmount');
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = undefined;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+  // Global beforeunload handler for entire cover letter
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (coverLetter?.id && hasUnsavedChanges) {
+      e.preventDefault();
+      e.returnValue = t`You have unsaved changes. Are you sure you want to leave?`;
+      return e.returnValue;
+    }
+  };
+
+  
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  
+  return () => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    // Cleanup all auto-save timeouts
+    autoSaveService.cleanup();
+  };
+}, [coverLetter?.id, hasUnsavedChanges]);
 
   useEffect(() => {
     console.log('Coin popover state:', showCoinPopover);
@@ -105,131 +142,173 @@ const EditorContent = () => {
   }, [showCoinPopover, balance]);
 
   const { triggerSave } = useAutoSave({
-    data: coverLetter,
-    onSave: async (data) => {
-      if (!id || !data || manualSaving) return;
-      
-      try {
-        // Validate content before saving
-        if (!data.content?.blocks || !Array.isArray(data.content.blocks)) {
-          console.error('Invalid content structure for auto-save:', data.content);
-          return;
-        }
-
-        console.log('Auto-saving content with border settings:', data.structure?.borderStyle);
-        
-        await coverLetterService.update(id, { 
-          content: {
-            ...data.content,
-            structure: data.structure // Include structure
-          },
-          style: data.style,
-          title: data.title,
-          layout: data.layout,
-          structure: data.structure // Also include at root level
-        });
-        console.log('Auto-saved successfully with content and border settings');
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    },
-    delay: 2000
-  });
-
-  // Enhanced content change handler
-  const handleContentChange = useCallback((newContent: any) => {
-    if (!coverLetter) return;
+  data: coverLetter,
+  onSave: async (data) => {
+    console.log('AUTO-SAVE HOOK FIRED!', {
+      id: data?.id,
+      blocksCount: data?.content?.blocks?.length,
+      dataChanged: data !== coverLetter,
+      timestamp: new Date().toISOString()
+    });
     
-    console.log('Content changed - blocks:', newContent.blocks?.length);
-
-    const updatedCoverLetter = {
-      ...coverLetter,
-      content: {
-        ...newContent,
-        lastSaved: new Date().toISOString()
-      },
-      updatedAt: new Date().toISOString()
-    };
-
-    setCoverLetter(updatedCoverLetter);
-    triggerSave();
-  }, [coverLetter, setCoverLetter, triggerSave]);
-
-  const handleManualSave = async () => {
-    if (!coverLetter) {
-      toast.error('No cover letter to save');
-      return;
-    }
-
-    setManualSaving(true);
+    if (!id || !data || manualSaving) return;
+    
     try {
-      // Validate content structure
-      if (!coverLetter.content?.blocks || !Array.isArray(coverLetter.content.blocks)) {
-        console.error('Invalid content structure:', coverLetter.content);
-        toast.error('Invalid content structure - cannot save');
+      // Validate content before saving
+      if (!data.content?.blocks || !Array.isArray(data.content.blocks)) {
+        console.error('Invalid content structure for auto-save:', data.content);
         return;
       }
 
-      console.log('Manual save - saving with border settings:', coverLetter.structure?.borderStyle);
+      console.log('Auto-saving to database...');
       
-      let savedCoverLetter;
-
-      // Ensure borderStyle is properly included in the structure
+      // Prepare save data
       const saveData = {
-        title: coverLetter.title,
+        title: data.title,
         content: {
-          ...coverLetter.content,
-          // Make sure structure includes borderStyle
-          structure: coverLetter.structure
+          ...data.content,
+          structure: data.structure || data.content.structure || {}
         },
-        style: coverLetter.style,
-        layout: coverLetter.layout,
-        structure: coverLetter.structure, // This should include borderStyle
-        userData: {
-          name: user?.name || '',
-          email: user?.email || '',
-          skills: [],
-          experience: [],
-          achievements: []
-        },
-        jobData: {
-          position: '',
-          company: ''
-        }
+        style: data.style,
+        layout: data.layout,
+        structure: data.structure || data.content.structure || {}
       };
 
-      if (coverLetter.id) {
-        savedCoverLetter = await coverLetterService.update(coverLetter.id, saveData);
-      } else {
-        savedCoverLetter = await coverLetterService.create(saveData);
-      }
-
-      // Fix the response handling
-      let coverLetterData;
-      if ('coverLetter' in savedCoverLetter) {
-        coverLetterData = savedCoverLetter.coverLetter;
-      } else {
-        coverLetterData = savedCoverLetter;
-      }
-
-      if (coverLetterData) {
-        setCoverLetter(coverLetterData);
-        
-        // Navigate for new cover letters
-        if (!coverLetter.id && coverLetterData.id) {
-          navigate(`/builder/cover-letter/${coverLetterData.id}/edit`, { replace: true });
-        }
-      }
-
-      toast.success('Cover letter saved successfully! Border settings preserved.');
+      console.log('Auto-save data:', {
+        ...saveData,
+        contentBlocks: saveData.content?.blocks?.length,
+        contentStructure: !!saveData.content?.structure
+      });
+      
+      // Save to database
+      const savedCoverLetter = await coverLetterService.update(id, saveData);
+      
+      console.log('Auto-save successful!', {
+        id: savedCoverLetter.id,
+        updatedAt: savedCoverLetter.updatedAt
+      });
+      
+      // Update store with fresh data from DB
+      setCoverLetter(savedCoverLetter);
       
     } catch (error) {
-      console.error('Failed to save cover letter:', error);
-      toast.error('Failed to save cover letter content');
-    } finally {
-      setManualSaving(false);
+      console.error('Auto-save failed:', error);
+      toast.error(t`Auto-save failed. Changes might not be saved.`);
     }
+  },
+  delay: 2000 // 2-second debounce
+});
+
+ // Enhanced content change handler with direct auto-save implementation
+const handleContentChange = useCallback((newContent: any) => {
+  if (!coverLetter || !coverLetter.id) return;
+  
+  console.log('Content changed - tracking for auto-save');
+  setHasUnsavedChanges(true);
+  
+  const updatedCoverLetter = {
+    ...coverLetter,
+    content: {
+      ...newContent,
+      lastSaved: new Date().toISOString()
+    },
+    updatedAt: new Date().toISOString()
   };
+
+  setCoverLetter(updatedCoverLetter);
+  
+  // Schedule global auto-save
+  autoSaveService.scheduleSave(
+    `cover-letter-${coverLetter.id}`,
+    updatedCoverLetter,
+    async (dataToSave) => {
+      console.log('Global auto-save triggered');
+      
+      const saveData = {
+        title: dataToSave.title,
+        content: {
+          ...dataToSave.content,
+          structure: dataToSave.structure || dataToSave.content.structure || {}
+        },
+        style: dataToSave.style,
+        layout: dataToSave.layout,
+        structure: dataToSave.structure || dataToSave.content.structure || {}
+      };
+
+      const saved = await coverLetterService.update(coverLetter.id, saveData);
+      setCoverLetter(saved);
+      setHasUnsavedChanges(false);
+      console.log('Global auto-save successful');
+    },
+    1500 // 1.5 second debounce for global saves
+  );
+}, [coverLetter, setCoverLetter]);
+
+
+ const handleManualSave = async () => {
+  if (!coverLetter || !coverLetter.id) {
+    toast.error(t`No cover letter to save`);
+    return;
+  }
+
+  setManualSaving(true);
+  try {
+    // Validate content structure
+    if (!coverLetter.content?.blocks || !Array.isArray(coverLetter.content.blocks)) {
+      console.error('Invalid content structure:', coverLetter.content);
+      toast.error(t`Invalid content structure - cannot save`);
+      return;
+    }
+
+    console.log('Manual save triggered with content:', {
+      id: coverLetter.id,
+      blocksCount: coverLetter.content.blocks.length,
+      firstBlockContent: coverLetter.content.blocks[0]?.content?.substring(0, 50),
+      hasStructure: !!coverLetter.structure
+    });
+    
+    // Prepare the save data - SIMPLIFIED VERSION
+    const saveData: UpdateCoverLetterData = {
+      title: coverLetter.title,
+      content: {
+        ...coverLetter.content,
+        // CRITICAL: Ensure structure is in content
+        structure: coverLetter.structure || coverLetter.content.structure || {},
+        lastSaved: new Date().toISOString()
+      },
+      style: coverLetter.style,
+      layout: coverLetter.layout,
+      structure: coverLetter.structure || coverLetter.content.structure || {}
+      // REMOVE userData and jobData if not needed for updates
+    };
+
+    console.log('Sending save data to API:', {
+      ...saveData,
+      contentBlocks: saveData.content?.blocks?.length,
+      contentStructure: saveData.content?.structure ? 'Yes' : 'No',
+      rootStructure: saveData.structure ? 'Yes' : 'No'
+    });
+    
+    const savedCoverLetter = await coverLetterService.update(coverLetter.id, saveData);
+    
+    console.log('API response:', {
+      id: savedCoverLetter.id,
+      updatedAt: savedCoverLetter.updatedAt,
+      contentBlocks: (savedCoverLetter.content as any)?.blocks?.length,
+      contentStructure: (savedCoverLetter.content as any)?.structure ? 'Yes' : 'No'
+    });
+    
+    setCoverLetter(savedCoverLetter);
+    toast.success(t`Cover letter saved successfully!`);
+    
+  } catch (error: any) {
+    console.error('Failed to save cover letter:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    toast.error(t`Failed to save: ${error.message || 'Unknown error'}`);
+  } finally {
+    setManualSaving(false);
+  }
+};
 
   const handleTitleChange = (newTitle: string) => {
     if (!coverLetter) return;
@@ -250,16 +329,204 @@ const EditorContent = () => {
     return `export_pdf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const executePDFExport = async () => {
-    if (!coverLetter || !user) return;
+  const ensurePreviewModeForExport = async (): Promise<Array<{ element: HTMLElement, display: string, opacity: string }>> => {
+    console.log('Ensuring preview mode for export...');
+    
+    // If we're not in preview mode, force it
+    if (!previewMode) {
+      console.log('Switching to preview mode...');
+      setPreviewMode(true);
+      
+      // Wait for the preview mode to take effect
+      await new Promise(resolve => {
+        // Wait for state update
+        setTimeout(() => {
+          // Force a re-render
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 300);
+          });
+        }, 100);
+      });
+    }
+    
+    // Get the cover letter grid element
+    const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+    
+    // If no grid found, return empty
+    if (!coverLetterGrid) {
+      console.warn('Cover letter grid not found');
+      return [];
+    }
+    
+    // Hide ALL editing UI elements comprehensively
+    const elementsToHide = [
+      // All possible drag handles
+      '[data-drag-handle]',
+      '.drag-handle',
+      '.resize-handle',
+      '.react-resizable-handle',
+      '[data-resize-handle]',
+      
+      // All selection and highlight styles
+      '.ring-2',
+      '.ring-[2px]',
+      '.ring-blue-500',
+      '.ring-dashed',
+      '.border-dashed',
+      '.border-blue-500',
+      '[data-selected="true"]',
+      '.selected',
+      '.is-selected',
+      '.block-selected',
+      '.active-block',
+      
+      // All control elements
+      '.block-controls',
+      '.block-toolbar',
+      '.edit-toolbar',
+      '.format-toolbar',
+      '.control-bar',
+      '.editor-controls',
+      
+      // All interactive buttons
+      '.delete-button',
+      '.edit-button',
+      '.resize-button',
+      '.move-button',
+      '.duplicate-button',
+      '.block-options',
+      '.context-menu',
+      
+      // All hover effects
+      '.hover\\:shadow-sm',
+      '.hover\\:ring-1',
+      '.hover\\:ring-2',
+      '.hover\\:border',
+      
+      // Grid editing elements
+      '.react-grid-item.resizing',
+      '.react-grid-item.react-draggable-dragging',
+      '.react-grid-placeholder',
+      '.react-draggable',
+      '.react-draggable-dragging',
+      '.react-resizable',
+      
+      // Add block buttons
+      '.add-block-button',
+      '.insert-block',
+      '.new-block-button',
+      
+      // Sidebar and panel controls
+      '.block-sidebar',
+      '.properties-panel',
+      '.editor-panel',
+      
+      // Tooltips and overlays
+      '[role="tooltip"]',
+      '.tooltip',
+      '.popover',
+      '.modal-backdrop',
+      '.overlay'
+    ];
+    
+    // Collect all elements to hide
+    const allElements: HTMLElement[] = [];
+    elementsToHide.forEach(selector => {
+      try {
+        const elements = coverLetterGrid.querySelectorAll(selector);
+        elements.forEach(element => {
+          if (element instanceof HTMLElement) {
+            allElements.push(element);
+          }
+        });
+      } catch (error) {
+        // Skip invalid selectors
+      }
+    });
+    
+    // Remove duplicates
+    const uniqueElements = Array.from(new Set(allElements));
+    
+    // Store original styles and hide elements
+    const originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
+    
+    uniqueElements.forEach(element => {
+      // Check if element is already hidden
+      const computedStyle = window.getComputedStyle(element);
+      if (computedStyle.display === 'none' || 
+          computedStyle.visibility === 'hidden' ||
+          computedStyle.opacity === '0') {
+        return;
+      }
+      
+      originalStyles.push({
+        element,
+        display: element.style.display,
+        opacity: element.style.opacity
+      });
+      
+      // Hide element
+      element.style.opacity = '0';
+      element.style.pointerEvents = 'none';
+      element.style.visibility = 'hidden';
+    });
+    
+    console.log(`Hidden ${originalStyles.length} editing UI elements`);
+    
+    // Add a class to the grid to indicate export mode
+    coverLetterGrid.classList.add('export-mode');
+    
+    // Force a reflow to ensure changes are rendered
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        coverLetterGrid.clientHeight; // Force reflow
+        setTimeout(resolve, 100);
+      });
+    });
+    
+    return originalStyles;
+  };
+
+  const restoreEditingUI = (originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }>) => {
+    console.log('Restoring editing UI...');
+    
+    // Restore all hidden elements
+    originalStyles.forEach(({ element, display, opacity }) => {
+      element.style.opacity = opacity;
+      element.style.pointerEvents = '';
+      element.style.visibility = '';
+      element.style.display = display;
+    });
+    
+    // Remove export mode class
+    const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+    if (coverLetterGrid) {
+      coverLetterGrid.classList.remove('export-mode');
+    }
+    
+    // Force a reflow
+    requestAnimationFrame(() => {
+      if (coverLetterGrid) {
+        coverLetterGrid.clientHeight; // Force reflow
+      }
+    });
+  };
+
+  // Quick preview and export (same as ExportSection)
+  const quickPreviewAndExport = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!coverLetter || !user) {
+      return { success: false, error: 'No cover letter or user found' };
+    }
 
     const transactionId = generateTransactionId();
     let transactionSuccess = false;
+    let originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
     
     setIsExporting(true);
 
     try {
       // Step 1: Reserve coins
+      console.log('Reserving coins for export...');
       const transactionResult = await deductCoinsWithRollback(
         exportCost,
         `PDF Export - ${coverLetter.title}`,
@@ -271,216 +538,149 @@ const EditorContent = () => {
       );
 
       if (!transactionResult.success) {
-        throw new Error('Failed to reserve coins for PDF export');
+        throw new Error(t`Failed to reserve coins for PDF export`);
       }
 
       transactionSuccess = true;
 
-      // Step 2: Ensure we're in preview mode for best results
-      if (!previewMode) {
-        console.log('Switching to preview mode for PDF export...');
-        toast.info(
-          <div className="space-y-1">
-            <div className="font-medium">Switching to Preview Mode</div>
-            <div className="text-xs text-blue-600">
-              Preparing for high-quality PDF export...
-            </div>
-          </div>,
-          { duration: 2000 }
-        );
-        
-        // Switch to preview mode
-        setPreviewMode(true);
-        
-        // Wait for preview mode to fully render
-        // This is crucial for React to update the DOM
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Double-check that preview mode has been applied
-        // Look for editing UI elements to confirm we're in preview mode
-        await new Promise<void>((resolve) => {
-          const checkPreviewMode = () => {
-            const hasEditingUI = document.querySelector('.ring-2, .ring-blue-500, [data-drag-handle]');
-            if (!hasEditingUI) {
-              console.log('Successfully switched to preview mode');
-              resolve();
-            } else {
-              setTimeout(checkPreviewMode, 100);
-            }
-          };
-          checkPreviewMode();
-        });
-      }
+      // Step 2: Force preview mode and hide editing UI
+      console.log('Preparing preview for export...');
+      toast.info(t`Preparing preview for export...`, { 
+        id: 'export-prepare',
+        duration: 2000 
+      });
+      
+      originalStyles = await ensurePreviewModeForExport();
+      
+      // Additional wait for preview to render
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Step 3: Verify the cover letter element exists and is ready
-      let targetElement = document.querySelector('[data-cover-letter-grid]') as HTMLElement;
-      
-      // If element not found immediately, try again with a delay
-      if (!targetElement) {
-        console.log('Element not found immediately, waiting...');
-        await new Promise(resolve => setTimeout(resolve, 300));
-        targetElement = document.querySelector('[data-cover-letter-grid]') as HTMLElement;
+      // Step 3: Verify we're ready to export
+      const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+      if (!coverLetterGrid) {
+        throw new Error(t`Cover letter grid not found for export`);
       }
       
-      // If still not found, try alternative selectors
-      if (!targetElement) {
-        console.log('🔍 Trying alternative selectors...');
-        const alternativeSelectors = [
-          '.react-grid-layout',
-          '.cover-letter-container',
-          '[class*="grid"]',
-          '.grid-layout',
-          '.editor-content'
-        ];
-        
-        for (const selector of alternativeSelectors) {
-          const element = document.querySelector(selector) as HTMLElement;
-          if (element) {
-            targetElement = element;
-            console.log(`Found element with selector: ${selector}`);
-            break;
-          }
-        }
+      // Check if content blocks are visible
+      const contentBlocks = coverLetterGrid.querySelectorAll('[data-block-id]');
+      const visibleBlocks = Array.from(contentBlocks).filter(block => {
+        const style = window.getComputedStyle(block);
+        return style.visibility !== 'hidden' && 
+               style.opacity !== '0' && 
+               style.display !== 'none';
+      });
+      
+      if (visibleBlocks.length === 0) {
+        throw new Error(t`No visible content blocks found for export`);
       }
       
-      if (!targetElement) {
-        // Provide helpful error message
-        if (!previewMode) {
-          throw new Error('Please switch to Preview mode first for best PDF results. Click the "Preview" button.');
-        } else {
-          throw new Error('Could not find cover letter content. Please try refreshing the page.');
-        }
-      }
+      console.log(`Ready to export: ${visibleBlocks.length} content blocks visible`);
 
-      // Step 4: Show loading indicator
-      const loadingToast = toast.loading('Generating professional PDF...');
+      // Step 4: Generate PDF
+      const loadingToast = toast.loading(t`Generating PDF from preview...`, {
+        id: 'export-loading'
+      });
 
       try {
-        // Step 5: Generate PDF with the cover letter data
-        // Your exportToPDF function expects the CoverLetter object, not the element
-        await exportToPDF(coverLetter);
+        console.log('Exporting cover letter...', {
+          title: coverLetter.title,
+          blocks: coverLetter.content?.blocks?.length || 0,
+          blocksWithContent: coverLetter.content?.blocks?.filter((b: any) => b.content?.trim()).length || 0
+        });
+
+        // Export the PDF
+        await exportToPDF({
+          ...coverLetter,
+          content: {
+            ...coverLetter.content,
+            blocks: coverLetter.content?.blocks || []
+          }
+        });
+        
       } finally {
-        // Dismiss loading toast
         toast.dismiss(loadingToast);
       }
 
-      // Step 6: Mark transaction as completed
+      // Step 5: Complete transaction
       await completeTransaction(transactionId, {
         result: 'success',
         coverLetterTitle: coverLetter.title,
         fileSize: 'PDF',
-        exportedFromPreview: previewMode,
         exportedAt: new Date().toISOString()
       });
 
-      toast.success(
-        <div className="space-y-1">
-          <div className="font-medium">
-            {previewMode ? 'PDF exported from Preview Mode!' : 'PDF exported successfully!'}
-          </div>
-          <div className="text-xs text-green-600 flex items-center gap-1">
-            <Coins className="w-3 h-3" />
-            Used {exportCost} coins • Transaction: {transactionId.slice(-8)}
-          </div>
-          {previewMode && (
-            <div className="text-xs text-blue-600">
-              Preview mode ensures perfect formatting in your PDF
-            </div>
-          )}
-        </div>,
-        { duration: 10000 }
-      );
-
-      setShowCoinPopover(false);
+      console.log('PDF export completed successfully');
+      return { success: true };
 
     } catch (error: any) {
       console.error("PDF export failed:", error);
       
-      // Step 7: Refund coins if transaction was successful
+      // Always restore UI even on error
+      if (originalStyles.length > 0) {
+        restoreEditingUI(originalStyles);
+      }
+      
+      // Refund coins if transaction was successful but export failed
       if (transactionSuccess) {
         try {
-          await refundTransaction(transactionId, error.message || 'PDF export failed');
+          await refundTransaction(transactionId, error.message || t`PDF export failed`);
           await fetchBalance();
-          console.log(`Refunded ${exportCost} coins due to PDF export failure`);
+          console.log(`Refunded ${exportCost} coins`);
           
-          // Show refund notification
-          toast.info(
-            <div className="space-y-1">
-              <div className="font-medium">Coins Refunded</div>
-              <div className="text-xs text-blue-600 flex items-center gap-1">
-                <Coins className="w-3 h-3" />
-                {exportCost} coins returned to your balance
-              </div>
-            </div>,
-            { duration: 5000 }
-          );
+          toast.info(t`Coins refunded due to export failure`, { 
+            duration: 2000 
+          });
         } catch (refundError) {
           console.error('Failed to refund coins:', refundError);
         }
       }
 
-      // User-friendly error messages
-      let errorMessage = 'Failed to export PDF. Please try again.';
-      let suggestion = '';
+      return { 
+        success: false, 
+        error: error.message || t`PDF export failed` 
+      };
       
-      if (error.message?.includes('preview') || error.message?.includes('Preview')) {
-        errorMessage = 'Preview mode required';
-        suggestion = 'Please switch to Preview mode first by clicking the "Preview" button.';
-      } else if (error.message?.includes('cover letter content')) {
-        errorMessage = 'Content not found';
-        suggestion = 'Please ensure your cover letter has content and try again.';
-      } else if (error.message?.includes('network') || error.code === 'ECONNABORTED') {
-        errorMessage = 'Network error';
-        suggestion = 'Please check your connection and try again.';
-      } else if (transactionSuccess) {
-        errorMessage = 'PDF generation failed';
-        suggestion = 'Please try again or contact support.';
-      }
-
-      toast.error(
-        <div className="space-y-1">
-          <div className="font-medium">{errorMessage}</div>
-          {suggestion && (
-            <div className="text-xs text-yellow-600">{suggestion}</div>
-          )}
-          <div className="text-xs text-gray-500 mt-1">
-            Error: {error.message || 'Unknown error'}
-          </div>
-        </div>,
-        {
-          duration: 20000,
-          icon: <XCircle className="w-4 h-4 text-red-500" />,
-        }
-      );
-
-      setShowCoinPopover(false);
     } finally {
+      // Step 6: Always restore UI
+      if (originalStyles.length > 0) {
+        restoreEditingUI(originalStyles);
+      }
+      
+      // Step 7: Exit preview mode if we forced it
+      if (!previewMode) {
+        setPreviewMode(false);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       setIsExporting(false);
     }
   };
 
+  // Use quickPreviewAndExport instead
   const confirmExportPDF = async () => {
     try {
       const affordable = await canAfford(exportCost);
 
       if (!affordable) {
-        toast.error("Not enough coins");
+        toast.error(t`Not enough coins`);
         setShowCoinPopover(false);
         return;
       }
 
       if (!coverLetter) {
-        toast.error("Cover letter is not loaded");
+        toast.error(t`Letter is not loaded`);
         setShowCoinPopover(false);
         return;
       }
 
-      // Use the enhanced export function
-      await executePDFExport();
+      const result = await quickPreviewAndExport();
+      if (!result.success) {
+        toast.error(result.error || t`Export failed`);
+      }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("PDF export preparation failed:", error);
-      toast.error("Failed to prepare PDF export");
+      toast.error(t`Failed to prepare PDF export: ${error.message}`);
       setShowCoinPopover(false);
     }
   };
@@ -490,28 +690,31 @@ const EditorContent = () => {
     if (goSubscription) {
       // Only navigate for subscriptions
       navigate("/dashboard/pricing");
+    } else {
+      // For direct coin purchases, navigate to coins page
+      navigate(`/dashboard/coins?needed=${exportCost - balance}`);
     }
-    // For direct coin purchases, the popover handles it internally
-    // No navigation needed
   };
 
+  //  use quickPreviewAndExport
   const handleExportPDF = async () => {
     if (!coverLetter || !user) {
-      toast.error("Please sign in to export PDF");
+      toast.error(t`Please sign in to export PDF`);
       return;
     }
 
     // Check if cover letter has content
-    const hasContent = coverLetter.content?.blocks?.some((block: any) => 
+    const blocksWithContent = coverLetter.content?.blocks?.filter((block: any) => 
       block.content && block.content.trim().length > 0
-    );
+    ) || [];
 
-    if (!hasContent) {
+    if (blocksWithContent.length === 0) {
       toast.error(
         <div className="space-y-1">
-          <div className="font-medium">No content to export</div>
-          <div className="text-xs">Please add content to your cover letter before exporting.</div>
-        </div>
+          <div className="font-medium">{t`No content to export`}</div>
+          <div className="text-xs">{t`Please add content to your cover letter before exporting.`}</div>
+        </div>,
+        { duration: 3000 }
       );
       return;
     }
@@ -524,56 +727,55 @@ const EditorContent = () => {
       return;
     }
 
-    // Check if we need to switch to preview mode
-    if (!previewMode) {
-      // Ask user to confirm switching to preview mode
-      toast.info(
+    // Export with preview handling
+    const result = await quickPreviewAndExport();
+    
+    if (result.success) {
+      toast.success(
         <div className="space-y-1">
-          <div className="font-medium">Switch to Preview Mode?</div>
-          <div className="text-xs text-blue-600">
-            For best PDF results, we recommend exporting from Preview mode.
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button
-              className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={async () => {
-                toast.dismiss();
-                await executePDFExport();
-              }}
-            >
-              Switch & Export
-            </button>
-            <button
-              className="text-xs px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              onClick={() => toast.dismiss()}
-            >
-              Cancel
-            </button>
+          <div className="font-medium">{t`PDF exported successfully!`}</div>
+          <div className="text-xs text-green-600 flex items-center gap-1">
+            <Coins className="w-3 h-3" />
+            {t`Used ${exportCost} coins`}
           </div>
         </div>,
-        { 
-          duration: 10000,
-          dismissible: false 
-        }
+        { duration: 3000 }
       );
-      return;
+    } else {
+      toast.error(t`Export failed: ${result.error}`, {
+        duration: 4000,
+      });
     }
-
-    // If already in preview mode, proceed directly
-    await executePDFExport();
   };
 
-  const handleExportDOCX = async () => {
-    if (!coverLetter) return;
+
+  useEffect(() => {
+    // Add export mode styles
+    const style = document.createElement('style');
+    style.textContent = `
+      .export-mode {
+        --export-mode: true;
+      }
+      
+      .export-mode [data-block-id] {
+        cursor: default !important;
+      }
+      
+      .export-mode [contenteditable="true"] {
+        pointer-events: none !important;
+      }
+      
+      .export-mode .professional-letter-container {
+        box-shadow: none !important;
+      }
+    `;
+    document.head.appendChild(style);
     
-    try {
-      await exportToDOCX(coverLetter);
-      toast.success('DOCX exported successfully!');
-    } catch (error) {
-      console.error('DOCX export failed:', error);
-      toast.error('Failed to export DOCX');
-    }
-  };
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
 
   // Debug: Log current state
   useEffect(() => {
@@ -592,7 +794,7 @@ const EditorContent = () => {
       <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900">
         <div className="text-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading cover letter...</p>
+          <p className="text-gray-600 dark:text-gray-300">{t`Loading cover letter...`}</p>
         </div>
       </div>
     );
@@ -600,271 +802,261 @@ const EditorContent = () => {
 
   // Truncate title for mobile
   const getDisplayTitle = () => {
-    if (!isMobile) return coverLetter.title;
+    if (isMobile) {
+      if (coverLetter.title.length > 10) {
+        return `${coverLetter.title.substring(0, 8)}...`;
+      }
+      return coverLetter.title;
+    }
     
-    if (coverLetter.title.length > 20) {
-      return `${coverLetter.title.substring(0, 18)}...`;
+    if (coverLetter.title.length > 25) {
+      return `${coverLetter.title.substring(0, 23)}...`;
     }
     return coverLetter.title;
   };
 
   return (
-    <>
-      {/* Main Header - Fixed at top */}
-      <div
-        className={cn(
-          "fixed inset-x-0 top-0 z-[60] h-16 bg-secondary-accent/90 backdrop-blur-xl lg:z-20 border-b border-gray-700 shadow-lg",
-          isMobile && "px-0"
-        )}
-      >
-        <div className="relative flex h-full items-center justify-between px-3 sm:px-4">
-          {/* Left side: Home button + Left toggle */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Left sidebar toggle - Visible on mobile only */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className={cn(
-                "flex lg:hidden h-10 w-10",
-                isMobile && "min-w-10"
-              )}
-              onClick={toggleLeftSidebar}
-            >
-              <SidebarSimple size={isMobile ? 20 : 22} />
-            </Button>
+  <div className="flex flex-col h-full bg-background">
+    {/* Fixed Header - Optimized for all screen sizes */}
+    <div className="fixed top-0 left-0  right-0 z-50 bg-secondary-accent/95 backdrop-blur-xl border-b border-gray-700 shadow-lg">
+      {/* Main Navigation Bar */}
+      <div className="h-12 sm:h-14 flex items-center px-2 sm:px-3 md:px-4">
+        {/* Left: Back and Menu */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Mobile Menu Button */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 sm:hidden"
+            onClick={toggleLeftSidebar}
+            title={t`Menu`}
+          >
+            <SidebarSimple size={16} />
+          </Button>
 
-            {/* Home button */}
-            <Button 
-              asChild 
-              size="icon" 
-              variant="ghost" 
-              className={cn(
-                "text-foreground h-10 w-10",
-                isMobile && "min-w-10"
-              )}
-            >
-              <Link to="/dashboard/cover-letters">
-                <ArrowLeft size={isMobile ? 20 : 22} />
-              </Link>
-            </Button>
-          </div>
+          {/* Back Button */}
+          <Button 
+            asChild 
+            size="icon" 
+            variant="ghost" 
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title={t`Back to Dashboard`}
+          >
+            <Link to="/dashboard/cover-letters">
+              <ArrowLeft size={16} className="sm:size-5" />
+            </Link>
+          </Button>
+        </div>
 
-          {/* Centered Title Area - Takes available space */}
-          <div className="flex-1 flex items-center justify-center min-w-0 px-2 sm:px-4">
-            <div className="flex items-center justify-center space-x-2 max-w-full">
-              {/* Optional: Edit icon on mobile to indicate edit mode */}
-              {isMobile && (
-                <PencilSimple size={16} className="text-primary flex-shrink-0" />
-              )}
-              
-              <div className="flex items-center gap-2 max-w-full">
-                <h1 className="font-semibold text-sm sm:text-base md:text-lg truncate max-w-[200px] sm:max-w-[300px] md:max-w-none">
-                  {getDisplayTitle()}
-                </h1>
-              </div>
-            </div>
-          </div>
-
-          {/* Right side: Controls + Right toggle */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Desktop Controls - Original components with responsive hiding */}
-            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
-              {/* Enhanced Save Button */}
-              <Button
-                onClick={handleManualSave}
-                variant="primary"
-                size="sm"
-                disabled={manualSaving || isExporting}
-                className="bg-green-600 hover:bg-green-700 text-white border-green-700"
-              >
-                {manualSaving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {manualSaving ? 'Saving...' : 'Save Content'}
-              </Button>
-
-              {/* Preview/Edit Toggle */}
-              <Button
-                variant="outline"
-                onClick={() => setPreviewMode(!previewMode)}
-                disabled={isExporting}
-                size="sm"
-              >
-                {previewMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                {previewMode ? 'Edit' : 'Preview'}
-              </Button>
-
-              {/* PDF Button with hover cost tooltip */}
-              <div className="relative group">
-                <Button 
-                  ref={exportButtonRef}
-                  onClick={handleExportPDF}
-                  variant="outline"
-                  disabled={isExporting}
-                  size="sm"
-                >
-                  {isExporting ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  {isExporting ? 'Exporting...' : 'PDF'}
-                </Button>
-                {/* Tooltip positioned below the button */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-1.5 bg-green-600 dark:bg-green-700 text-white dark:text-gray-50 text-xs font-medium rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                  Cost: {exportCost} coins
-                  {/* Arrow pointing up to button */}
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[6px] border-l-transparent border-r-transparent border-b-green-600 dark:border-b-green-700"></div>
-                </div>
-              </div>
-
-              <LocaleSwitch />
-              <ThemeSwitch />
-            </div>
+        {/* Center: Title */}
+        <div className="flex-1 flex items-center justify-center min-w-0 px-1 sm:px-2">
+          <div className="flex flex-col items-center max-w-full">
+            <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate max-w-[140px] xs:max-w-[160px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-none text-center">
+              {getDisplayTitle()}
+            </h1>
             
-            {/* Mobile Controls - Same components but with wrapper for sizing */}
-            <div className="flex sm:hidden items-center gap-1">
-              {/* Save Button (Mobile) */}
-              <Button
-                onClick={handleManualSave}
-                variant="ghost"
-                size="icon"
-                disabled={manualSaving || isExporting}
-                className="h-10 w-10"
-              >
-                {manualSaving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-              </Button>
-
-              {/* Preview/Edit Toggle (Mobile) */}
-              <Button
-                variant="ghost"
-                onClick={() => setPreviewMode(!previewMode)}
-                disabled={isExporting}
-                size="icon"
-                className="h-10 w-10"
-              >
-                {previewMode ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </Button>
-
-              {/* PDF Export Button (Mobile) */}
-              <Button 
-                ref={exportButtonRef}
-                onClick={handleExportPDF}
-                variant="ghost"
-                disabled={isExporting}
-                size="icon"
-                className="h-10 w-10"
-              >
-                {isExporting ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-              </Button>
-
-              <div className="scale-90">
-                <LocaleSwitch />
-              </div>
-              <div className="scale-90">
-                <ThemeSwitch />
-              </div>
-            </div>
-
-            {/* Right sidebar toggle - Visible on mobile only */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className={cn(
-                "flex lg:hidden h-10 w-10",
-                isMobile && "min-w-10"
-              )}
-              onClick={toggleRightSidebar}
-            >
-              <SidebarSimple className="-scale-x-100" size={isMobile ? 20 : 22} />
-            </Button>
           </div>
         </div>
 
-        {/* Optional: Mobile status bar indicator */}
-        {isMobile && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/50 via-accent/50 to-primary/50"></div>
-        )}
+        {/* Right: Action Buttons */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Essential Actions - Always visible */}
+          <Button
+            onClick={handleManualSave}
+            variant="ghost"
+            size="icon"
+            disabled={manualSaving || isExporting}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title={t`Save`}
+          >
+            {manualSaving ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current" />
+            ) : (
+              <Save size={14} className="sm:size-4" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => setPreviewMode(!previewMode)}
+            disabled={isExporting}
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title={previewMode ? t`Edit` : t`Preview`}
+          >
+            {previewMode ? (
+              <EyeOff size={14} className="sm:size-4" />
+            ) : (
+              <Eye size={14} className="sm:size-4" />
+            )}
+          </Button>
+
+          <Button 
+            ref={exportButtonRef}
+            onClick={handleExportPDF}
+            variant="ghost"
+            disabled={isExporting}
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title={t`Export PDF`}
+          >
+            {isExporting ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current" />
+            ) : (
+              <Download size={14} className="sm:size-4" />
+            )}
+          </Button>
+
+          {/* Locale & Theme - Visible on all screens */}
+          <div className="flex items-center gap-0.5 ml-0.5">
+            <div className="scale-80 sm:scale-90">
+              <LocaleSwitch />
+            </div>
+            <div className="scale-80 sm:scale-90">
+              <ThemeSwitch />
+            </div>
+          </div>
+
+          {/* Right Menu Toggle - Mobile only */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 sm:hidden"
+            onClick={toggleRightSidebar}
+            title={t`Tools`}
+          >
+            <SidebarSimple className="-scale-x-100" size={16} />
+          </Button>
+
+          {/* Desktop Save Button with Text */}
+          <Button
+            onClick={handleManualSave}
+            variant="primary"
+            size="sm"
+            disabled={manualSaving || isExporting}
+            className="hidden md:flex ml-1 bg-green-600 hover:bg-green-700 text-white border-green-700"
+          >
+            {manualSaving ? (
+              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-current mr-1.5" />
+            ) : (
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            {manualSaving ? t`Saving...` : t`Save`}
+          </Button>
+        </div>
       </div>
 
-      {/* Status Bar - Fixed below header */}
-      <div className="fixed top-16 inset-x-0 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 z-40">
-        <div className="flex items-center justify-between text-xs text-blue-700 dark:text-blue-300">
-          <div className="flex items-center flex-wrap gap-2 sm:gap-4">
-            <span className="truncate max-w-[100px] sm:max-w-none">
-              <span className="hidden sm:inline">ID: </span>
-              <strong className="font-mono">{coverLetter?.id?.substring(0, 8)}</strong>
+      {/* Status Bar - Shows detailed info */}
+      <div className="px-2 sm:px-3 md:px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
+        <div className={cn(
+          "flex items-center justify-between",
+          isMobile ? "text-[10px]" : "text-xs"
+        )}>
+          {/* Left info */}
+          <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 overflow-hidden">
+            <span className="truncate max-w-[70px] sm:max-w-[90px] font-mono">
+              {coverLetter?.id?.substring(0, isMobile ? 5 : 7)}...
             </span>
-            <span className="hidden sm:inline">Blocks: <strong>{coverLetter?.content?.blocks?.length || 0}</strong></span>
-            <span className="hidden sm:inline">Style: <strong>{coverLetter?.style}</strong></span>
-            <span>Coins: <strong>{balance}</strong></span>
+            {!isMobile && (
+              <>
+                <span className="hidden sm:inline">{t`Blocks:`} <strong>{coverLetter?.content?.blocks?.length || 0}</strong></span>
+                <span className="hidden md:inline">{t`Style:`} <strong>{coverLetter?.style}</strong></span>
+              </>
+            )}
+            {isMobile && (
+              <>
+                <span>•</span>
+                <span>{t`Style:`} <strong>{coverLetter?.style}</strong></span>
+                   <span>•</span>
+                <span>{coverLetter?.content?.blocks?.length || 0} {t`blocks`}</span>
+              </>
+            )}
+            <span className="hidden sm:inline">•</span>
+            <span>•</span>
+            <span className="flex items-center">
+              <Coins className={cn("mr-0.5", isMobile ? "w-2.5 h-2.5" : "w-3 h-3")} />
+              <strong>{balance}</strong>
+            </span>
           </div>
-          <div className="flex items-center space-x-2">
-            {coverLetter?.updatedAt && (
-              <span className="hidden sm:inline">
-                Updated: {new Date(coverLetter.updatedAt).toLocaleTimeString()}
+
+          <div className="flex items-center gap-2">
+            {autoSaveStatus === 'pending' && (
+              <span className="flex items-center text-yellow-600">
+                <div className="animate-pulse h-2 w-2 bg-yellow-500 rounded-full mr-1"></div>
+                <span className="text-xs">{t`Auto-saving...`}</span>
+              </span>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <span className="flex items-center text-green-600">
+                <div className="h-2 w-2 bg-green-500 rounded-full mr-1"></div>
+                <span className="text-xs">{t`Auto-saved`}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Right status indicators */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            {coverLetter?.updatedAt && !isMobile && (
+              <span className="hidden md:inline text-[10px]">
+                {t`Updated:`} {new Date(coverLetter.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
               </span>
             )}
             {manualSaving && (
               <span className="flex items-center text-orange-600">
-                <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-orange-600 mr-1"></div>
-                <span className="hidden sm:inline">Saving...</span>
+                <div className={cn(
+                  "animate-spin rounded-full border-b-2 border-orange-600 mr-0.5",
+                  isMobile ? "h-1.5 w-1.5" : "h-2 w-2"
+                )}></div>
+                <span className="hidden xs:inline">{t`Saving`}</span>
               </span>
             )}
             {isExporting && (
               <span className="flex items-center text-blue-600">
-                <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-blue-600 mr-1"></div>
-                <span className="hidden sm:inline">Exporting...</span>
+                <div className={cn(
+                  "animate-spin rounded-full border-b-2 border-blue-600 mr-0.5",
+                  isMobile ? "h-1.5 w-1.5" : "h-2 w-2"
+                )}></div>
+                <span className="hidden xs:inline">{t`Exporting`}</span>
               </span>
             )}
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Spacer for fixed header and status bar */}
-      <div className="h-28"></div>
+    {/* Spacer for fixed header */}
+    <div className={cn(
+      "flex-shrink-0",
+      isMobile ? "h-[5rem]" : "h-[4.5rem] sm:h-[5rem]"
+    )}></div>
 
-      {/* Editor Area */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
-        <CoverLetterGrid
-          content={coverLetter.content}
-          onContentChange={handleContentChange}
-          onBlockSelect={handleBlockSelect}
-          selectedBlock={selectedBlock}
-          previewMode={previewMode}
-        />
-      </div>
-
-      {/* Coin Confirmation Popover */}
-      <CoinConfirmPopover
-        open={showCoinPopover}
-        onClose={() => setShowCoinPopover(false)}
-        required={exportCost}
-        balance={balance}
-        onConfirm={confirmExportPDF}
-        onBuyCoins={handleBuyCoins}
-        title="Export Letter as PDF"
-        description="Export your professionally formatted letter as a high-quality PDF document."
-        actionType="export"
-        triggerRef={exportButtonRef}
-        userId={user?.id} // Pass the userId
+    {/* Editor Area */}
+    <div className="flex-1 overflow-auto p-2 sm:p-3 md:p-4 lg:p-6">
+      <CoverLetterGrid
+        content={coverLetter.content}
+        onContentChange={handleContentChange}
+        onBlockSelect={handleBlockSelect}
+        selectedBlock={selectedBlock}
+        previewMode={previewMode}
       />
-    </>
-  );
+    </div>
+
+    {/* Coin Confirmation Popover */}
+    <CoinConfirmPopover
+      open={showCoinPopover}
+      onClose={() => setShowCoinPopover(false)}
+      required={exportCost}
+      balance={balance}
+      onConfirm={confirmExportPDF}
+      onBuyCoins={handleBuyCoins}
+      title={t`Export Letter as PDF`}
+      description={t`Export your professionally formatted letter as a high-quality PDF document.`}
+      actionType="export"
+      triggerRef={exportButtonRef}
+      userId={user?.id}
+    />
+  </div>
+);
 };
 
 export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => {
@@ -890,47 +1082,51 @@ export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => 
   }, [id, mode]);
 
   const fetchCoverLetter = async () => {
-    try {
-      const coverLetterData = await coverLetterService.findOne(id!);
-      
-      // Type cast it to CoverLetter interface
-      const data = coverLetterData as CoverLetter;
-      
-      // Debug log what's being loaded
-      console.log('Loaded cover letter data:', {
-        hasBorderSettings: !!data.structure?.borderStyle,
-        borderSettings: data.structure?.borderStyle,
-        structure: data.structure,
-        contentStructure: data.content?.structure
-      });
-      
-      // Ensure structure is properly set - use optional chaining
-      if (data.content?.structure && !data.structure) {
-        // Create a new object with the structure property
-        const updatedData = {
-          ...data,
-          structure: data.content.structure
-        };
-        setCoverLetter(updatedData);
-      } else {
-        setCoverLetter(data);
+  try {
+    const coverLetterData = await coverLetterService.findOne(id!);
+    
+    // Type cast it to CoverLetter interface
+    const data = coverLetterData as CoverLetter;
+    
+    // Debug log what's being loaded
+    console.log('Loaded cover letter from DB:', {
+      id: data.id,
+      contentBlocks: data.content?.blocks?.length,
+      contentStructure: data.content?.structure,
+      rootStructure: data.structure,
+      hasContent: !!data.content,
+      hasStructure: !!data.structure
+    });
+    
+    // CRITICAL FIX: Ensure content structure is properly merged
+    const coverLetterToSet = {
+      ...data,
+      // Ensure structure is properly set at both root and content levels
+      structure: data.structure || data.content?.structure || {},
+      content: {
+        ...data.content,
+        // Make sure content has the structure too
+        structure: data.content?.structure || data.structure || {}
       }
-      
-      console.log('Loaded cover letter with border settings:', {
-        id: data.id,
-        blocks: data.content?.blocks?.length,
-        borderStyle: data.structure?.borderStyle
-      });
-      
-      // Auto-select first block if available
-      if (data.content?.blocks?.length > 0) {
-        setSelectedBlock(data.content.blocks[0].id);
-      }
-    } catch (error) {
-      console.error('Failed to fetch cover letter:', error);
-      toast.error('Failed to load cover letter');
+    };
+    
+    console.log('Setting cover letter in store:', {
+      blocksCount: coverLetterToSet.content?.blocks?.length,
+      structure: coverLetterToSet.structure,
+      contentStructure: coverLetterToSet.content?.structure
+    });
+    
+    setCoverLetter(coverLetterToSet);
+    
+    // Auto-select first block if available
+    if (coverLetterToSet.content?.blocks?.length > 0) {
+      setSelectedBlock(coverLetterToSet.content.blocks[0].id);
     }
-  };
+  } catch (error) {
+    console.error('Failed to fetch cover letter:', error);
+    toast.error(t`Failed to load cover letter`);
+  }
+};
 
   const handleGenerate = async (formData: CreateCoverLetterData) => {
     setIsGenerating(true);
@@ -944,13 +1140,13 @@ export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => 
         setSelectedBlock(result.coverLetter.content.blocks[0].id);
       }
       
-      toast.success('Cover letter generated successfully!');
+      toast.success(t`Cover letter generated successfully!`);
       
       // Navigate to edit mode with the new ID
       navigate(`/builder/cover-letter/${result.coverLetter.id}/edit`, { replace: true });
     } catch (error: any) {
       console.error('Generation error:', error);
-      toast.error(error.message || 'Failed to generate cover letter. Please try again.');
+      toast.error(error.message || t`Failed to generate cover letter. Please try again.`);
     } finally {
       setIsGenerating(false);
     }
@@ -976,7 +1172,7 @@ export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => 
   if (isDesktop) {
     return (
       <div className="relative size-full overflow-hidden">
-        <PanelGroup direction="horizontal">
+        <PanelGroup direction="horizontal" className="h-full">
           <Panel
             minSize={20}
             maxSize={45}
@@ -990,13 +1186,12 @@ export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => 
             isDragging={leftHandle.isDragging}
             onDragging={leftHandle.setDragging}
           />
-          <Panel >
+          <Panel className="flex flex-col">
             <EditorContent />
           </Panel>
           <PanelResizeHandle
             isDragging={rightHandle.isDragging}
             onDragging={rightHandle.setDragging}
-            
           />
           <Panel
             minSize={20}
@@ -1013,7 +1208,7 @@ export const CoverLetterEditor = ({ mode = 'edit' }: CoverLetterEditorProps) => 
   }
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <Sheet open={sheet.left.open} onOpenChange={sheet.left.setOpen}>
         <VisuallyHidden>
           <SheetHeader>

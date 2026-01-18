@@ -1,3 +1,4 @@
+// recommendation.dto.ts - CORRECTED VERSION
 import {
   IsOptional,
   IsNumber,
@@ -8,7 +9,8 @@ import {
   ArrayMinSize,
   Min,
   Max,
-  IsNotEmpty 
+  IsNotEmpty,
+  IsIn
 } from 'class-validator';
 
 import { ContentAccess } from '@prisma/client'; 
@@ -43,12 +45,6 @@ export enum EngagementAction {
   DISMISS_RECOMMENDATION = 'DISMISS_RECOMMENDATION'
 }
 
-// If ContentAccess is not available from Prisma, can be define as below:
-// export enum ContentAccess {
-//   FREE = 'FREE',
-//   PREMIUM = 'PREMIUM'
-// }
-
 // ========== RECOMMENDATION DTOs ==========
 export class RecommendationRequestDto {
   @IsOptional()
@@ -73,7 +69,7 @@ export class RecommendationRequestDto {
 }
 
 export class RecommendationResponseDto {
-  article: any; // Using ArticleResponseDto from article.dto
+  article: any;
   score: number;
   reason: RecommendationReason;
   source: string;
@@ -93,17 +89,29 @@ export class FeedbackDto {
   articleId?: string;
 }
 
+// ========== UPDATE READING PROFILE DTO ==========
 export class UpdateReadingProfileDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(0)
-  favoriteCategoryIds?: string[] = [];
+  preferredCategories?: string[] = [];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
+  readingLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(240)
+  preferredReadingTime?: number;
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  favoriteTags?: string[] = [];
+  interests?: string[] = [];
 
   @IsOptional()
   @IsBoolean()
@@ -119,15 +127,8 @@ export class UpdateReadingProfileDto {
 
   @IsOptional()
   @IsString()
-  digestFrequency?: 'daily' | 'weekly' | 'none' = 'weekly';
-
-  @IsOptional()
-  @IsString()
-  preferredReadingTime?: 'morning' | 'afternoon' | 'evening' | 'anytime';
-
-  @IsOptional()
-  @IsString()
-  difficultyPreference?: 'beginner' | 'intermediate' | 'advanced' = 'intermediate';
+  @IsIn(['daily', 'weekly', 'monthly', 'none'])
+  digestFrequency?: string = 'weekly';
 }
 
 // ========== ENGAGEMENT TRACKING ==========
@@ -149,7 +150,7 @@ export class TrackEngagementDto {
 
   @IsOptional()
   @IsNumber()
-  readingDuration?: number; // in seconds
+  readingDuration?: number;
 
   @IsOptional()
   @IsNumber()
@@ -198,7 +199,7 @@ export class SearchArticlesDto {
 }
 
 export class SearchResponseDto {
-  results: any[]; // Useing ArticleResponseDto from article.dto
+  results: any[];
   total: number;
   page: number;
   limit: number;

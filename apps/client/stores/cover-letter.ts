@@ -543,13 +543,64 @@ export const useCoverLetterStore = create<CoverLetterState>((set, get) => ({
   
   setSelectedBlock: (selectedBlock) => set({ selectedBlock }),
   
-  updateCoverLetter: (updates) => set((state) => ({
-    coverLetter: state.coverLetter ? { 
-      ...state.coverLetter, 
-      ...updates,
+  // Add this to your store
+updateBlockContent: (blockId: string, content: string) => set((state) => {
+  if (!state.coverLetter) return state;
+  
+  const updatedBlocks = state.coverLetter.content.blocks.map((block: any) =>
+    block.id === blockId ? { ...block, content } : block
+  );
+  
+  return {
+    coverLetter: {
+      ...state.coverLetter,
+      content: {
+        ...state.coverLetter.content,
+        blocks: updatedBlocks,
+        lastSaved: new Date().toISOString()
+      },
       updatedAt: new Date().toISOString()
-    } : null
-  })),
+    }
+  };
+}),
+
+
+  updateCoverLetter: (updates) => set((state) => {
+  if (!state.coverLetter) return state;
+  
+  console.log('🔄 Updating cover letter in store:', {
+    updatesKeys: Object.keys(updates),
+    hasStructureInUpdates: !!updates.structure,
+    currentStructure: state.coverLetter.structure
+  });
+  
+  // Deep merge updates
+  const mergedUpdates = {
+    ...state.coverLetter,
+    ...updates,
+    // Ensure content is properly merged
+    content: updates.content 
+      ? { 
+          ...state.coverLetter.content, 
+          ...updates.content,
+          // Preserve structure in content
+          structure: updates.content.structure || state.coverLetter.content.structure
+        }
+      : state.coverLetter.content,
+    // Preserve structure if not provided in updates
+    structure: updates.structure !== undefined ? updates.structure : state.coverLetter.structure,
+    updatedAt: new Date().toISOString()
+  };
+  
+  console.log('✅ Cover letter updated in store, structure preserved:', {
+    hasStructure: !!mergedUpdates.structure,
+    contentHasStructure: !!mergedUpdates.content.structure
+  });
+  
+  return {
+    coverLetter: mergedUpdates
+  };
+}),
 
   // Force update layout (for manual positioning)
 forceUpdateLayout: (newLayout: any[]) => set((state) => {
@@ -647,25 +698,53 @@ addBlockAtPosition: (block: any, x: number, y: number, w: number = 6, h: number 
   };
 }),
   
-  updateBlock: (blockId, updates) => set((state) => {
-    if (!state.coverLetter) return state;
-    
-    const updatedBlocks = state.coverLetter.content.blocks.map((block: any) =>
-      block.id === blockId ? { ...block, ...updates } : block
-    );
-    
-    return {
-      coverLetter: {
-        ...state.coverLetter,
-        content: {
-          ...state.coverLetter.content,
-          blocks: updatedBlocks,
-          lastSaved: new Date().toISOString()
-        },
-        updatedAt: new Date().toISOString()
-      }
-    };
-  }),
+  // In your store (cover-letter.ts)
+updateBlock: (blockId, updates) => set((state) => {
+  if (!state.coverLetter) return state;
+  
+  console.log('📝 Updating block in store:', { blockId, updates });
+  
+  // Get current content
+  const currentContent = state.coverLetter.content;
+  
+  // Update the blocks array WITHOUT affecting structure
+  const updatedBlocks = currentContent.blocks.map((block: any) =>
+    block.id === blockId ? { 
+      ...block, 
+      ...updates,
+      // Ensure content property is updated
+      content: updates.content !== undefined ? updates.content : block.content
+    } : block
+  );
+  
+  // Create updated content WITHOUT changing structure
+  const updatedContent = {
+    ...currentContent,
+    blocks: updatedBlocks,
+    lastSaved: new Date().toISOString()
+  };
+  
+  // Create updated cover letter WITHOUT resetting structure
+  const updatedCoverLetter = {
+    ...state.coverLetter,
+    content: updatedContent,
+    // Keep the existing structure - don't overwrite it!
+    structure: state.coverLetter.structure,
+    updatedAt: new Date().toISOString()
+  };
+  
+  console.log('✅ Store updated with new content, structure preserved:', {
+    blocksUpdated: updatedBlocks.length,
+    structurePreserved: !!updatedCoverLetter.structure,
+    oldStructure: state.coverLetter.structure,
+    newStructure: updatedCoverLetter.structure
+  });
+  
+  return {
+    coverLetter: updatedCoverLetter
+  };
+}),
+
 
   setPreviewTemplate: (templateId) => set({ previewTemplate: templateId }),
   

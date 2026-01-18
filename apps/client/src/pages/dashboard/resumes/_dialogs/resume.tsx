@@ -256,7 +256,7 @@ export const ResumeDialog = () => {
                     <DropdownMenuContent side="right" align="center">
                       <DropdownMenuItem onClick={onCreateSample}>
                         <Flask className="mr-2" />
-                        {t`Create Sample Resume`}
+                        {t`Generate Sample Resume`}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

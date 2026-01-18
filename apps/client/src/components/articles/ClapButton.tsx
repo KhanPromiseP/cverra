@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Popover, Space, Typography } from 'antd';
 import { LikeOutlined, LikeFilled } from '@ant-design/icons';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 
 const { Text } = Typography;
 
@@ -42,7 +43,7 @@ const ClapButton: React.FC<ClapButtonProps> = ({
     <div style={{ padding: '8px 0' }}>
       <Space direction="vertical" size="small">
         <Text type="secondary" style={{ fontSize: '12px' }}>
-          Clap multiple times
+          <Trans>Clap multiple times</Trans>
         </Text>
         <Space wrap>
           {clapOptions.map(option => (

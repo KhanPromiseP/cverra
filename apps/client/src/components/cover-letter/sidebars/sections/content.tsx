@@ -1,10 +1,9 @@
-// client/components/cover-letter/sidebars/sections/content.tsx
+import { t, Trans } from "@lingui/macro";
 import { useState } from 'react';
 import { Button, Input, Label } from "@reactive-resume/ui";
 import { FileText, Plus, Trash2, Copy, Move, Edit3, Check, X, ArrowUp, ArrowDown } from "lucide-react";
-import { t } from "@lingui/macro";
 
-import { useCoverLetterStore } from ".././../../../../stores/cover-letter";
+import { useCoverLetterStore } from "../../../../../stores/cover-letter";
 
 interface BlockType {
   value: string;
@@ -22,29 +21,29 @@ export const ContentSection = () => {
   const [editingBlockName, setEditingBlockName] = useState('');
 
   const blockTypes: BlockType[] = [
-    { value: 'header', label: 'Header', description: 'Main title section', icon: '📝' },
-    { value: 'subheader', label: 'Subheader', description: 'Secondary heading', icon: '🔸' },
-    { value: 'content', label: 'Content', description: 'Regular text paragraph', icon: '📄' },
-    { value: 'bullet_list', label: 'Bullet List', description: 'Unordered list with bullet points', icon: '•' },
-    { value: 'numbered_list', label: 'Numbered List', description: 'Ordered list with numbers', icon: '1.' },
-    { value: 'quote', label: 'Quote', description: 'Highlighted quotation', icon: '❝' },
-    { value: 'divider', label: 'Divider', description: 'Visual separation line', icon: '―' },
-    { value: 'contact_info', label: 'Contact Info', description: 'Name, email, phone details', icon: '📧' },
-    { value: 'greeting', label: 'Greeting', description: 'Opening salutation', icon: '👋' },
-    { value: 'closing', label: 'Closing', description: 'Ending and signature', icon: '✍️' },
-    { value: 'signature', label: 'Signature', description: 'Name and title', icon: '🖊️' }
+    { value: 'header', label: t`Header`, description: t`Main title section`, icon: '📝' },
+    { value: 'subheader', label: t`Subheader`, description: t`Secondary heading`, icon: '🔸' },
+    { value: 'content', label: t`Content`, description: t`Regular text paragraph`, icon: '📄' },
+    { value: 'bullet_list', label: t`Bullet List`, description: t`Unordered list with bullet points`, icon: '•' },
+    { value: 'numbered_list', label: t`Numbered List`, description: t`Ordered list with numbers`, icon: '1.' },
+    { value: 'quote', label: t`Quote`, description: t`Highlighted quotation`, icon: '❝' },
+    { value: 'divider', label: t`Divider`, description: t`Visual separation line`, icon: '―' },
+    { value: 'contact_info', label: t`Contact Info`, description: t`Name, email, phone details`, icon: '📧' },
+    { value: 'greeting', label: t`Greeting`, description: t`Opening salutation`, icon: '👋' },
+    { value: 'closing', label: t`Closing`, description: t`Ending and signature`, icon: '✍️' },
+    { value: 'signature', label: t`Signature`, description: t`Name and title`, icon: '🖊️' }
   ];
 
   const getBlockDisplayName = (block: any) => {
     if (block.customName) return block.customName;
     
     const blockType = blockTypes.find(type => type.value === block.type);
-    return blockType?.label || block.type || 'Content';
+    return blockType?.label || block.type || t`Content`;
   };
 
   const handleAddBlock = () => {
     const selectedBlockType = blockTypes.find(type => type.value === newBlockType);
-    const displayName = newBlockName.trim() || selectedBlockType?.label || 'New Block';
+    const displayName = newBlockName.trim() || selectedBlockType?.label || t`New Block`;
     
     const newBlock = {
       type: newBlockType,
@@ -70,20 +69,20 @@ export const ContentSection = () => {
 
   const getDefaultContent = (type: string): string => {
     const defaults: Record<string, string> = {
-      header: 'Document Header',
-      subheader: 'Section Subheader',
-      content: 'Start writing your content here...',
-      bullet_list: '• First item\n• Second item\n• Third item',
-      numbered_list: '1. First step\n2. Second step\n3. Third step',
-      quote: 'This is an important quote or highlight...',
+      header: t`Document Header`,
+      subheader: t`Section Subheader`,
+      content: t`Start writing your content here...`,
+      bullet_list: t`• First item\n• Second item\n• Third item`,
+      numbered_list: t`1. First step\n2. Second step\n3. Third step`,
+      quote: t`This is an important quote or highlight...`,
       divider: '',
-      contact_info: 'Your Name\nEmail: your.email@example.com\nPhone: (123) 456-7890',
-      greeting: 'Dear [Recipient Name],',
-      closing: 'Sincerely,',
-      signature: 'Your Name\nYour Title'
+      contact_info: t`Your Name\nEmail: your.email@example.com\nPhone: (123) 456-7890`,
+      greeting: t`Dear [Recipient Name],`,
+      closing: t`Sincerely,`,
+      signature: t`Your Name\nYour Title`
     };
     
-    return defaults[type] || 'New content block...';
+    return defaults[type] || t`New content block...`;
   };
 
   const getDefaultFormatting = (type: string) => {
@@ -196,7 +195,7 @@ export const ContentSection = () => {
               id="block-name"
               value={newBlockName}
               onChange={(e) => setNewBlockName(e.target.value)}
-              placeholder="Give this block a custom name..."
+              placeholder={t`Give this block a custom name...`}
               className="w-full text-sm"
             />
           </div>
@@ -237,7 +236,7 @@ export const ContentSection = () => {
               </div>
               {!selectedBlock && insertPosition !== 'end' && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  Select a block to insert before/after it
+                  {t`Select a block to insert before/after it`}
                 </p>
               )}
             </div>
@@ -381,11 +380,11 @@ export const ContentSection = () => {
                       {block.type}
                     </span>
                     <span>•</span>
-                    <span>Position {index + 1}</span>
+                    <span>{t`Position ${index + 1}`}</span>
                     {block.customName && (
                       <>
                         <span>•</span>
-                        <span className="text-blue-600 dark:text-blue-400">Custom Name</span>
+                        <span className="text-blue-600 dark:text-blue-400">{t`Custom Name`}</span>
                       </>
                     )}
                   </div>
@@ -404,8 +403,8 @@ export const ContentSection = () => {
         {(!coverLetter?.content?.blocks || coverLetter.content.blocks.length === 0) && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-default">
             <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No blocks yet</p>
-            <p className="text-xs mt-1">Add your first block above</p>
+            <p className="text-sm">{t`No blocks yet`}</p>
+            <p className="text-xs mt-1">{t`Add your first block above`}</p>
           </div>
         )}
       </div>

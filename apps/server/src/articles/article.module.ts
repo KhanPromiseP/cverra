@@ -12,6 +12,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { UploadModule } from './upload.module';
 
 import { ArticleResponseTransformer } from './article-response.transformer';
+import { RecommendationNotificationService } from './recommendation-notification.service';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ArticleResponseTransformer } from './article-response.transformer';
     TranslationService,
     EngagementService,
     ArticleResponseTransformer, // Add this
+    RecommendationNotificationService,
   ],
   exports: [ArticleService, RecommendationService],
 })

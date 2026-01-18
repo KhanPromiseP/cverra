@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const volunteerSchema = itemSchema.extend({
-  organization: z.string().min(1),
+  organization: z.string(),
   position: z.string(),
   location: z.string(),
   date: z.string(),

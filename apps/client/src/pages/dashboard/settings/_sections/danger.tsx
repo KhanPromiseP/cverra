@@ -49,7 +49,7 @@ export const DangerZoneSettings = () => {
 
       toast({
         variant: "success",
-        title: t`Your account and all your data has been deleted successfully. Goodbye!`,
+        title: t`Your Inlirah account and all your data has been deleted successfully. Goodbye!`,
       });
 
       void navigate("/");

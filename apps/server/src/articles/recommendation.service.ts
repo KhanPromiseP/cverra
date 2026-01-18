@@ -1,5 +1,5 @@
-// recommendation.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+// recommendation.service.ts - CORRECTED VERSION
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../../tools/prisma/prisma.service';
 import { 
   RecommendationRequestDto, 
@@ -42,68 +42,59 @@ export class RecommendationService {
     private engagementService: EngagementService,
   ) {}
 
- async getPersonalizedRecommendations(userId: string, options: RecommendationRequestDto) {
-  // Handle anonymous users
-  if (userId === 'anonymous' || !userId) {
-    return this.getTrendingRecommendationsSimple(options.limit || 10);
-  }
-
-  try {
-    // Check if user exists
-    const userExists = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!userExists) {
-      // User doesn't exist, return trending articles
+  async getPersonalizedRecommendations(userId: string, options: RecommendationRequestDto) {
+    if (userId === 'anonymous' || !userId) {
       return this.getTrendingRecommendationsSimple(options.limit || 10);
     }
 
-    // Get user's reading profile
-    const userProfile = await this.getOrCreateUserProfile(userId);
-    
-    // Get recommendations based on multiple strategies
-    const recommendations = await this.generateRecommendations(userId, userProfile, options);
-    
-    // Remove excluded articles
-    const filtered = recommendations.filter(
-      rec => !options.excludeIds?.includes(rec.article.id)
-    ).slice(0, options.limit || 10);
+    try {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
 
-    // Track that recommendations were shown
-    await this.trackRecommendationsShown(userId, filtered);
+      if (!userExists) {
+        return this.getTrendingRecommendationsSimple(options.limit || 10);
+      }
 
-    return filtered.map(rec => rec.article); // Return just the articles
-  } catch (error) {
-    this.logger.error('Error getting personalized recommendations:', error);
-    return this.getTrendingRecommendationsSimple(options.limit || 10);
+      const userProfile = await this.getOrCreateUserProfile(userId);
+      const recommendations = await this.generateRecommendations(userId, userProfile, options);
+      
+      const filtered = recommendations.filter(
+        rec => !options.excludeIds?.includes(rec.article.id)
+      ).slice(0, options.limit || 10);
+
+      await this.trackRecommendationsShown(userId, filtered);
+
+      return filtered.map(rec => rec.article);
+    } catch (error) {
+      this.logger.error('Error getting personalized recommendations:', error);
+      return this.getTrendingRecommendationsSimple(options.limit || 10);
+    }
   }
-}
 
-// Add this simple trending method
-private async getTrendingRecommendationsSimple(limit: number = 6) {
-  return this.prisma.article.findMany({
-    where: {
-      status: ArticleStatus.PUBLISHED,
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          picture: true,
-        },
+  private async getTrendingRecommendationsSimple(limit: number = 6) {
+    return this.prisma.article.findMany({
+      where: {
+        status: ArticleStatus.PUBLISHED,
       },
-      category: true,
-    },
-    orderBy: [
-      { createdAt: 'desc' }
-    ],
-    take: limit,
-  });
-}
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            picture: true,
+          },
+        },
+        category: true,
+      },
+      orderBy: [
+        { createdAt: 'desc' }
+      ],
+      take: limit,
+    });
+  }
 
   private async generateRecommendations(userId: string, userProfile: UserProfile, options: RecommendationRequestDto): Promise<Recommendation[]> {
     const strategies = [
@@ -115,7 +106,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
 
     const results = await Promise.allSettled(strategies);
     
-    // Combine and deduplicate
     const allRecs: Recommendation[] = [];
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -123,12 +113,10 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       }
     }
 
-    // Score and sort
     return this.scoreAndSortRecommendations(allRecs);
   }
 
   private async getContentBasedRecommendations(userId: string, userProfile: UserProfile): Promise<Recommendation[]> {
-    // Based on user's reading history and preferences
     const readArticles = await this.prisma.articleView.findMany({
       where: { userId },
       select: { articleId: true },
@@ -139,11 +127,10 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       return [];
     }
 
-    // Get articles with similar categories/tags
     const recentArticleIds = readArticles.map(r => r.articleId);
     const recentArticles = await this.prisma.article.findMany({
       where: {
-        id: { in: recentArticleIds.slice(-5) }, // Last 5 articles
+        id: { in: recentArticleIds.slice(-5) },
       },
       select: {
         categoryId: true,
@@ -167,7 +154,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       id: { notIn: recentArticleIds },
     };
 
-    // Add OR conditions only if we have data
     const orConditions = [];
     if (categoryIds.length > 0) {
       orConditions.push({ categoryId: { in: categoryIds } });
@@ -200,14 +186,13 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
 
     return recommendations.map(article => ({
       article,
-      score: 0.7, // Base score for content-based
+      score: 0.7,
       reason: RecommendationReason.SIMILAR_TO_HISTORY,
       source: 'CONTENT_BASED',
     }));
   }
 
   private async getCollaborativeRecommendations(userId: string): Promise<Recommendation[]> {
-    // Find users with similar reading patterns
     const userReadArticles = await this.prisma.articleView.findMany({
       where: { userId },
       select: { articleId: true },
@@ -218,7 +203,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       return [];
     }
 
-    // Find users who read similar articles
     const articleIds = userReadArticles.map(r => r.articleId);
     const similarUsers = await this.prisma.$queryRaw<SimilarUser[]>`
       SELECT DISTINCT uv."userId"
@@ -234,7 +218,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       return [];
     }
 
-    // Get articles liked by similar users
     const similarUserIds = similarUsers.map(u => u.userId);
     const likedArticles = await this.prisma.articleLike.findMany({
       where: {
@@ -261,7 +244,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       take: 20,
     });
 
-    // Aggregate and count
     const articleCounts = new Map<string, number>();
     likedArticles.forEach(like => {
       const count = articleCounts.get(like.articleId) || 0;
@@ -275,7 +257,7 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
         
         return {
           article: like.article,
-          score: count / similarUsers.length, // Normalize score
+          score: count / similarUsers.length,
           reason: RecommendationReason.SIMILAR_USERS_LIKED,
           source: 'COLLABORATIVE',
         };
@@ -286,32 +268,32 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
   }
 
   private async getTrendingRecommendations(): Promise<Recommendation[]> {
-  const trendingArticles = await this.prisma.article.findMany({
-    where: {
-      status: ArticleStatus.PUBLISHED,
-      isTrending: true,
-    },
-    take: 10,
-    include: {
-      category: true,
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          picture: true,
+    const trendingArticles = await this.prisma.article.findMany({
+      where: {
+        status: ArticleStatus.PUBLISHED,
+        isTrending: true,
+      },
+      take: 10,
+      include: {
+        category: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            picture: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return trendingArticles.map(article => ({
-    article,
-    score: 0.8,
-    reason: RecommendationReason.TRENDING_NOW,
-    source: 'TRENDING',
-  }));
-}
+    return trendingArticles.map(article => ({
+      article,
+      score: 0.8,
+      reason: RecommendationReason.TRENDING_NOW,
+      source: 'TRENDING',
+    }));
+  }
 
   private async getCategoryBasedRecommendations(userProfile: UserProfile): Promise<Recommendation[]> {
     if (!userProfile.favoriteCategories || userProfile.favoriteCategories.length === 0) {
@@ -323,7 +305,7 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       where: {
         status: ArticleStatus.PUBLISHED,
         categoryId: { in: categoryIds },
-        viewCount: { gt: 100 }, // Only popular articles
+        viewCount: { gt: 100 },
       },
       orderBy: {
         likeCount: 'desc',
@@ -351,14 +333,12 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
   }
 
   private scoreAndSortRecommendations(recommendations: Recommendation[]): Recommendation[] {
-    // Deduplicate by article ID
     const uniqueMap = new Map<string, Recommendation>();
     recommendations.forEach(rec => {
       if (!rec.article) return;
       
       if (uniqueMap.has(rec.article.id)) {
         const existing = uniqueMap.get(rec.article.id)!;
-        // Keep higher score
         if (rec.score > existing.score) {
           uniqueMap.set(rec.article.id, rec);
         }
@@ -367,17 +347,15 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       }
     });
 
-    // Apply freshness boost (recent articles get higher score)
     const now = new Date();
     const uniqueRecs = Array.from(uniqueMap.values()).map(rec => {
       const publishDate = rec.article.publishedAt || rec.article.createdAt;
       const articleAge = now.getTime() - new Date(publishDate).getTime();
       const daysOld = articleAge / (1000 * 60 * 60 * 24);
       
-      // Boost for freshness (articles less than 7 days old)
       let freshnessBoost = 0;
       if (daysOld < 7) {
-        freshnessBoost = (7 - daysOld) * 0.05; // Up to 0.35 boost
+        freshnessBoost = (7 - daysOld) * 0.05;
       }
       
       return {
@@ -386,7 +364,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       };
     });
 
-    // Sort by score
     return uniqueRecs.sort((a, b) => b.score - a.score);
   }
 
@@ -399,7 +376,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
     });
 
     if (!profile) {
-      // Create initial profile
       profile = await this.prisma.userReadingProfile.create({
         data: {
           userId,
@@ -409,7 +385,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
         },
       });
 
-      // Analyze user's initial data to set preferences
       await this.initializeUserProfile(userId);
     }
 
@@ -417,7 +392,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
   }
 
   private async initializeUserProfile(userId: string): Promise<void> {
-    // Analyze user's first few reads to set preferences
     const recentReads = await this.prisma.articleView.findMany({
       where: { userId },
       include: {
@@ -431,7 +405,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
     });
 
     if (recentReads.length > 0) {
-      // Extract most common categories
       const categoryCounts = new Map<string, number>();
       recentReads.forEach(read => {
         if (read.article.category) {
@@ -440,7 +413,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
         }
       });
 
-      // Get top 3 categories
       const topCategories = Array.from(categoryCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
@@ -496,7 +468,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
       },
     });
 
-    // Update user profile based on feedback
     if (feedback.feedback === FeedbackType.NOT_INTERESTED) {
       await this.updateUserPreferences(userId, articleId, 'negative');
     } else if (feedback.feedback === FeedbackType.LIKED) {
@@ -520,7 +491,6 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
     if (!profile) return;
 
     if (feedbackType === 'positive' && article.category) {
-      // Add to favorite categories if not already there
       const isAlreadyFavorite = profile.favoriteCategories.some(
         (cat: any) => cat.id === article.categoryId
       );
@@ -536,55 +506,13 @@ private async getTrendingRecommendationsSimple(limit: number = 6) {
         });
       }
     }
-    // For negative feedback, we could reduce weight for similar content
-    // This is a simplified version
   }
 
-  async getReadingProfile(userId: string) {
-    return this.getOrCreateUserProfile(userId);
-  }
-
-  async updateReadingProfile(userId: string, dto: UpdateReadingProfileDto) {
-    const updateData: any = {};
-
-    if (dto.favoriteCategoryIds && Array.isArray(dto.favoriteCategoryIds)) {
-      updateData.favoriteCategories = {
-        set: dto.favoriteCategoryIds.map(id => ({ id })),
-      };
-    }
-
-    if (dto.notifyNewArticles !== undefined) {
-      updateData.notifyNewArticles = dto.notifyNewArticles;
-    }
-
-    if (dto.notifyPersonalized !== undefined) {
-      updateData.notifyPersonalized = dto.notifyPersonalized;
-    }
-
-    if (dto.digestFrequency) {
-      updateData.digestFrequency = dto.digestFrequency;
-    }
-
-    if (dto.favoriteTags && Array.isArray(dto.favoriteTags)) {
-      updateData.favoriteTags = dto.favoriteTags;
-    }
-
-    if (dto.preferredReadingTime) {
-      updateData.preferredReadingTime = dto.preferredReadingTime;
-    }
-
-    if (dto.difficultyPreference) {
-      updateData.difficultyPreference = dto.difficultyPreference;
-    }
-
-    return await this.prisma.userReadingProfile.update({
-      where: { userId },
-      data: updateData,
-      include: {
-        favoriteCategories: true,
-      },
-    });
-  }
+  // This method should be in article.service.ts, not here
+  // Remove this method from recommendation.service.ts
+  // async updateReadingProfile(userId: string, dto: UpdateReadingProfileDto) {
+  //   // This should be moved to article.service.ts
+  // }
 
   async getRecommendationStats(userId: string) {
     const [totalShown, totalClicked, totalDismissed, recentRecommendations] = await Promise.all([

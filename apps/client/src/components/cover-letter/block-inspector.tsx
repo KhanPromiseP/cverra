@@ -7,6 +7,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { cn } from '@/client/libs/utils';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 
 interface BlockInspectorProps {
   block: any;
@@ -42,18 +43,18 @@ export const BlockInspector = ({
   };
 
   const fontSizes = [
-    { value: '12px', label: 'Small (12px)' },
-    { value: '14px', label: 'Normal (14px)' },
-    { value: '16px', label: 'Large (16px)' },
-    { value: '18px', label: 'Extra Large (18px)' },
-    { value: '20px', label: 'XXL (20px)' }
+    { value: '12px', label: t`Small (12px)` },
+    { value: '14px', label: t`Normal (14px)` },
+    { value: '16px', label: t`Large (16px)` },
+    { value: '18px', label: t`Extra Large (18px)` },
+    { value: '20px', label: t`XXL (20px)` }
   ];
 
   const lineHeights = [
-    { value: '1.2', label: 'Compact (1.2)' },
-    { value: '1.5', label: 'Normal (1.5)' },
-    { value: '1.8', label: 'Relaxed (1.8)' },
-    { value: '2.0', label: 'Double (2.0)' }
+    { value: '1.2', label: t`Compact (1.2)` },
+    { value: '1.5', label: t`Normal (1.5)` },
+    { value: '1.8', label: t`Relaxed (1.8)` },
+    { value: '2.0', label: t`Double (2.0)` }
   ];
 
   return (
@@ -65,9 +66,11 @@ export const BlockInspector = ({
             <Settings className="w-5 h-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">Block Settings</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              <Trans>Block Settings</Trans>
+            </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 capitalize">
-              {block.type?.toLowerCase() || 'content'} block
+              {block.type?.toLowerCase() || t`content`} <Trans>block</Trans>
             </p>
           </div>
         </div>
@@ -78,7 +81,7 @@ export const BlockInspector = ({
         <div className="space-y-3">
           <h4 className="font-medium text-sm text-gray-900 dark:text-white flex items-center space-x-2">
             <Wand2 className="w-4 h-4" />
-            <span>AI Actions</span>
+            <span><Trans>AI Actions</Trans></span>
           </h4>
           
           <Button
@@ -88,18 +91,18 @@ export const BlockInspector = ({
             className="w-full justify-start border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Regenerate This Block
+            <Trans>Regenerate This Block</Trans>
           </Button>
 
           <div className="space-y-2">
             <Label htmlFor="enhance-instructions" className="text-xs text-gray-700 dark:text-gray-300">
-              Enhance with AI
+              <Trans>Enhance with AI</Trans>
             </Label>
             <Textarea
               id="enhance-instructions"
               value={enhanceInstructions}
               onChange={(e) => setEnhanceInstructions(e.target.value)}
-              placeholder="Tell AI how to improve this block..."
+              placeholder={t`Tell AI how to improve this block...`}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md resize-none h-20 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               disabled={disabled}
             />
@@ -110,7 +113,7 @@ export const BlockInspector = ({
               size="sm"
             >
               <Wand2 className="w-4 h-4 mr-2" />
-              Enhance Block
+              <Trans>Enhance Block</Trans>
             </Button>
           </div>
         </div>
@@ -119,12 +122,12 @@ export const BlockInspector = ({
         <div className="space-y-3">
           <h4 className="font-medium text-sm text-gray-900 dark:text-white flex items-center space-x-2">
             <Type className="w-4 h-4" />
-            <span>Typography</span>
+            <span><Trans>Typography</Trans></span>
           </h4>
 
           <div className="space-y-2">
             <Label htmlFor="font-family" className="text-xs text-gray-700 dark:text-gray-300">
-              Font Family
+              <Trans>Font Family</Trans>
             </Label>
             <Select
               value={block.formatting?.fontFamily || 'inherit'}
@@ -138,18 +141,18 @@ export const BlockInspector = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
-                <SelectItem value="inherit">System Default</SelectItem>
-                <SelectItem value="Arial, sans-serif">Arial</SelectItem>
-                <SelectItem value="Georgia, serif">Georgia</SelectItem>
-                <SelectItem value="'Times New Roman', serif">Times New Roman</SelectItem>
-                <SelectItem value="'Helvetica Neue', sans-serif">Helvetica</SelectItem>
+                <SelectItem value="inherit"><Trans>System Default</Trans></SelectItem>
+                <SelectItem value="Arial, sans-serif"><Trans>Arial</Trans></SelectItem>
+                <SelectItem value="Georgia, serif"><Trans>Georgia</Trans></SelectItem>
+                <SelectItem value="'Times New Roman', serif"><Trans>Times New Roman</Trans></SelectItem>
+                <SelectItem value="'Helvetica Neue', sans-serif"><Trans>Helvetica</Trans></SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="font-size" className="text-xs text-gray-700 dark:text-gray-300">
-              Font Size
+              <Trans>Font Size</Trans>
             </Label>
             <Select
               value={block.formatting?.fontSize || '14px'}
@@ -174,7 +177,7 @@ export const BlockInspector = ({
 
           <div className="space-y-2">
             <Label htmlFor="line-height" className="text-xs text-gray-700 dark:text-gray-300">
-              Line Height
+              <Trans>Line Height</Trans>
             </Label>
             <Select
               value={block.formatting?.lineHeight || '1.5'}
@@ -202,12 +205,12 @@ export const BlockInspector = ({
         <div className="space-y-3">
           <h4 className="font-medium text-sm text-gray-900 dark:text-white flex items-center space-x-2">
             <Palette className="w-4 h-4" />
-            <span>Colors</span>
+            <span><Trans>Colors</Trans></span>
           </h4>
 
           <div className="space-y-2">
             <Label htmlFor="text-color" className="text-xs text-gray-700 dark:text-gray-300">
-              Text Color
+              <Trans>Text Color</Trans>
             </Label>
             <div className="flex space-x-2">
               <input
@@ -229,7 +232,7 @@ export const BlockInspector = ({
 
           <div className="space-y-2">
             <Label htmlFor="bg-color" className="text-xs text-gray-700 dark:text-gray-300">
-              Background Color
+              <Trans>Background Color</Trans>
             </Label>
             <div className="flex space-x-2">
               <input
@@ -254,12 +257,12 @@ export const BlockInspector = ({
         <div className="space-y-3">
           <h4 className="font-medium text-sm text-gray-900 dark:text-white flex items-center space-x-2">
             <Layout className="w-4 h-4" />
-            <span>Layout</span>
+            <span><Trans>Layout</Trans></span>
           </h4>
 
           <div className="space-y-2">
             <Label htmlFor="text-align" className="text-xs text-gray-700 dark:text-gray-300">
-              Text Alignment
+              <Trans>Text Alignment</Trans>
             </Label>
             <Select
               value={block.formatting?.alignment || 'left'}
@@ -273,10 +276,10 @@ export const BlockInspector = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
-                <SelectItem value="left">Left</SelectItem>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="right">Right</SelectItem>
-                <SelectItem value="justify">Justify</SelectItem>
+                <SelectItem value="left"><Trans>Left</Trans></SelectItem>
+                <SelectItem value="center"><Trans>Center</Trans></SelectItem>
+                <SelectItem value="right"><Trans>Right</Trans></SelectItem>
+                <SelectItem value="justify"><Trans>Justify</Trans></SelectItem>
               </SelectContent>
             </Select>
           </div>

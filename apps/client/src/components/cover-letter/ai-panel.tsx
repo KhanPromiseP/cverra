@@ -1,4 +1,4 @@
-// client/components/cover-letter/ai-panel.tsx
+import { t, Trans } from "@lingui/macro";
 import { useState } from 'react';
 import { Wand2, RefreshCw, Zap, Sparkles, Bot, Lightbulb } from 'lucide-react';
 import { Button } from '@reactive-resume/ui';
@@ -28,7 +28,6 @@ export const AIPanel = ({
 
   const handleEnhance = async () => {
     if (!enhanceInstructions.trim()) return;
-    
     setIsEnhancing(true);
     try {
       await onEnhanceBlock(enhanceInstructions);
@@ -40,25 +39,24 @@ export const AIPanel = ({
 
   const quickEnhance = (action: string) => {
     const instructions = {
-      'professional': 'Make this more professional and business-appropriate',
-      'concise': 'Make this more concise and to the point',
-      'impactful': 'Make this more impactful with stronger action verbs and achievements',
-      'friendly': 'Make this more friendly and approachable',
-      'formal': 'Make this more formal and traditional',
-      'creative': 'Make this more creative and engaging',
-      'persuasive': 'Make this more persuasive with compelling arguments'
+      'professional': t`Make this more professional and business-appropriate`,
+      'concise': t`Make this more concise and to the point`,
+      'impactful': t`Make this more impactful with stronger action verbs and achievements`,
+      'friendly': t`Make this more friendly and approachable`,
+      'formal': t`Make this more formal and traditional`,
+      'creative': t`Make this more creative and engaging`,
+      'persuasive': t`Make this more persuasive with compelling arguments`
     }[action];
-    
     if (instructions) {
       onEnhanceBlock(instructions);
     }
   };
 
   const aiSuggestions = [
-    { icon: Zap, label: 'More Professional', action: 'professional' },
-    { icon: Sparkles, label: 'More Impactful', action: 'impactful' },
-    { icon: Bot, label: 'More Concise', action: 'concise' },
-    { icon: Lightbulb, label: 'More Creative', action: 'creative' }
+    { icon: Zap, label: t`More Professional`, action: 'professional' },
+    { icon: Sparkles, label: t`More Impactful`, action: 'impactful' },
+    { icon: Bot, label: t`More Concise`, action: 'concise' },
+    { icon: Lightbulb, label: t`More Creative`, action: 'creative' }
   ];
 
   return (
@@ -70,9 +68,9 @@ export const AIPanel = ({
             <Wand2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">AI Assistant</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white">{t`AI Assistant`}</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Enhance your cover letter with AI
+              {t`Enhance your cover letter with AI`}
             </p>
           </div>
         </div>
@@ -83,10 +81,10 @@ export const AIPanel = ({
         {selectedBlock && selectedBlockData && (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <h4 className="font-medium text-sm text-blue-900 dark:text-blue-100 mb-1">
-              Selected Block
+              {t`Selected Block`}
             </h4>
             <p className="text-xs text-blue-700 dark:text-blue-300 capitalize mb-2">
-              {selectedBlockData.type?.toLowerCase() || 'content'}
+              {selectedBlockData.type?.toLowerCase() || t`content`}
             </p>
             <div className="text-xs text-blue-600 dark:text-blue-400 line-clamp-2 bg-white dark:bg-gray-800 p-2 rounded border">
               {selectedBlockData.content.replace(/<[^>]*>/g, '').substring(0, 100)}...
@@ -99,7 +97,7 @@ export const AIPanel = ({
             <div className="flex items-center space-x-2">
               <Bot className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                Select a block to use AI features
+                {t`Select a block to use AI features`}
               </p>
             </div>
           </div>
@@ -110,9 +108,8 @@ export const AIPanel = ({
           <div className="space-y-3">
             <h4 className="font-medium text-sm text-gray-900 dark:text-white flex items-center space-x-2">
               <Zap className="w-4 h-4" />
-              <span>Quick Actions</span>
+              <span>{t`Quick Actions`}</span>
             </h4>
-            
             <Button
               variant="outline"
               onClick={onRegenerateBlock}
@@ -120,9 +117,8 @@ export const AIPanel = ({
               className="w-full justify-start border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Regenerate This Block
+              {t`Regenerate This Block`}
             </Button>
-
             <div className="grid grid-cols-2 gap-2">
               {aiSuggestions.map((suggestion) => (
                 <Button
@@ -145,23 +141,21 @@ export const AIPanel = ({
         {selectedBlock && (
           <div className="space-y-3">
             <h4 className="font-medium text-sm text-gray-900 dark:text-white">
-              Custom Enhancement
+              {t`Custom Enhancement`}
             </h4>
-            
             <div className="space-y-2">
               <Label htmlFor="ai-instructions" className="text-xs text-gray-700 dark:text-gray-300">
-                Instructions for AI
+                {t`Instructions for AI`}
               </Label>
               <Textarea
                 id="ai-instructions"
                 value={enhanceInstructions}
                 onChange={(e) => setEnhanceInstructions(e.target.value)}
-                placeholder="E.g., 'Make this more achievement-oriented with metrics' or 'Rephrase to sound more confident'"
+                placeholder={t`E.g., 'Make this more achievement-oriented with metrics' or 'Rephrase to sound more confident'`}
                 className="min-h-[100px] resize-none text-sm border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 disabled={disabled}
               />
             </div>
-
             <Button
               onClick={handleEnhance}
               disabled={disabled || !enhanceInstructions.trim() || isEnhancing}
@@ -170,12 +164,12 @@ export const AIPanel = ({
               {isEnhancing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Enhancing...
+                  {t`Enhancing...`}
                 </>
               ) : (
                 <>
                   <Wand2 className="w-4 h-4 mr-2" />
-                  Enhance Block
+                  {t`Enhance Block`}
                 </>
               )}
             </Button>
@@ -186,14 +180,14 @@ export const AIPanel = ({
         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
           <h4 className="font-medium text-sm text-gray-900 dark:text-white mb-2 flex items-center space-x-2">
             <Lightbulb className="w-4 h-4" />
-            <span>AI Tips</span>
+            <span>{t`AI Tips`}</span>
           </h4>
           <ul className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-            <li>• Be specific about what you want to improve</li>
-            <li>• Mention tone, length, or specific changes</li>
-            <li>• Reference the current style: <strong>{coverLetterStyle}</strong></li>
-            <li>• Ask for metrics or achievements to be added</li>
-            <li>• Specify if you want it more formal or casual</li>
+            <li>• {t`Be specific about what you want to improve`}</li>
+            <li>• {t`Mention tone, length, or specific changes`}</li>
+            <li>• {t`Reference the current style:`} <strong>{coverLetterStyle}</strong></li>
+            <li>• {t`Ask for metrics or achievements to be added`}</li>
+            <li>• {t`Specify if you want it more formal or casual`}</li>
           </ul>
         </div>
       </div>

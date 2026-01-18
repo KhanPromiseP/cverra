@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { t } from "@lingui/macro";
+import { t, Trans } from "@lingui/macro";
 import { awardSchema, defaultAward } from "@reactive-resume/schema";
 import {
   FormControl,
@@ -36,7 +36,7 @@ export const AwardsDialog = () => {
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t({ message: "Title", context: "Name of the Award" })}</FormLabel>
+              <FormLabel>{t`Title` /* Name of the Award */}</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -68,10 +68,7 @@ export const AwardsDialog = () => {
               <FormControl>
                 <Input
                   {...field}
-                  placeholder={t({
-                    message: "March 2023",
-                    comment: "The month and year should be uniform across all languages.",
-                  })}
+                  placeholder={t`June 2025` /* The month and year should be uniform across all languages. */}
                 />
               </FormControl>
               <FormMessage />

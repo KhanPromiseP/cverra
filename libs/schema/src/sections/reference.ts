@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const referenceSchema = itemSchema.extend({
-  name: z.string().min(1),
+  name: z.string(),
   description: z.string(),
   summary: z.string(),
   url: urlSchema,

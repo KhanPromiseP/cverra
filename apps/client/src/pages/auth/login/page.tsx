@@ -73,7 +73,7 @@ export const LoginPage = () => {
           {t`Continue your career journey with Cverra`}
         </p>
 
-        <div className="pt-4">
+        <div className="pt-1">
           <h6 className="text-gray-500 dark:text-gray-400">
             <span>{t`Don't have an account?`}</span>
             <Button asChild variant="link" className="px-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold group">
@@ -108,7 +108,7 @@ export const LoginPage = () => {
         <Form {...form}>
           <form
             ref={formRef}
-            className="flex flex-col gap-y-6"
+            className="flex flex-col gap-y-3"
             onSubmit={form.handleSubmit(onSubmit)}
           >
             {/* Email Field */}
@@ -126,7 +126,7 @@ export const LoginPage = () => {
                       <Input
                         autoComplete="email"
                         className="lowercase pl-11 pr-4 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
-                        placeholder="john.doe@example.com"
+                        placeholder="khan@example.com"
                         {...field}
                       />
                     </div>
@@ -154,7 +154,7 @@ export const LoginPage = () => {
                       <Input
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
-                        className="pl-11 pr-11 py-3 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
+                        className="pl-11 pr-11 py-1 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-blue-500 dark:focus:border-blue-400 transition-colors duration-200 shadow-sm"
                         placeholder="Enter your password"
                         {...field}
                       />
@@ -182,7 +182,7 @@ export const LoginPage = () => {
             />
 
             {/* Action Buttons */}
-            <div className="mt-6 flex flex-col sm:flex-row items-center gap-4">
+            <div className="mt-2 flex flex-col sm:flex-row items-center gap-2">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -226,7 +226,7 @@ export const LoginPage = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-center pt-6 border-t border-gray-200 dark:border-gray-700"
+        className="text-center pt-4 border-t border-gray-200 dark:border-gray-700"
       >
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {t`By continuing, you agree to our`}{" "}

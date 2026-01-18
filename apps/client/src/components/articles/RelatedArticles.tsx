@@ -28,6 +28,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import articleApi, { Article, FilterParams } from '../../services/articleApi';
+import { useLingui } from '@lingui/react';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -58,6 +60,8 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { i18n } = useLingui(); // Get current language
+  const currentLanguage = i18n.locale.split('-')[0]; // Extract language code
 
   const fetchRelatedArticles = useCallback(async () => {
     if (!articleId) {
@@ -70,9 +74,10 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
     setError(null);
     
     try {
-      // Prepare parameters for related articles
+      // Prepare parameters for related articles with language support
       const params: FilterParams = {
         limit,
+        language: currentLanguage, // Add current language
         ...(categoryId && { category: categoryId }),
         ...(tags.length > 0 && { tags: tags.slice(0, 3).join(',') }),
       };
@@ -80,18 +85,36 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
       const response = await articleApi.getRelatedArticles(articleId, params);
       
       if (response.success && response.data) {
-        setArticles(response.data.data || []);
+        // Process articles with translations
+        const processedArticles = (response.data.data || []).map(article => {
+          // Apply translations if available
+          if (article.translations && currentLanguage !== 'en') {
+            const translation = article.translations[currentLanguage] || 
+                               article.translations[i18n.locale];
+            
+            if (translation) {
+              return {
+                ...article,
+                title: translation.title || article.title,
+                excerpt: translation.excerpt || article.excerpt,
+              };
+            }
+          }
+          return article;
+        });
+        
+        setArticles(processedArticles);
       } else {
-        throw new Error(response.message || 'Failed to load related articles');
+        throw new Error(response.message || t`Failed to load related articles`);
       }
     } catch (error: any) {
       console.error('Failed to load related articles:', error);
-      setError(error.response?.data?.message || 'Failed to load related articles');
+      setError(error.response?.data?.message || t`Failed to load related articles`);
       setArticles([]);
     } finally {
       setLoading(false);
     }
-  }, [articleId, categoryId, tags, limit, excludeCurrent]);
+  }, [articleId, categoryId, tags, limit, excludeCurrent, currentLanguage, i18n.locale]);
 
   useEffect(() => {
     fetchRelatedArticles();
@@ -103,19 +126,19 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
 
   const handleCategoryClick = (categoryName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/articles?category=${categoryName.toLowerCase()}`);
+    navigate(`/articles?category=${categoryName.toLowerCase()}&lang=${currentLanguage}`);
   };
 
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/articles?tag=${tag}`);
+    navigate(`/articles?tag=${tag}&lang=${currentLanguage}`);
   };
 
   const handleViewMore = () => {
     if (categoryId) {
-      navigate(`/articles?category=${categoryId}`);
+      navigate(`/articles?category=${categoryId}&lang=${currentLanguage}`);
     } else if (tags.length > 0) {
-      navigate(`/articles?tag=${tags[0]}`);
+      navigate(`/articles?tag=${tags[0]}&lang=${currentLanguage}`);
     } else {
       navigate('/articles');
     }
@@ -222,7 +245,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
         marginTop: 'auto'
       }}>
         <Space size="middle" split={<Divider type="vertical" />}>
-          <Tooltip title={`${article.readingTime} min read`}>
+          <Tooltip title={t`${article.readingTime} min read`}>
             <Space size={4}>
               <ClockCircleOutlined style={{ fontSize: '11px', color: '#666' }} />
               <Text type="secondary" style={{ fontSize: '11px' }}>
@@ -231,7 +254,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
             </Space>
           </Tooltip>
           
-          <Tooltip title={`${article.viewCount.toLocaleString()} views`}>
+          <Tooltip title={t`${article.viewCount.toLocaleString()} views`}>
             <Space size={4}>
               <EyeOutlined style={{ fontSize: '11px', color: '#666' }} />
               <Text type="secondary" style={{ fontSize: '11px' }}>
@@ -242,7 +265,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
         </Space>
 
         {article.author && (
-          <Tooltip title={`By ${article.author.name}`}>
+          <Tooltip title={t`By ${article.author.name}`}>
             <Avatar 
               size={24} 
               src={article.author.picture}
@@ -354,7 +377,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
                 backdropFilter: 'blur(4px)',
                 boxShadow: '0 2px 8px rgba(114, 46, 209, 0.3)'
               }}>
-                <CrownOutlined /> PREMIUM
+                <CrownOutlined /> <Trans>PREMIUM</Trans>
               </div>
             )}
           </div>
@@ -418,7 +441,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
           marginTop: 'auto'
         }}>
           <Space size="middle" split={<Divider type="vertical" />}>
-            <Tooltip title={`${article.readingTime} min read`}>
+            <Tooltip title={t`${article.readingTime} min read`}>
               <Space size={4}>
                 <ClockCircleOutlined style={{ fontSize: '12px', color: '#666' }} />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -427,7 +450,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
               </Space>
             </Tooltip>
             
-            <Tooltip title={`${article.viewCount.toLocaleString()} views`}>
+            <Tooltip title={t`${article.viewCount.toLocaleString()} views`}>
               <Space size={4}>
                 <EyeOutlined style={{ fontSize: '12px', color: '#666' }} />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -436,7 +459,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
               </Space>
             </Tooltip>
             
-            <Tooltip title={`${article.likeCount.toLocaleString()} likes`}>
+            <Tooltip title={t`${article.likeCount.toLocaleString()} likes`}>
               <Space size={4}>
                 <HeartOutlined style={{ fontSize: '12px', color: '#666' }} />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -448,7 +471,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
           
           {/* Author */}
           {article.author && (
-            <Tooltip title={`By ${article.author.name}`}>
+            <Tooltip title={t`By ${article.author.name}`}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Avatar 
                   size={28} 
@@ -525,7 +548,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
             onClick={fetchRelatedArticles}
             style={{ marginTop: 8 }}
           >
-            Try Again
+            <Trans>Try Again</Trans>
           </Button>
         </div>
       </div>
@@ -562,7 +585,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
                 fontSize: '14px'
               }}
             >
-              View More
+              <Trans>View More</Trans>
             </Button>
           )}
         </div>
@@ -608,7 +631,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({
               padding: '8px 24px'
             }}
           >
-            View More Articles
+            <Trans>View More Articles</Trans>
           </Button>
         </div>
       )}

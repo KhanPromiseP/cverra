@@ -9,33 +9,27 @@ import {
   List, 
   Divider, 
   Statistic,
-  Progress,
-  message,
-  Badge,
-  Alert,
   Row,
   Col,
   Tooltip,
   Avatar,
-  Tag
+  Tag,
+  Grid,
+  Badge,
+  message
 } from 'antd';
 import { 
   CrownOutlined, 
   LockOutlined, 
   CheckCircleOutlined,
-  StarOutlined,
   EyeOutlined,
   TeamOutlined,
   RocketOutlined,
   GiftOutlined,
   WalletOutlined,
-  CreditCardOutlined,
   SafetyCertificateOutlined,
-  ClockCircleOutlined,
   DollarOutlined,
-  LoadingOutlined,
   UserOutlined,
-  ReadOutlined,
   HeartOutlined,
   MessageOutlined,
   GlobalOutlined
@@ -45,8 +39,10 @@ import { useWallet } from '../../hooks/useWallet';
 import articleApi, { Article } from '../../services/articleApi';
 import { CoinConfirmPopover } from '../../components/modals/coin-confirm-modal';
 import { useNavigate } from 'react-router';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 
 const { Title, Text, Paragraph } = Typography;
+const { useBreakpoint } = Grid;
 
 interface PremiumPaywallProps {
   article: Article;
@@ -69,6 +65,8 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
   const { user } = useAuthStore();
   const userId = user?.id;
   const navigate = useNavigate();
+  const screens = useBreakpoint();
+  
   const { 
     balance, 
     isLoading: walletLoading, 
@@ -109,17 +107,16 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
 
   const handlePurchaseArticle = async () => {
     if (!user) {
-      message.error('Please login to purchase premium content');
+      message.error(t`Please login to purchase premium content`);
       navigate('/login');
       return;
     }
 
     if (!article) {
-      message.error('Article not found');
+      message.error(t`Article not found`);
       return;
     }
 
-    // First check if user can afford
     const affordable = await canAfford(coinPrice);
     
     if (!affordable) {
@@ -127,7 +124,6 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
       return;
     }
 
-    // Purchase immediately if user can afford
     await processArticlePurchase();
   };
 
@@ -140,10 +136,9 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
     setLoading(true);
 
     try {
-      // Step 1: Reserve coins
       const transactionResult = await deductCoinsWithRollback(
         coinPrice,
-        `Article Purchase - ${article.title}`,
+        t`Article Purchase - ${article.title}`,
         { 
           transactionId, 
           articleId: article.id,
@@ -154,28 +149,19 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
       );
 
       if (!transactionResult.success) {
-        throw new Error('Failed to reserve coins for article purchase');
+        throw new Error(t`Failed to reserve coins for article purchase`);
       }
 
       transactionSuccess = true;
 
-      // Step 2: Show loading message
-      message.info('Unlocking article...', 2);
+      message.info(t`Unlocking article...`, 2);
 
-      // Step 3: Purchase article using articleApi
-      console.log('Calling purchase endpoint for article:', article.id);
       const purchaseResponse = await articleApi.purchaseArticle(article.id);
 
-      console.log('Purchase response:', purchaseResponse);
-
-      // Accept success OR if response has data.purchased = true
       if (!purchaseResponse.success && !(purchaseResponse.data?.purchased === true)) {
-        throw new Error(purchaseResponse.message || 'Failed to unlock article');
+        throw new Error(purchaseResponse.message || t`Failed to unlock article`);
       }
 
-      console.log('Purchase successful, proceeding...');
-
-      // Step 4: Mark transaction as completed
       await completeTransaction(transactionId, {
         result: 'success',
         articleTitle: article.title,
@@ -183,17 +169,17 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         purchasedAt: new Date().toISOString()
       });
 
-      // Refresh wallet balance
       await fetchBalance();
 
-      // Show success message
       message.success({
         content: (
           <div>
-            <div className="font-medium">Article unlocked successfully!</div>
-            <div className="text-xs text-green-600 flex items-center gap-1">
+            <div className="font-medium dark:text-white">
+              <Trans>Article unlocked successfully!</Trans>
+            </div>
+            <div className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
               <CrownOutlined className="mr-1" />
-              Used {coinPrice} coins • Full access granted
+              <Trans>Used {coinPrice} coins • Full access granted</Trans>
             </div>
           </div>
         ),
@@ -201,11 +187,8 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
       });
 
       setShowCoinPopover(false);
-
-      // Notify parent component
       onPurchaseSuccess?.();
 
-      // Auto-close after success
       setTimeout(() => {
         if (onClose) {
           onClose();
@@ -215,21 +198,18 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
     } catch (error: any) {
       console.error("Article purchase failed:", error);
       
-      // Step 5: Refund coins if transaction was successful
       if (transactionSuccess) {
         try {
-          await refundTransaction(transactionId, error.message || 'Article purchase failed');
+          await refundTransaction(transactionId, error.message || t`Article purchase failed`);
           await fetchBalance();
-          console.log(`Refunded ${coinPrice} coins`);
-          
-          message.info('Coins refunded due to purchase failure', 2000);
+          message.info(t`Coins refunded due to purchase failure`, 2000);
         } catch (refundError) {
           console.error('Failed to refund coins:', refundError);
         }
       }
 
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to purchase article';
-      message.error('Purchase failed: ' + errorMessage, 3);
+      const errorMessage = error.response?.data?.message || error.message || t`Failed to purchase article`;
+      message.error(t`Purchase failed: ${errorMessage}`, 3);
 
       onPurchaseError?.(errorMessage);
       setShowCoinPopover(false);
@@ -243,13 +223,13 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
       const affordable = await canAfford(coinPrice);
 
       if (!affordable) {
-        message.error("Not enough coins");
+        message.error(t`Not enough coins`);
         setShowCoinPopover(false);
         return;
       }
 
       if (!article) {
-        message.error("Article not found");
+        message.error(t`Article not found`);
         setShowCoinPopover(false);
         return;
       }
@@ -258,7 +238,7 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
 
     } catch (error) {
       console.error("Article purchase preparation failed:", error);
-      message.error("Failed to prepare article purchase");
+      message.error(t`Failed to prepare article purchase`);
       setShowCoinPopover(false);
     }
   };
@@ -273,92 +253,82 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
   };
 
   const handleSubscription = () => {
-  if (!user) {
-    message.error('Please login to subscribe');
-    navigate('/login');
-    return;
-  }
+    if (!user) {
+      message.error(t`Please login to subscribe`);
+      navigate('/login');
+      return;
+    }
 
-  // Close the paywall modal
-  if (onClose) {
-    onClose();
-  }
-  
-  // Redirect to pricing/subscription page
-  navigate('/dashboard/pricing', { 
-    state: { 
-      fromArticle: article.id,
-      articleTitle: article.title 
-    } 
-  });
-  
-  // Optional: Show a message
-  message.info('Redirecting to subscription plans...', 1.5);
-};
+    if (onClose) {
+      onClose();
+    }
+    
+    navigate('/dashboard/pricing', { 
+      state: { 
+        fromArticle: article.id,
+        articleTitle: article.title 
+      } 
+    });
+    
+    message.info(t`Redirecting to subscription plans...`, 1.5);
+  };
 
   const benefits = [
     { 
-      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />, 
-      text: 'Access all premium articles',
-      premiumOnly: true
-    },
-  
-    { 
-      icon: <EyeOutlined style={{ color: '#1890ff' }} />, 
-      text: 'No ads, distraction-free reading',
+      icon: <CheckCircleOutlined className="text-green-500 dark:text-green-400" />, 
+      text: t`Access all premium articles`,
       premiumOnly: true
     },
     { 
-      icon: <TeamOutlined style={{ color: '#722ed1' }} />, 
-      text: 'Exclusive community access',
+      icon: <EyeOutlined className="text-blue-500 dark:text-blue-400" />, 
+      text: t`No ads, distraction-free reading`,
       premiumOnly: true
     },
     { 
-      icon: <RocketOutlined style={{ color: '#13c2c2' }} />, 
-      text: 'Priority support',
+      icon: <TeamOutlined className="text-purple-500 dark:text-purple-400" />, 
+      text: t`Exclusive community access`,
       premiumOnly: true
     },
     { 
-      icon: <GiftOutlined style={{ color: '#eb2f96' }} />, 
-      text: 'Free monthly coins for subscribers',
+      icon: <RocketOutlined className="text-cyan-500 dark:text-cyan-400" />, 
+      text: t`Priority support`,
+      premiumOnly: true
+    },
+    { 
+      icon: <GiftOutlined className="text-pink-500 dark:text-pink-400" />, 
+      text: t`Free monthly coins for subscribers`,
       premiumOnly: true
     },
   ];
 
   const coinPurchaseBenefits = [
-    'Unlock this specific article',
-    'Permanent access to this article',
-    'Directly support the author',
-    'No subscription required',
-    'Instant access after purchase',
+    t`Unlock this specific article`,
+    t`Permanent access to this article`,
+    t`Directly support the author`,
+    t`No subscription required`,
+    t`Instant access after purchase`,
   ];
 
   const renderCoinPurchaseCard = () => (
     <Card
       hoverable
-      style={{ 
-        width: '100%',
-        borderColor: '#1890ff',
-        borderWidth: 2,
-        borderRadius: '12px',
-        boxShadow: '0 4px 12px rgba(24, 144, 255, 0.1)'
-      }}
-      bodyStyle={{ padding: 24 }}
+      className="w-full border-2 border-blue-500 dark:border-blue-400 rounded-xl shadow-md dark:shadow-gray-800 dark:bg-gray-800"
+      bodyStyle={{ padding: screens.xs ? '16px' : '24px' }}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div style={{ textAlign: 'center' }}>
-          <CrownOutlined style={{ fontSize: '32px', color: '#1890ff' }} />
-          <Title level={4} style={{ margin: '12px 0 4px' }}>
-            One-Time Purchase
+      <Space direction="vertical" size="middle" className="w-full">
+        <div className="text-center">
+          <CrownOutlined className={`${screens.xs ? 'text-2xl' : 'text-3xl'} text-blue-500 dark:text-blue-400`} />
+          <Title level={screens.xs ? 5 : 4} className="!mb-1 !mt-3 dark:text-white">
+            <Trans>One-Time Purchase</Trans>
           </Title>
-          <div style={{ marginBottom: 16 }}>
+          <div className={screens.xs ? "mb-3" : "mb-4"}>
             <Statistic
               value={coinPrice}
-              prefix={<DollarOutlined style={{ color: '#faad14' }} />}
-              suffix="coins"
+              prefix={<DollarOutlined className="text-yellow-500 dark:text-yellow-400" />}
+              suffix={t`coins`}
               valueStyle={{ 
                 color: '#1890ff',
-                fontSize: '28px',
+                fontSize: screens.xs ? '22px' : '28px',
                 fontWeight: 'bold'
               }}
             />
@@ -368,50 +338,49 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
         <List
           dataSource={coinPurchaseBenefits}
           renderItem={item => (
-            <List.Item style={{ padding: '8px 0', border: 'none' }}>
-              <Space>
-                <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                <Text>{item}</Text>
+            <List.Item className="!py-1 !border-none">
+              <Space size={screens.xs ? 8 : 12}>
+                <CheckCircleOutlined className={`${screens.xs ? 'text-sm' : 'text-base'} text-green-500 dark:text-green-400`} />
+                <Text className={`${screens.xs ? 'text-sm' : 'text-base'} dark:text-gray-200`}>{item}</Text>
               </Space>
             </List.Item>
           )}
-          style={{ marginBottom: 16 }}
+          className={screens.xs ? "mb-3" : "mb-4"}
         />
 
         <div>
           <Button
             type="primary"
             block
-            size="large"
+            size={screens.xs ? "middle" : "large"}
             onClick={handlePurchaseArticle}
             loading={loading}
             disabled={!user || !article}
             icon={<WalletOutlined />}
             ref={purchaseButtonRef}
-            style={{ 
-              height: '48px',
-              fontSize: '16px',
-              fontWeight: '500'
-            }}
+            className={` ${screens.xs ? 'h-10 text-sm' : 'h-12 text-base'} font-medium`}
           >
-            {!user ? 'Login to Purchase' : 
-             canAffordPurchase ? `Unlock for ${coinPrice} Coins` : 'Buy Coins to Unlock'}
+            {!user ? t`Login to Purchase` : 
+             canAffordPurchase ? <Trans>Unlock for {coinPrice} Coins</Trans> : t`Buy Coins`}
           </Button>
           
           {user && (
-            <div style={{ marginTop: 12, textAlign: 'center' }}>
+            <div className={`text-center ${screens.xs ? 'mt-2' : 'mt-3'}`}>
               <Space size={4}>
-                <WalletOutlined style={{ color: '#666' }} />
-                <Text type="secondary">Balance:</Text>
-                <Text strong style={{ 
-                  color: canAffordPurchase ? '#52c41a' : '#ff4d4f',
-                  fontSize: '15px'
-                }}>
-                  {balance} coins
+                <WalletOutlined className={`${screens.xs ? 'text-xs' : 'text-sm'} text-gray-500 dark:text-gray-400`} />
+                <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+                  <Trans>Balance:</Trans>
+                </Text>
+                <Text strong className={`${screens.xs ? 'text-sm' : 'text-base'} ${
+                  canAffordPurchase 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : 'text-red-500 dark:text-red-400'
+                }`}>
+                  {balance} <Trans>coins</Trans>
                 </Text>
                 {!canAffordPurchase && (
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    (Need {coinPrice - balance} more)
+                  <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+                    <Trans>(Need {coinPrice - balance} more)</Trans>
                   </Text>
                 )}
               </Space>
@@ -425,85 +394,100 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
   const renderSubscriptionCard = () => (
     <Card
       hoverable
-      style={{ 
-        width: '100%',
-        borderColor: '#722ed1',
-        borderWidth: 2,
-        borderRadius: '12px',
-        boxShadow: '0 4px 12px rgba(114, 46, 209, 0.1)',
-        background: 'linear-gradient(135deg, #f9f0ff 0%, #f0f5ff 100%)'
-      }}
-      bodyStyle={{ padding: 24 }}
+      className="w-full border-2 border-purple-500 dark:border-purple-400 rounded-xl shadow-md dark:shadow-gray-800 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-800 dark:to-gray-900"
+      bodyStyle={{ padding: screens.xs ? '16px' : '24px' }}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div style={{ textAlign: 'center', position: 'relative' }}>
-          <Badge.Ribbon text="Recommended" color="purple">
-            <div style={{ paddingTop: 24 }}>
-              <CrownOutlined style={{ fontSize: '32px', color: '#722ed1' }} />
-              <Title level={4} style={{ margin: '12px 0 4px' }}>
-                Premium Subscription
+      <Space direction="vertical" size="middle" className="w-full">
+        <div className="text-center relative">
+          {!screens.xs ? (
+            <Badge.Ribbon text={t`Recommended`} color="purple">
+              <div className="pt-6">
+                <CrownOutlined className="text-3xl text-purple-500 dark:text-purple-400" />
+                <Title level={4} className="!mb-1 !mt-3 dark:text-white">
+                  <Trans>Premium Subscription</Trans>
+                </Title>
+                <div className="mb-4">
+                  <Statistic
+                    value={9.99}
+                    prefix="$"
+                    suffix="/month"
+                    valueStyle={{ 
+                      color: '#722ed1',
+                      fontSize: '28px',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                </div>
+              </div>
+            </Badge.Ribbon>
+          ) : (
+            <>
+              <CrownOutlined className="text-2xl text-purple-500 dark:text-purple-400" />
+              <Title level={5} className="!mb-1 !mt-2 dark:text-white">
+                <Trans>Premium Subscription</Trans>
               </Title>
-              <div style={{ marginBottom: 16 }}>
+              <div className="mb-3">
                 <Statistic
                   value={9.99}
                   prefix="$"
                   suffix="/month"
                   valueStyle={{ 
                     color: '#722ed1',
-                    fontSize: '28px',
+                    fontSize: '22px',
                     fontWeight: 'bold'
                   }}
                 />
               </div>
-            </div>
-          </Badge.Ribbon>
+              <Tag color="purple" className="mb-2 dark:bg-purple-900 dark:text-purple-100">
+                <Trans>Recommended</Trans>
+              </Tag>
+            </>
+          )}
         </div>
 
         <List
           dataSource={benefits}
-          renderItem={(item, index) => (
-            <List.Item style={{ padding: '8px 0', border: 'none' }}>
-              <Space align="start">
-                {item.icon}
+          renderItem={(item) => (
+            <List.Item className="!py-1 !border-none">
+              <Space align="start" size={screens.xs ? 8 : 12}>
+                {React.cloneElement(item.icon, { 
+                  className: `${item.icon.props.className} ${screens.xs ? 'text-sm' : 'text-base'}`
+                })}
                 <div>
-                  <Text>{item.text}</Text>
-                  {item.premiumOnly && (
+                  <Text className={`${screens.xs ? 'text-sm' : 'text-base'} dark:text-gray-200`}>
+                    {item.text}
+                  </Text>
+                  {item.premiumOnly && !screens.xs && (
                     <Badge 
-                      count="Premium" 
-                      style={{ 
-                        marginLeft: 8,
-                        backgroundColor: '#722ed1',
-                        fontSize: '10px'
-                      }} 
+                      count={t`Premium`} 
+                      className="ml-2 text-xs bg-purple-500 dark:bg-purple-600" 
                     />
+                  )}
+                  {item.premiumOnly && screens.xs && (
+                    <Tag color="purple" className="ml-1 dark:bg-purple-900 dark:text-purple-100">
+                      <Trans>Premium</Trans>
+                    </Tag>
                   )}
                 </div>
               </Space>
             </List.Item>
           )}
-          style={{ marginBottom: 16 }}
+          className={screens.xs ? "mb-3" : "mb-4"}
         />
 
         <div>
           <Button
             type="primary"
             block
-            size="large"
-            onClick={handleSubscription}  // Changed from setShowSubscriptionModal(true)
+            size={screens.xs ? "middle" : "large"}
+            onClick={handleSubscription}
             loading={loading}
             disabled={!user}
             icon={<SafetyCertificateOutlined />}
-            style={{ 
-              height: '48px',
-              fontSize: '16px',
-              fontWeight: '500',
-              background: 'linear-gradient(135deg, #722ed1 0%, #1890ff 100%)',
-              border: 'none',
-            }}
+            className={`${screens.xs ? 'h-10 text-sm' : 'h-12 text-base'} font-medium bg-gradient-to-r from-purple-600 to-blue-600 border-none hover:from-purple-700 hover:to-blue-700`}
           >
-            {user ? 'View Subscription Plans' : 'Login to Subscribe'} 
+            {user ? t`View Plans` : t`Login to Subscribe`}
           </Button>
-     
         </div>
       </Space>
     </Card>
@@ -511,44 +495,60 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
 
   const renderArticleStats = () => (
     <Card
-      style={{ 
-        marginTop: 24,
-        borderRadius: '12px',
-        background: 'linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%)'
-      }}
-      bodyStyle={{ padding: 16 }}
+      className={`mt-6 dark:mt-5 rounded-xl bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 dark:border-gray-700`}
+      bodyStyle={{ padding: screens.xs ? '12px' : '16px' }}
     >
-      <Title level={5} style={{ marginBottom: 16, textAlign: 'center' }}>
-        Why readers love this article
+      <Title level={5} className={`${screens.xs ? 'mb-3' : 'mb-4'} text-center dark:text-white`}>
+        <Trans>Why readers love this article</Trans>
       </Title>
-      <Row gutter={[16, 16]}>
+      <Row gutter={[screens.xs ? 8 : 16, screens.xs ? 8 : 16]}>
         <Col xs={12} sm={6}>
           <Statistic 
-            title="Reading Time" 
+            title={<span className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+              <Trans>Reading Time</Trans>
+            </span>} 
             value={article.readingTime} 
-            suffix="min"
-            valueStyle={{ color: '#1890ff' }}
+            suffix={t`min`}
+            valueStyle={{ 
+              color: '#1890ff',
+              fontSize: screens.xs ? '18px' : '24px'
+            }}
           />
         </Col>
         <Col xs={12} sm={6}>
           <Statistic 
-            title="Views" 
+            title={<span className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+              <Trans>Views</Trans>
+            </span>} 
             value={article.viewCount.toLocaleString()}
-            valueStyle={{ color: '#52c41a' }}
+            valueStyle={{ 
+              color: '#52c41a',
+              fontSize: screens.xs ? '18px' : '24px'
+            }}
           />
         </Col>
         <Col xs={12} sm={6}>
           <Statistic 
-            title="Likes" 
+            title={<span className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+              <Trans>Likes</Trans>
+            </span>} 
             value={article.likeCount.toLocaleString()}
-            valueStyle={{ color: '#ff4d4f' }}
+            valueStyle={{ 
+              color: '#ff4d4f',
+              fontSize: screens.xs ? '18px' : '24px'
+            }}
           />
         </Col>
         <Col xs={12} sm={6}>
           <Statistic 
-            title="Claps" 
+            title={<span className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+              <Trans>Claps</Trans>
+            </span>} 
             value={article.clapCount?.toLocaleString() || '0'}
-            valueStyle={{ color: '#faad14' }}
+            valueStyle={{ 
+              color: '#faad14',
+              fontSize: screens.xs ? '18px' : '24px'
+            }}
           />
         </Col>
       </Row>
@@ -557,62 +557,89 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
 
   const renderArticleInfo = () => (
     <Card
-      style={{ 
-        marginBottom: 24,
-        borderRadius: '12px',
-        background: 'linear-gradient(135deg, #fff7e6 0%, #fff1f0 100%)'
-      }}
-      bodyStyle={{ padding: 16 }}
+      className={`mb-6 dark:mb-5 bg-background rounded-xl`}
+      bodyStyle={{ padding: screens.xs ? '12px' : '16px' }}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <Space direction="vertical" size={screens.xs ? 'small' : 'middle'} className="w-full">
+        <div className={`flex items-center justify-between ${
+          screens.xs ? 'flex-wrap gap-2' : 'flex-nowrap'
+        }`}>
+          <div className="flex items-center gap-3">
             <Avatar 
-              size="large" 
+              size={screens.xs ? "default" : "large"} 
               src={article.author.picture}
-              style={{ backgroundColor: '#1890ff' }}
+              className="bg-blue-500"
             >
               {article.author.name.charAt(0)}
             </Avatar>
             <div>
-              <Text strong style={{ fontSize: '16px' }}>{article.author.name}</Text>
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                Published {new Date(article.publishedAt).toLocaleDateString()}
+              <Text strong className={`${screens.xs ? 'text-sm' : 'text-base'} dark:text-white`}>
+                {article.author.name}
+              </Text>
+              <div className={`${screens.xs ? 'text-xs' : 'text-sm'} text-gray-500 dark:text-gray-400`}>
+                <Trans>Published {new Date(article.publishedAt).toLocaleDateString()}</Trans>
               </div>
             </div>
           </div>
           <div>
-            <Tag color="purple" icon={<CrownOutlined />}>
-              Premium Article
+            <Tag 
+              color="purple" 
+              icon={screens.xs ? undefined : <CrownOutlined />}
+              className="dark:bg-purple-900 dark:text-purple-100"
+            >
+              {screens.xs ? t`Premium` : t`Premium Article`}
             </Tag>
           </div>
         </div>
         
-        <Divider />
+        <Divider className={`${screens.xs ? 'my-2' : 'my-4'} dark:border-gray-600`} />
         
         <div>
-          <Title level={4} style={{ marginBottom: 8 }}>{article.title}</Title>
-          <Paragraph type="secondary">{article.excerpt}</Paragraph>
+          <Title level={screens.xs ? 5 : 4} className={`${screens.xs ? 'mb-1' : 'mb-2'} dark:text-white`}>
+            {article.title}
+          </Title>
+          <Paragraph 
+            type="secondary" 
+            className={`${screens.xs ? 'text-sm' : 'text-base'} mb-0 line-clamp-2 dark:text-gray-300`}
+          >
+            {article.excerpt}
+          </Paragraph>
         </div>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Space size="middle">
+        <div className={`flex justify-between items-center ${
+          screens.xs ? 'flex-wrap gap-2' : 'flex-nowrap'
+        }`}>
+          <Space size={screens.xs ? "small" : "middle"} wrap={screens.xs}>
             <Space size="small">
-              <EyeOutlined style={{ color: '#666' }} />
-              <Text type="secondary">{article.viewCount.toLocaleString()} views</Text>
+              <EyeOutlined className={`${screens.xs ? 'text-xs' : 'text-sm'} text-gray-500 dark:text-gray-400`} />
+              <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+                {article.viewCount.toLocaleString()} <Trans>views</Trans>
+              </Text>
             </Space>
             <Space size="small">
-              <HeartOutlined style={{ color: '#666' }} />
-              <Text type="secondary">{article.likeCount.toLocaleString()} likes</Text>
+              <HeartOutlined className={`${screens.xs ? 'text-xs' : 'text-sm'} text-gray-500 dark:text-gray-400`} />
+              <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+                {article.likeCount.toLocaleString()} <Trans>likes</Trans>
+              </Text>
             </Space>
             <Space size="small">
-              <MessageOutlined style={{ color: '#666' }} />
-              <Text type="secondary">{article.commentCount} comments</Text>
+              <MessageOutlined className={`${screens.xs ? 'text-xs' : 'text-sm'} text-gray-500 dark:text-gray-400`} />
+              <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+                {article.commentCount} <Trans>comments</Trans>
+              </Text>
             </Space>
           </Space>
           {article.availableLanguages?.length > 1 && (
-            <Tooltip title={`Available in ${article.availableLanguages.length} languages`}>
-              <Tag icon={<GlobalOutlined />}>{article.availableLanguages.length} languages</Tag>
+            <Tooltip title={<Trans>Available in {article.availableLanguages.length} languages</Trans>}>
+              <Tag 
+                icon={screens.xs ? undefined : <GlobalOutlined />}
+                className="dark:bg-gray-700 dark:text-gray-200"
+              >
+                {screens.xs ? 
+                  <Trans>{article.availableLanguages.length} langs</Trans> : 
+                  <Trans>{article.availableLanguages.length} languages</Trans>
+                }
+              </Tag>
             </Tooltip>
           )}
         </div>
@@ -621,37 +648,41 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
   );
 
   const modalContent = (
-    <div style={{ padding: '8px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <div className="p-4 bg-background">
+      <Space direction="vertical" size={screens.xs ? 'middle' : 'large'} className="w-full">
         {/* Header */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #722ed1 0%, #1890ff 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px'
-          }}>
-            <CrownOutlined style={{ fontSize: '32px', color: 'white' }} />
+        <div className="text-center bg-background">
+          <div className={`${
+            screens.xs ? 'w-12 h-12' : 'w-16 h-16'
+          } rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mx-auto ${
+            screens.xs ? 'mb-3' : 'mb-4'
+          }`}>
+            <CrownOutlined className={`${
+              screens.xs ? 'text-lg' : 'text-2xl'
+            } text-white`} />
           </div>
-          <Title level={3} style={{ marginBottom: 8 }}>
-            Premium Article
+          <Title level={screens.xs ? 4 : 3} className={`${
+            screens.xs ? 'mb-1' : 'mb-2'
+          } dark:text-white`}>
+            <Trans>Premium Article</Trans>
           </Title>
-          <Paragraph type="secondary" style={{ fontSize: '16px', marginBottom: 0 }}>
-            Unlock this premium article to continue reading
+          <Paragraph 
+            type="secondary" 
+            className={`${screens.xs ? 'text-sm' : 'text-base'} mb-0 ${
+              screens.xs ? 'px-2' : ''
+            } dark:text-gray-400`}
+          >
+            <Trans>Unlock this premium article to continue reading</Trans>
           </Paragraph>
         </div>
 
-        <Divider />
+        <Divider className={`${screens.xs ? 'my-2' : 'my-4'} dark:border-gray-600`} />
 
         {/* Article Info */}
         {renderArticleInfo()}
 
         {/* Purchase Options */}
-        <Row gutter={[32, 32]}>
+        <Row gutter={[screens.xs ? 16 : 32, screens.xs ? 16 : 32]}>
           <Col xs={24} md={12}>
             {renderCoinPurchaseCard()}
           </Col>
@@ -660,91 +691,107 @@ const PremiumPaywall: React.FC<PremiumPaywallProps> = ({
           </Col>
         </Row>
 
-        <Divider />
+        <Divider className={`${screens.xs ? 'my-2' : 'my-4'} dark:border-gray-600`} />
 
         {/* Article Stats */}
         {renderArticleStats()}
 
         {/* Additional Info */}
-        <div style={{ textAlign: 'center' }}>
-          <Text type="secondary" style={{ fontSize: '13px' }}>
-            <SafetyCertificateOutlined style={{ marginRight: 4 }} />
-            All purchases are secure and refundable within 24 hours if unsatisfied.
+        <div className={`text-center ${screens.xs ? 'px-2' : ''}`}>
+          <Text type="secondary" className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}>
+            <SafetyCertificateOutlined className={`${
+              screens.xs ? 'text-xs' : 'text-sm'
+            } mr-1 dark:text-gray-400`} />
+            <Trans>All purchases are secure and refundable within 24 hours if unsatisfied.</Trans>
           </Text>
         </div>
       </Space>
     </div>
   );
 
-  // Subscription Modal
-  // Optional: Simplified subscription modal
-const subscriptionModal = (
-  <Modal
-    title="Choose a Subscription Plan"
-    open={showSubscriptionModal}
-    onCancel={() => setShowSubscriptionModal(false)}
-    footer={null}
-    width={400}
-    centered
-  >
-    <Space direction="vertical" size="large" style={{ width: '100%', padding: '16px 0' }}>
-      <div style={{ textAlign: 'center' }}>
-        <CrownOutlined style={{ fontSize: '48px', color: '#722ed1' }} />
-        <Title level={3} style={{ margin: '16px 0 8px' }}>
-          Go Premium
-        </Title>
-        <Paragraph type="secondary">
-          Choose the plan that works best for you
-        </Paragraph>
-      </div>
+  const subscriptionModal = (
+    <Modal
+      title={t`Choose a Subscription Plan`}
+      open={showSubscriptionModal}
+      onCancel={() => setShowSubscriptionModal(false)}
+      footer={null}
+      width={screens.xs ? '90%' : 400}
+      centered
+      className="dark:bg-gray-800 dark:text-white"
+      bodyStyle={{ 
+        padding: screens.xs ? '16px 12px' : '24px',
+        backgroundColor: 'inherit'
+      }}
+    >
+      <Space direction="vertical" size="large" className="w-full" style={{ 
+        padding: screens.xs ? '8px 0' : '16px 0'
+      }}>
+        <div className="text-center">
+          <CrownOutlined className={`${
+            screens.xs ? 'text-4xl' : 'text-5xl'
+          } text-purple-600 dark:text-purple-400`} />
+          <Title level={screens.xs ? 4 : 3} className={`${
+            screens.xs ? 'my-3' : 'my-4'
+          } dark:text-white`}>
+            <Trans>Go Premium</Trans>
+          </Title>
+          <Paragraph type="secondary" className={`${
+            screens.xs ? 'text-sm' : 'text-base'
+          } dark:text-gray-400`}>
+            <Trans>Choose the plan that works best for you</Trans>
+          </Paragraph>
+        </div>
 
-      <List
-        dataSource={[
-          'Unlimited access to all premium articles',
-          'Ad-free reading experience',
-          'Exclusive content and early access',
-          'Priority customer support',
-          'Monthly coins allocation'
-        ]}
-        renderItem={item => (
-          <List.Item style={{ padding: '8px 0', border: 'none' }}>
-            <Space align="start">
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
-              <Text>{item}</Text>
-            </Space>
-          </List.Item>
-        )}
-      />
+        <List
+          dataSource={[
+            t`Unlimited access to all premium articles`,
+            t`Ad-free reading experience`,
+            t`Exclusive content and early access`,
+            t`Priority customer support`,
+            t`Monthly coins allocation`
+          ]}
+          renderItem={item => (
+            <List.Item className="!py-1.5 !border-none">
+              <Space align="start" size={screens.xs ? 8 : 12}>
+                <CheckCircleOutlined className={`${
+                  screens.xs ? 'text-sm' : 'text-base'
+                } text-green-500 dark:text-green-400`} />
+                <Text className={`${
+                  screens.xs ? 'text-sm' : 'text-base'
+                } dark:text-gray-200`}>
+                  {item}
+                </Text>
+              </Space>
+            </List.Item>
+          )}
+        />
 
-      <Button
-        type="primary"
-        block
-        size="large"
-        onClick={handleSubscription}
-        loading={loading}
-        icon={<SafetyCertificateOutlined />}
-        style={{ 
-          marginTop: '16px',
-          background: 'linear-gradient(135deg, #722ed1 0%, #1890ff 100%)',
-          border: 'none',
-          height: '48px',
-          fontSize: '16px'
-        }}
-      >
-        View All Plans & Pricing
-      </Button>
-
-      <div style={{ textAlign: 'center' }}>
         <Button
-          type="link"
-          onClick={() => setShowSubscriptionModal(false)}
+          type="primary"
+          block
+          size={screens.xs ? "middle" : "large"}
+          onClick={handleSubscription}
+          loading={loading}
+          icon={<SafetyCertificateOutlined />}
+          className={`${
+            screens.xs ? 'mt-3 h-10 text-sm' : 'mt-4 h-12 text-base'
+          } bg-gradient-to-r from-purple-600 to-blue-600 border-none hover:from-purple-700 hover:to-blue-700`}
         >
-          Maybe Later
+          <Trans>View All Plans & Pricing</Trans>
         </Button>
-      </div>
-    </Space>
-  </Modal>
-);
+
+        <div className="text-center">
+          <Button
+            type="link"
+            onClick={() => setShowSubscriptionModal(false)}
+            className={`${screens.xs ? 'text-xs' : 'text-sm'} dark:text-gray-400`}
+          >
+            <Trans>Maybe Later</Trans>
+          </Button>
+        </div>
+      </Space>
+    </Modal>
+  );
 
   if (onClose) {
     return (
@@ -754,12 +801,22 @@ const subscriptionModal = (
           open={visible}
           onCancel={onClose}
           footer={null}
-          width={900}
+          width={screens.xs ? '95%' : 900}
           centered
           closable={true}
           maskClosable={true}
-          style={{ top: 20 }}
-          bodyStyle={{ padding: '24px' }}
+          className="dark:bg-gray-800"
+          style={{ 
+            top: screens.xs ? 10 : 20,
+            maxHeight: screens.xs ? '90vh' : 'auto',
+            overflowY: 'auto'
+          }}
+          bodyStyle={{ 
+            padding: screens.xs ? '16px 12px' : '24px',
+            maxHeight: screens.xs ? 'calc(90vh - 48px)' : 'auto',
+            overflowY: 'auto',
+            backgroundColor: 'inherit'
+          }}
         >
           {modalContent}
         </Modal>
@@ -772,8 +829,8 @@ const subscriptionModal = (
           balance={balance}
           onConfirm={confirmArticlePurchase}
           onBuyCoins={handleBuyCoins}
-          title="Unlock Premium Article"
-          description={`Unlock "${article.title}" by ${article.author.name} to continue reading`}
+          title={t`Unlock Premium Article`}
+          description={t`Unlock "${article.title}" by ${article.author.name} to continue reading`}
           actionType="premium"
           triggerRef={purchaseButtonRef}
           userId={userId}
@@ -787,38 +844,38 @@ const subscriptionModal = (
 
   // Inline version for article preview
   return (
-    <div style={{
-      margin: '48px 0',
-      padding: '40px 24px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderRadius: '16px',
-      color: 'white',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div className={`
+      ${screens.xs ? 'my-6 px-4 py-6' : 'my-12 px-6 py-10'} 
+      bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700
+      dark:from-gray-900 dark:via-gray-800 dark:to-gray-900
+      rounded-2xl text-white relative overflow-hidden
+    `}>
       {/* Background pattern */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
-      }} />
+      <div className="absolute inset-0 bg-gradient-radial from-white/10 via-transparent to-transparent opacity-50" />
       
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <LockOutlined style={{ fontSize: '48px', color: 'white', marginBottom: 16 }} />
-          <Title level={2} style={{ color: 'white', marginBottom: 8 }}>
-            Continue Reading
-          </Title>
-          <Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
-            This is a preview of the article. Unlock the full content to continue reading.
-          </Paragraph>
+      <div className="relative z-10">
+        <div className={`text-center ${
+          screens.xs ? 'mb-6' : 'mb-8'
+        }`}>
+          <LockOutlined className={`${
+            screens.xs ? 'text-4xl' : 'text-5xl'
+          } text-white/90 mb-4`} />
+          <h2 className={`${
+            screens.xs ? 'text-2xl' : 'text-3xl'
+          } font-bold text-white mb-2`}>
+            <Trans>Continue Reading</Trans>
+          </h2>
+          <p className={`${
+            screens.xs ? 'text-sm px-2' : 'text-base'
+          } text-white/90`}>
+            <Trans>This is a preview of the article. Unlock the full content to continue reading.</Trans>
+          </p>
         </div>
 
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          {modalContent}
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
+            {modalContent}
+          </div>
         </div>
       </div>
 
@@ -830,8 +887,8 @@ const subscriptionModal = (
         balance={balance}
         onConfirm={confirmArticlePurchase}
         onBuyCoins={handleBuyCoins}
-        title="Unlock Premium Article"
-        description={`Unlock "${article.title}" by ${article.author.name} to continue reading`}
+        title={t`Unlock Premium Article`}
+        description={t`Unlock "${article.title}" by ${article.author.name} to continue reading`}
         actionType="premium"
         triggerRef={purchaseButtonRef}
         userId={userId}

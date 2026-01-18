@@ -1,3 +1,4 @@
+import { t, Trans } from "@lingui/macro";
 import { Button } from "@reactive-resume/ui";
 import { Coins, Download, Zap, Crown, X, ChevronUp, CreditCard, Smartphone, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -14,7 +15,7 @@ interface CoinConfirmPopoverProps {
   onBuyCoins: (subscribe?: boolean) => void;
   title?: string;
   description?: string;
-  actionType?: "export" | "enhance" | "premium" | "custom";
+  actionType?: 'export' | 'enhance' | 'premium' | 'custom' | 'generate' | string;
   triggerRef?: React.RefObject<HTMLElement>;
   userId?: string;
   metadata?: {
@@ -40,8 +41,8 @@ export function CoinConfirmPopover({
   balance,
   onConfirm,
   onBuyCoins,
-  title = "Coin Confirmation",
-  description = "This action requires coins to complete.",
+  title = t`Coin Confirmation`,
+  description = t`This action requires coins to complete.`,
   actionType = "export",
   triggerRef,
   userId
@@ -61,7 +62,7 @@ export function CoinConfirmPopover({
 
   // Calculate USD amount needed with 2 decimal places
   const usdAmountNeeded = Math.ceil((shortage / 10) * 100) / 100;
-  const minimumAmount = Math.max(usdAmountNeeded, 2.00); // Minimum $2.00
+  const minimumAmount = Math.max(usdAmountNeeded, 1.00); // Minimum $1.00
 
   // Format currency with 2 decimal places
   const formatCurrency = (amount: number) => {
@@ -77,18 +78,18 @@ export function CoinConfirmPopover({
   const paymentProviders = [
     {
       id: 'STRIPE',
-      name: 'Credit/Debit Card',
+      name: t`Credit/Debit Card`,
       icon: CreditCard,
-      description: 'Visa, Mastercard, Amex, Apple Pay, Google Pay',
+      description: t`Visa, Mastercard, Amex, Apple Pay, Google Pay`,
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       borderColor: 'border-blue-200 dark:border-blue-800'
     },
     {
       id: 'TRANZAK',
-      name: 'Mobile Money',
+      name: t`Mobile Money`,
       icon: Smartphone,
-      description: 'MTN, Orange, Express Union, UBA',
+      description: t`MTN, Orange, Express Union, UBA`,
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
       borderColor: 'border-green-200 dark:border-green-800'
@@ -224,8 +225,8 @@ export function CoinConfirmPopover({
           primaryColor: "text-blue-600 dark:text-blue-400",
           bgColor: "bg-blue-50 dark:bg-blue-900/20",
           borderColor: "border-blue-200 dark:border-blue-800",
-          defaultTitle: "Export PDF",
-          defaultDescription: "Export as high-quality PDF"
+          defaultTitle: t`Export PDF`,
+          defaultDescription: t`Export as high-quality PDF`
         };
       case "enhance":
         return {
@@ -233,8 +234,8 @@ export function CoinConfirmPopover({
           primaryColor: "text-purple-600 dark:text-purple-400",
           bgColor: "bg-purple-50 dark:bg-purple-900/20",
           borderColor: "border-purple-200 dark:border-purple-800",
-          defaultTitle: "AI Enhancement",
-          defaultDescription: "Enhance with AI"
+          defaultTitle: t`AI Enhancement`,
+          defaultDescription: t`Enhance with AI`
         };
       case "premium":
         return {
@@ -242,8 +243,8 @@ export function CoinConfirmPopover({
           primaryColor: "text-yellow-600 dark:text-yellow-400",
           bgColor: "bg-yellow-50 dark:bg-yellow-900/20",
           borderColor: "border-yellow-200 dark:border-yellow-800",
-          defaultTitle: "Premium Feature",
-          defaultDescription: "Access premium features"
+          defaultTitle: t`Premium Feature`,
+          defaultDescription: t`Access premium features`
         };
       default:
         return {
@@ -262,7 +263,7 @@ export function CoinConfirmPopover({
     if (!userId) {
       setShowToastMessage({
         type: 'error',
-        message: 'Please sign in to purchase coins'
+        message: t`Please sign in to purchase coins`
       });
       return;
     }
@@ -286,7 +287,7 @@ export function CoinConfirmPopover({
       if (redirectUrl) {
         setShowToastMessage({
           type: 'info',
-          message: `Redirecting to ${providerId} payment...`,
+          message: t`Redirecting to ${providerId} payment...`,
           duration: 2000
         });
         
@@ -301,10 +302,10 @@ export function CoinConfirmPopover({
           type: 'success',
           message: (
             <div className="space-y-1">
-              <div className="font-medium">Purchase Successful!</div>
+              <div className="font-medium">{t`Purchase Successful!`}</div>
               <div className="text-xs text-green-600 flex items-center gap-1">
                 <Coins className="w-3 h-3" />
-                {shortage} coins added to your wallet
+                {shortage} {t`coins added to your wallet`}
               </div>
             </div>
           )
@@ -320,7 +321,7 @@ export function CoinConfirmPopover({
       } else if (response.data.status === 'pending') {
         setShowToastMessage({
           type: 'info',
-          message: 'Payment processing started. You will receive your coins shortly.'
+          message: t`Payment processing started. You will receive your coins shortly.`
         });
       } else {
         throw new Error(response.data.message || 'Payment failed');
@@ -333,13 +334,13 @@ export function CoinConfirmPopover({
           error.response?.data?.message?.includes('tranzak')) {
         setShowToastMessage({
           type: 'error',
-          message: 'Payment service temporarily unavailable. Please try again later or use a different payment method.'
+          message: t`Payment service temporarily unavailable. Please try again later or use a different payment method.`
         });
       } else {
         const errorMessage = error.response?.data?.message 
           || error.response?.data?.error 
           || error.message 
-          || 'Payment failed. Please try again.';
+          || t`Payment failed. Please try again.`;
         
         setShowToastMessage({
           type: 'error',
@@ -353,8 +354,8 @@ export function CoinConfirmPopover({
 
   const actionConfig = getActionConfig();
   const ActionIcon = actionConfig.icon;
-  const displayTitle = title === "Coin Confirmation" ? actionConfig.defaultTitle : title;
-  const displayDescription = description === "This action requires coins to complete." ? actionConfig.defaultDescription : description;
+  const displayTitle = title === t`Coin Confirmation` ? actionConfig.defaultTitle : title;
+  const displayDescription = description === t`This action requires coins to complete.` ? actionConfig.defaultDescription : description;
 
   if (!open) return null;
 
@@ -411,10 +412,10 @@ export function CoinConfirmPopover({
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white">
-                      Buy {shortage} Coins
+                      {t`Buy ${shortage} Coins`}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {formatCurrency(minimumAmount)} • Choose payment method
+                      {formatCurrency(minimumAmount)} • {t`Choose payment method`}
                     </p>
                   </div>
                 </div>
@@ -436,20 +437,20 @@ export function CoinConfirmPopover({
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">You'll get</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t`You'll get`}</div>
                     <div className="text-xl font-bold text-green-600 dark:text-green-400">
-                      {shortage} coins
+                      {shortage} {t`coins`}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Total Cost</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t`Total Cost`}</div>
                     <div className="text-xl font-bold text-gray-900 dark:text-white">
                       {formatCurrency(minimumAmount)}
                     </div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-                  ≈ 10 coins per $1 • Instant delivery
+                  ≈ 10 {t`coins per $1`} • {t`Instant delivery`}
                 </div>
               </div>
 
@@ -485,7 +486,7 @@ export function CoinConfirmPopover({
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                       ) : (
                         <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                          Pay {formatCurrency(minimumAmount)}
+                          {t`Pay ${formatCurrency(minimumAmount)}`}
                         </div>
                       )}
                     </button>
@@ -503,13 +504,13 @@ export function CoinConfirmPopover({
                 className="w-full rounded-lg py-2.5 text-sm relative z-[100002]"
                 disabled={isProcessing}
               >
-                Back to Options
+                {t`Back to Options`}
               </Button>
 
               {/* Help Text */}
               <div className="text-center pt-2 border-t border-gray-100 dark:border-gray-800">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  💡 Coins are added instantly after successful payment
+                  💡 {t`Coins are added instantly after successful payment`}
                 </p>
               </div>
             </div>
@@ -591,114 +592,113 @@ export function CoinConfirmPopover({
               <div className="flex items-center gap-2">
                 <Coins className="w-4 h-4 text-yellow-500" />
                 <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Action Cost</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">{t`Action Cost`}</div>
                   <div className="text-lg font-bold text-gray-900 dark:text-white">{required}</div>
                 </div>
               </div>
               
               <div className="text-right">
-                <div className="text-xs text-gray-600 dark:text-gray-400">Your Balance</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">{t`Your Balance`}</div>
                 <div className={`text-lg font-bold ${hasEnough ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {balance}
                 </div>
               </div>
             </div>
 
-            {/* Shortage Warning */}
             {!hasEnough && (
-              <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="flex items-center gap-2 text-xs text-red-700 dark:text-red-300">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                  <span>
-                    Need <strong>{shortage} more coins</strong> (≈ {formatCurrency(usdAmountNeeded)})
-                  </span>
+  <div className="space-y-4">
+    {/* Clear Shortage Warning with Minimum Purchase Info */}
+    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-100 dark:bg-red-800 flex items-center justify-center">
+          <Coins className="w-3 h-3 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-red-800 dark:text-red-300 text-sm">
+            {t`You need ${shortage} more coins to complete this action`}
+          </div>
+          <div className="text-xs text-red-600 dark:text-red-400 mt-1 space-y-1">
+            {usdAmountNeeded < 1 ? (
+              <>
+                <div className="font-medium">💡 {t`Minimum purchase required:`}</div>
+                <div>
+                  <Trans>
+                    You need {shortage} coins (≈ {formatCurrency(usdAmountNeeded)}), but the minimum purchase is 10 coins for {formatCurrency(1)}.
+                  </Trans>
                 </div>
-              </div>
+               
+              </>
+            ) : (
+              <div>{t`This costs approximately ${formatCurrency(usdAmountNeeded)}`}</div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2">
-              {hasEnough ? (
-                <>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirm();
-                      onClose();
-                    }}
-                    className="w-full rounded-lg py-2.5 text-sm font-semibold bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow relative z-[100002]"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Use {required} Coins
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClose();
-                    }}
-                    variant="outline"
-                    className="w-full rounded-lg py-2.5 text-sm relative z-[100002]"
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {/* Buy Coins Button */}
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowPaymentOptions(true);
-                    }}
-                    variant="outline"
-                    className="w-full rounded-lg py-2.5 text-sm font-medium border border-indigo-200 dark:border-indigo-800 hover:border-indigo-300 dark:hover:border-indigo-700 relative z-[100002]"
-                  >
-                    <Coins className="w-4 h-4 mr-2" />
-                    Buy {shortage} Coins ({formatCurrency(minimumAmount)})
-                  </Button>
+    {/* Action Buttons */}
+    <div className="space-y-3">
+      {/* Smart Buy Button - Shows correct coin amount */}
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowPaymentOptions(true);
+        }}
+        variant="outline"
+        className="w-full rounded-lg py-2.5 text-sm font-medium border border-indigo-200 dark:border-indigo-800 hover:border-indigo-300 dark:hover:border-indigo-700 relative z-[100002]"
+      >
+        <Coins className="w-4 h-4 mr-2" />
+        {usdAmountNeeded < 1 ? (
+          <span>{t`Buy 10 Coins (${formatCurrency(1)})`}</span>
+        ) : (
+          <span>{t`Buy ${shortage} Coins (${formatCurrency(usdAmountNeeded)})`}</span>
+        )}
+      </Button>
 
-                  <div className="relative py-1">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="px-2 bg-white dark:bg-gray-900 text-xs text-gray-500 dark:text-gray-400">
-                        or
-                      </span>
-                    </div>
-                  </div>
+      <div className="relative py-2">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+        </div>
+        <div className="relative flex justify-center">
+          <span className="px-3 bg-white dark:bg-gray-900 text-xs text-gray-500 dark:text-gray-400 font-medium">
+            {t`or subscribe/bulk purchase`}
+          </span>
+        </div>
+      </div>
 
-                  {/* Subscription Button */}
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onBuyCoins(true);
-                      onClose();
-                    }}
-                    className="w-full rounded-lg py-2.5 text-sm font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow relative z-[100002]"
-                  >
-                    <Crown className="w-4 h-4 mr-2" />
-                    Subscribe & Save 50%
-                  </Button>
+      {/* Subscription Button */}
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          onBuyCoins(true);
+          onClose();
+        }}
+        className="w-full rounded-lg py-2.5 text-sm font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow relative z-[100002]"
+      >
+        <Crown className="w-4 h-4 mr-2" />
+        {t`Subscribe & Save 50%`}
+      </Button>
 
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClose();
-                    }}
-                    variant="ghost"
-                    className="w-full rounded-lg py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 relative z-[100002]"
-                  >
-                    Maybe Later
-                  </Button>
-                </>
-              )}
-            </div>
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        variant="ghost"
+        className="w-full rounded-lg py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 relative z-[100002]"
+      >
+        {t`Maybe Later`}
+      </Button>
+    </div>
+
+    
+  </div>
+)}
 
             {/* Help Text */}
             <div className="text-center pt-2 border-t border-gray-100 dark:border-gray-800">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                💡 Best discount with subscription!
+                💡 {t`Best discount with subscription!`}
               </p>
             </div>
           </div>

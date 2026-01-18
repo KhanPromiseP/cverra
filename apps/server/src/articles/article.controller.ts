@@ -1,4 +1,6 @@
-// article.controller.ts - UPDATED TO MATCH ADMIN CONTROLLER PATTERN
+
+
+
 import { 
   Controller, 
   Get, 
@@ -61,36 +63,40 @@ export class ArticleController {
   // ========== PUBLIC ROUTES ==========
 
   @Get()
-  async listArticles(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('category') category?: string,
-    @Query('tag') tag?: string,
-    @Query('status') status?: ArticleStatus,
-    @Query('accessType') accessType?: string,
-    @Query('featured') featured?: string,
-    @Query('trending') trending?: string,
-    @Query('language') language?: string,
-    @Query('authorId') authorId?: string,
-    @Query('search') search?: string,
-  ): Promise<ArticleListDto> {
-    const featuredBool = featured ? featured === 'true' : undefined;
-    const trendingBool = trending ? trending === 'true' : undefined;
-    
-    return this.articleService.listArticles({
-      page,
-      limit: Math.min(limit, 100),
-      category,
-      tag,
-      status,
-      accessType: accessType as any,
-      featured: featuredBool,
-      trending: trendingBool,
-      language,
-      authorId,
-      search,
-    });
-  }
+async listArticles(
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  @Query('category') category?: string,
+  @Query('tag') tag?: string,
+  @Query('status') status?: ArticleStatus,
+  @Query('accessType') accessType?: string,
+  @Query('featured') featured?: string,
+  @Query('trending') trending?: string,
+  @Query('language') language?: string,     // Primary parameter
+  @Query('lang') lang?: string,            // Alternative parameter
+  @Query('authorId') authorId?: string,
+  @Query('search') search?: string,
+): Promise<ArticleListDto> {
+  const featuredBool = featured ? featured === 'true' : undefined;
+  const trendingBool = trending ? trending === 'true' : undefined;
+  
+  // Use 'lang' if 'language' is not provided
+  const finalLanguage = language || lang;
+  
+  return this.articleService.listArticles({
+    page,
+    limit: Math.min(limit, 100),
+    category,
+    tag,
+    status,
+    accessType: accessType as any,
+    featured: featuredBool,
+    trending: trendingBool,
+    language: finalLanguage,  // ← Use whichever is provided
+    authorId,
+    search,
+  });
+}
 
   // @Get(':slug')
   // async getArticle(
@@ -220,10 +226,60 @@ async getArticle(
 
   // ========== CATEGORY MANAGEMENT ==========
 
-  @Get('categories/all') 
-  async getAllCategories() {
-    return this.categoryService.getAllCategories();
+
+@Get('categories/all')
+async getAllCategories(@Query('language') language?: string) {
+  console.log('🎯 Controller: getAllCategories called with language:', language);
+  
+  try {
+    const categories = await this.categoryService.getAllCategories(language);
+    
+    console.log('🎯 Controller: Returning', categories.length, 'categories');
+    if (categories.length > 0) {
+      console.log('🎯 First category:', {
+        name: categories[0].name,
+        isTranslated: categories[0].isTranslated,
+        translationLanguage: categories[0].translationLanguage
+      });
+    }
+    
+    return {
+      success: true,
+      data: categories,
+      count: categories.length,
+      language: language || 'en',
+    };
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return {
+      success: false,
+      message: 'Failed to load categories',
+      error: error.message,
+    };
   }
+}
+
+@Get('category/:identifier')
+async getCategory(
+  @Param('identifier') identifier: string,
+  @Query('language') language?: string,
+) {
+  try {
+    const category = await this.categoryService.getCategoryBySlug(identifier, language);
+    return {
+      success: true,
+      data: category,
+      language: language || 'en',
+    };
+  } catch (error) {
+    console.error('Error fetching category:', error);
+    return {
+      success: false,
+      message: 'Category not found',
+      error: error.message,
+    };
+  }
+}
 
   @Post('categories/create') 
   @UseGuards(JwtGuard, AdminGuard) // Apply guards at method level like AdminController
@@ -252,6 +308,112 @@ async getArticle(
     // AdminGuard already validated admin access
     return this.categoryService.deleteCategory(id);
   }
+
+  // In your article.controller.ts
+
+@Get('categories/:id/translations')
+@UseGuards(JwtGuard, AdminGuard)
+async getCategoryTranslations(@Param('id') categoryId: string) {
+  // First check if category exists
+  const categoryExists = await this.prisma.articleCategory.findUnique({
+    where: { id: categoryId },
+    select: { id: true }
+  });
+
+  if (!categoryExists) {
+    throw new NotFoundException('Category not found');
+  }
+
+  const translations = await this.prisma.categoryTranslation.findMany({
+    where: { categoryId },
+    orderBy: { language: 'asc' },
+  });
+  
+  return {
+    success: true,
+    data: translations,
+    count: translations.length,
+  };
+}
+
+@Put('translations/category/:id')
+@UseGuards(JwtGuard, AdminGuard)
+async updateCategoryTranslation(
+  @Param('id') translationId: string,
+  @Body() body: { 
+    name?: string; 
+    description?: string; 
+    needsReview?: boolean 
+  }
+) {
+  return this.prisma.categoryTranslation.update({
+    where: { id: translationId },
+    data: {
+      ...body,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+@Post('translations/category/:id/regenerate')
+@UseGuards(JwtGuard, AdminGuard)
+async regenerateCategoryTranslation(@Param('id') translationId: string) {
+  const translation = await this.prisma.categoryTranslation.findUnique({
+    where: { id: translationId },
+    include: { category: true },
+  });
+  
+  if (!translation) {
+    throw new NotFoundException('Translation not found');
+  }
+  
+  // Trigger background regeneration
+  // You'll need to implement this logic similar to article translations
+  return {
+    success: true,
+    message: 'Translation regeneration started',
+    translationId: translation.id,
+  };
+}
+
+@Post('categories/:id/generate-translations')
+@UseGuards(JwtGuard, AdminGuard)
+async generateCategoryTranslations(@Param('id') categoryId: string) {
+  const category = await this.prisma.articleCategory.findUnique({
+    where: { id: categoryId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      autoTranslate: true,
+      targetLanguages: true,
+    },
+  });
+
+  if (!category) {
+    throw new NotFoundException('Category not found');
+  }
+
+  if (!category.autoTranslate) {
+    throw new BadRequestException('Auto-translation is disabled for this category');
+  }
+
+  if (!category.targetLanguages || category.targetLanguages.length === 0) {
+    throw new BadRequestException('No target languages configured for this category');
+  }
+
+  // Queue translation generation in background
+  this.categoryService.queueCategoryTranslations(
+    categoryId, 
+    category.targetLanguages
+  );
+
+  return {
+    success: true,
+    message: `Started translation generation for ${category.targetLanguages.length} languages`,
+    languages: category.targetLanguages,
+  };
+}
 
   @Get('category/:slug')
   async getCategoryWithArticles(
@@ -662,12 +824,15 @@ async getComments(
 }
 
 // ========== RELATED ARTICLES ENDPOINT (supports both ID and slug) ==========
+// In your article.controller.ts
 @Get(':identifier/related')
 async getRelatedArticles(
   @Param('identifier') identifier: string,
   @Query('limit', new DefaultValuePipe(3), ParseIntPipe) limit: number,
+  @Query('language') language?: string, // Add language parameter
 ) {
-  return this.articleService.getRelatedArticlesByIdOrSlug(identifier, limit);
+  console.log('🌐 Getting related articles with language:', { identifier, language });
+  return this.articleService.getRelatedArticlesByIdOrSlug(identifier, limit, language);
 }
 
 // ========== TRENDING FEED ALIAS ==========
@@ -863,7 +1028,7 @@ async deleteComment(
 
 
   @Post(':id/translate')
-  @UseGuards(JwtGuard, AdminGuard)
+  @UseGuards(JwtGuard)
   async triggerTranslation(
     @Param('id') articleId: string,
     @Body() body: { targetLanguage: string; force?: boolean },
@@ -882,6 +1047,7 @@ async deleteComment(
       };
     } catch (error) {
       throw new BadRequestException(`Failed to start translation: ${error.message}`);
+   
     }
   }
 
@@ -942,6 +1108,122 @@ async deleteComment(
       },
     };
   }
+
+  // In article.controller.ts - add this new endpoint
+@Get('translations/article/:articleId')
+@UseGuards(JwtGuard, AdminGuard)
+async getArticleTranslations(
+  @Param('articleId') articleId: string,
+) {
+  console.log('🔍 Fetching translations for article:', articleId);
+  
+  // First, verify the article exists
+  const article = await this.prisma.article.findUnique({
+    where: { id: articleId },
+    select: { id: true, title: true, slug: true }
+  });
+  
+  if (!article) {
+    console.log('❌ Article not found:', articleId);
+    throw new NotFoundException('Article not found');
+  }
+  
+  console.log('📄 Article found:', article.title);
+  
+  const translations = await this.prisma.articleTranslation.findMany({
+    where: {
+      articleId,
+    },
+    include: {
+      article: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+        },
+      },
+    },
+    orderBy: { language: 'asc' },
+  });
+  
+  console.log('📊 Found translations:', {
+    count: translations.length,
+    translations: translations.map(t => ({
+      id: t.id,
+      language: t.language,
+      title: t.title,
+      status: t.status
+    }))
+  });
+  
+  return {
+    success: true,
+    data: translations,
+    count: translations.length,
+  };
+}
+
+// Add this new endpoint for updating translation content
+@Put('translations/:id/content')
+@UseGuards(JwtGuard, AdminGuard)
+async updateTranslationContent(
+  @Param('id') id: string,
+  @Body() body: { 
+    title?: string;
+    excerpt?: string;
+    content?: any;
+    plainText?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    needsReview?: boolean;
+  },
+) {
+  console.log('📝 Updating translation content:', { id, body });
+  
+  const translation = await this.prisma.articleTranslation.update({
+    where: { id },
+    data: {
+      title: body.title,
+      excerpt: body.excerpt,
+      content: body.content,
+      plainText: body.plainText || (() => {
+        // Extract plain text from content if provided
+        if (body.plainText) return body.plainText;
+        if (typeof body.content === 'string') {
+          // Strip HTML tags
+          return body.content.replace(/<[^>]*>/g, '');
+        }
+        if (body.content?.plainText) {
+          return body.content.plainText;
+        }
+        return '';
+      })(),
+      metaTitle: body.metaTitle,
+      metaDescription: body.metaDescription,
+      needsReview: body.needsReview !== undefined ? body.needsReview : true,
+      translatedBy: 'HUMAN',
+      updatedAt: new Date(),
+    },
+    include: {
+      article: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+        },
+      },
+    },
+  });
+  
+  console.log('✅ Translation content updated:', {
+    id: translation.id,
+    language: translation.language,
+    title: translation.title,
+    hasContent: !!translation.content,
+  });
+  
+  return translation;
+}
 
   // update a translation
   @Put('translations/:id')
@@ -1059,11 +1341,129 @@ async updateArticleStatus(
     return article;
   }
 
-  // Add this endpoint to get available languages for an article
-  @Get(':id/languages')
-  async getArticleAvailableLanguages(@Param('id') articleId: string) {
+  // Update this endpoint to handle both ID and slug
+@Get(':identifier/languages')
+async getArticleAvailableLanguages(@Param('identifier') identifier: string) {
+  let articleId: string;
+  
+  // Check if identifier is an ID or slug (same pattern as your other endpoints)
+  const isId = identifier.length === 25 && !identifier.includes('-');
+  
+  if (isId) {
+    // It's an ID
+    console.log('📌 Looking up article by ID for languages:', identifier);
+    articleId = identifier;
+  } else {
+    // It's a slug, find the article
+    console.log('📌 Looking up article by slug for languages:', identifier);
     const article = await this.prisma.article.findUnique({
-      where: { id: articleId },
+      where: { slug: identifier },
+      select: { id: true },
+    });
+    
+    if (!article) {
+      console.log('❌ Article not found with slug:', identifier);
+      throw new NotFoundException('Article not found');
+    }
+    
+    articleId = article.id;
+  }
+  
+  // Now use the articleId to fetch the article
+  const article = await this.prisma.article.findUnique({
+    where: { id: articleId },
+    select: { id: true },
+  });
+  
+  if (!article) {
+    throw new NotFoundException('Article not found');
+  }
+  
+  // Get completed translations
+  const translations = await this.prisma.articleTranslation.findMany({
+    where: {
+      articleId,
+      status: TranslationStatus.COMPLETED,
+    },
+    select: {
+      language: true,
+      qualityScore: true,
+      confidence: true,
+    },
+  });
+  
+  // Always include English (original)
+  const languages = [
+    {
+      language: 'en',
+      isOriginal: true,
+      qualityScore: 5,
+      confidence: 1,
+    },
+    ...translations.map(t => ({
+      language: t.language,
+      isOriginal: false,
+      qualityScore: t.qualityScore || 3,
+      confidence: t.confidence || 0.9,
+    }))
+  ];
+  
+  return { 
+    success: true,
+    languages,
+    count: languages.length,
+  };
+}
+
+  // Add this endpoint to get translation status for an article
+  // @Get('translations/status/:articleId')
+  // @UseGuards(JwtGuard, AdminGuard)
+  // async getTranslationStatus(@Param('articleId') articleId: string) {
+  //   const article = await this.prisma.article.findUnique({
+  //     where: { id: articleId },
+  //     select: {
+  //       id: true,
+  //       title: true,
+  //       autoTranslate: true,
+  //       targetLanguages: true,
+  //     },
+  //   });
+    
+  //   if (!article) {
+  //     throw new NotFoundException('Article not found');
+  //   }
+    
+  //   const translations = await this.prisma.articleTranslation.findMany({
+  //     where: { articleId },
+  //     orderBy: { language: 'asc' },
+  //   });
+    
+  //   return {
+  //     article,
+  //     translations,
+  //     summary: {
+  //       total: translations.length,
+  //       completed: translations.filter(t => t.status === TranslationStatus.COMPLETED).length,
+  //       failed: translations.filter(t => t.status === TranslationStatus.FAILED).length,
+  //       pending: translations.filter(t => t.status === TranslationStatus.PENDING || t.status === TranslationStatus.PROCESSING).length,
+  //     }
+  //   };
+  // }
+
+  @Get('translations/status/:identifier')
+@UseGuards(JwtGuard, AdminGuard)
+async getTranslationStatus(@Param('identifier') identifier: string) {
+  let articleId: string;
+  
+  // Check if identifier is an ID or slug
+  const isId = identifier.length === 25 && !identifier.includes('-');
+  
+  if (isId) {
+    articleId = identifier;
+  } else {
+    // It's a slug, find the article
+    const article = await this.prisma.article.findUnique({
+      where: { slug: identifier },
       select: { id: true },
     });
     
@@ -1071,62 +1471,31 @@ async updateArticleStatus(
       throw new NotFoundException('Article not found');
     }
     
-    // Get completed translations
-    const translations = await this.prisma.articleTranslation.findMany({
-      where: {
-        articleId,
-        status: TranslationStatus.COMPLETED,
-      },
-      select: {
-        language: true,
-        qualityScore: true,
-        confidence: true,
-      },
-    });
-    
-    // Always include English (original)
-    const languages = [
-      {
-        language: 'en',
-        isOriginal: true,
-        qualityScore: 5,
-        confidence: 1,
-      },
-      ...translations.map(t => ({
-        language: t.language,
-        isOriginal: false,
-        qualityScore: t.qualityScore || 3,
-        confidence: t.confidence || 0.9,
-      }))
-    ];
-    
-    return { languages };
+    articleId = article.id;
   }
-
-  // Add this endpoint to get translation status for an article
-  @Get('translations/status/:articleId')
-  @UseGuards(JwtGuard, AdminGuard)
-  async getTranslationStatus(@Param('articleId') articleId: string) {
-    const article = await this.prisma.article.findUnique({
-      where: { id: articleId },
-      select: {
-        id: true,
-        title: true,
-        autoTranslate: true,
-        targetLanguages: true,
-      },
-    });
-    
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-    
-    const translations = await this.prisma.articleTranslation.findMany({
-      where: { articleId },
-      orderBy: { language: 'asc' },
-    });
-    
-    return {
+  
+  const article = await this.prisma.article.findUnique({
+    where: { id: articleId },
+    select: {
+      id: true,
+      title: true,
+      autoTranslate: true,
+      targetLanguages: true,
+    },
+  });
+  
+  if (!article) {
+    throw new NotFoundException('Article not found');
+  }
+  
+  const translations = await this.prisma.articleTranslation.findMany({
+    where: { articleId },
+    orderBy: { language: 'asc' },
+  });
+  
+  return {
+    success: true,
+    data: {
       article,
       translations,
       summary: {
@@ -1135,8 +1504,9 @@ async updateArticleStatus(
         failed: translations.filter(t => t.status === TranslationStatus.FAILED).length,
         pending: translations.filter(t => t.status === TranslationStatus.PENDING || t.status === TranslationStatus.PROCESSING).length,
       }
-    };
-  }
+    }
+  };
+}
 
   @Post(':id/purchase')
   @UseGuards(JwtGuard)
@@ -1439,24 +1809,56 @@ async getUserProfileStats(@Request() req: any) {
   }
 }
 
-  @Get('user/reading-profile')
-  @UseGuards(JwtGuard)
-  async getUserReadingProfile(
-    @Request() req: any,
-  ) {
-    const userId = req.user.id;
-    return this.recommendationService.getReadingProfile(userId);
-  }
 
-  @Put('user/reading-profile')
-  @UseGuards(JwtGuard)
-  async updateUserReadingProfile(
-    @Request() req: any,
-    @Body() dto: any,
-  ) {
-    const userId = req.user.id;
-    return this.articleService.updateReadingProfile(userId, dto);
+
+  @Get('user/reading-profile')
+@UseGuards(JwtGuard)
+async getUserReadingProfile(@Request() req: any) {
+  const userId = req.user.id;
+  console.log('Getting reading profile for user:', userId);
+  
+  try {
+    const result = await this.articleService.getReadingProfile(userId);
+    
+    console.log('Reading profile result:', {
+      success: result.success,
+      hasData: !!result.data,
+      dataKeys: result.data ? Object.keys(result.data) : 'no data'
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Controller error getting reading profile:', error);
+    return {
+      success: false,
+      message: 'Failed to get reading profile',
+      error: error.message,
+    };
   }
+}
+
+@Put('user/reading-profile')
+@UseGuards(JwtGuard)
+async updateUserReadingProfile(
+  @Request() req: any,
+  @Body() dto: UpdateReadingProfileDto,
+) {
+  const userId = req.user.id;
+  console.log('Updating reading profile for user:', userId);
+  console.log('Request body:', dto);
+  
+  try {
+    const result = await this.articleService.updateReadingProfile(userId, dto);
+    return result;
+  } catch (error) {
+    console.error('Controller error updating reading profile:', error);
+    return {
+      success: false,
+      message: 'Failed to update reading profile',
+      error: error.message,
+    };
+  }
+}
 
 
   @Get('user/achievements')
@@ -1511,8 +1913,8 @@ async getAchievementShareData(
     throw new NotFoundException('Achievement not found');
   }
 
-  const origin = process.env.APP_URL || 'https://cverra.com';
-  const baseUrl = process.env.CDN_URL || 'https://cdn.cverra.com';
+  const origin = process.env.APP_URL || 'https://Inlirah.com';
+  const baseUrl = process.env.CDN_URL || 'https://cdn.Inlirah.com';
   
  
   const shareImage = `${baseUrl}/achievement-badges/default-share.png`;
@@ -1536,4 +1938,94 @@ async getAchievementShareData(
     achievement
   };
 }
+
+
+// Add this to your ArticleController or create a new UserController
+@Get('users/:username/public-profile')
+  async getUserPublicProfile(
+    @Param('username') username: string,
+  ) {
+    try {
+      // Find user by username
+      const user = await this.prisma.user.findUnique({
+        where: { username },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          picture: true,
+          // bio: true,
+          createdAt: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Get user's reading stats (you already have this method)
+      const stats = await this.articleService.getUserReadingStats(user.id);
+      
+      // Get user's achievements
+      const achievements = await this.articleService.getUserAchievements(user.id);
+      
+      // Get user's reading profile
+      const readingProfile = await this.articleService.getReadingProfile(user.id);
+      
+      // Get user's recent activity (limit to public activities)
+      const recentActivity = await this.articleService.getRecentProfileActivity(user.id, 5);
+      
+      // Get user's top categories
+      const topCategories = await this.getUserTopCategories(user.id);
+
+      return {
+        success: true,
+        data: {
+          user,
+          stats,
+          achievements,
+          readingProfile: readingProfile.data,
+          recentActivity,
+          topCategories,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching public profile:', error);
+      throw new BadRequestException('Failed to fetch public profile');
+    }
+  }
+
+  private async getUserTopCategories(userId: string) {
+    const categories = await this.prisma.$queryRaw<{category: string, count: number}[]>`
+      SELECT ac.name as category, COUNT(DISTINCT av."articleId") as count
+      FROM "ArticleView" av
+      JOIN "Article" a ON av."articleId" = a.id
+      JOIN "ArticleCategory" ac ON a."categoryId" = ac.id
+      WHERE av."userId" = ${userId}
+      GROUP BY ac.name
+      ORDER BY count DESC
+      LIMIT 4
+    `;
+    
+    return categories.map(cat => ({
+      name: cat.category,
+      count: cat.count,
+      color: this.getCategoryColor(cat.category),
+    }));
+  }
+
+  private getCategoryColor(categoryName: string): string {
+    const colors: Record<string, string> = {
+      'Technology': '#3B82F6',
+      'Science': '#10B981',
+      'Business': '#8B5CF6',
+      'Health': '#EF4444',
+      'Education': '#F59E0B',
+      'Entertainment': '#EC4899',
+      'Sports': '#06B6D4',
+      'Politics': '#8B5CF6',
+    };
+    
+    return colors[categoryName] || '#6B7280';
+  }
 }

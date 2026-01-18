@@ -273,6 +273,7 @@ export class ArticleListDto {
   };
 }
 
+// In article.dto.ts - Update ArticleResponseDto
 export class ArticleResponseDto {
   id: string;
   slug: string;
@@ -311,7 +312,7 @@ export class ArticleResponseDto {
   createdAt: Date;
   updatedAt: Date;
   
-  // Optional fields that might not always be present
+  // Optional fields
   isLiked?: boolean;
   isSaved?: boolean;
   isShared?: boolean;
@@ -323,8 +324,9 @@ export class ArticleResponseDto {
   preview?: string;
   lastTrendingAt?: Date | null;
   
-  // Make other optional fields optional
-  translations?: any[];
+  // CHANGE THIS: Make translations accept both array OR object
+  translations?: any[] | Record<string, any>;
+  
   requiresPurchase?: boolean;
   canonicalUrl?: string | null;
   ogImage?: string | null;

@@ -148,4 +148,47 @@ export class ResumeController {
       throw new InternalServerErrorException(error);
     }
   }
+
+  
+
+  // Add this to your ResumeController
+@Patch(":id/repair")
+@UseGuards(TwoFactorGuard)
+async repairAIResume(
+  @User() user: UserEntity,
+  @Param("id") id: string,
+) {
+  return this.resumeService.repairAIResume(user.id, id);
 }
+
+
+
+@Patch(":id/flexible")
+@UseGuards(TwoFactorGuard)
+async updateFlexible(
+  @User() user: UserEntity,
+  @Param("id") id: string,
+  @Body() body: any, // Accept any body
+) {
+  try {
+    // Convert to UpdateResumeDto but bypass validation
+    const updateDto: UpdateResumeDto = {
+      title: body.title,
+      slug: body.slug,
+      visibility: body.visibility,
+      data: body.data, // Accept any data
+    };
+    
+    return await this.resumeService.update(user.id, id, updateDto);
+  } catch (error) {
+    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new BadRequestException(ErrorMessage.ResumeSlugAlreadyExists);
+    }
+
+    Logger.error(error);
+    throw new InternalServerErrorException(error);
+  }
+}
+}
+
+

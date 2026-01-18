@@ -1,3 +1,4 @@
+import { t, Trans } from "@lingui/macro";
 import { useState } from "react";
 import { Button, Badge } from "@reactive-resume/ui";
 import { 
@@ -76,7 +77,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
       });
     } catch (error) {
       console.error('Invalid date:', date);
-      return 'Invalid date';
+      return t`Invalid date`;
     }
   };
 
@@ -84,9 +85,8 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
     try {
       const endDate = new Date(accessUntil);
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normalize to start of day
+      today.setHours(0, 0, 0, 0);
       
-      // If accessUntil is in the past, return 0
       if (endDate < today) return 0;
       
       const diffTime = endDate.getTime() - today.getTime();
@@ -98,20 +98,16 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
     }
   };
 
-  
-  // Dark mode class detection (you might want to use a proper theme hook)
-  const isDarkMode = document.documentElement.classList.contains('dark');
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Premium Access ({articles.length})
+            {t`Premium Access`} ({articles.length})
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Articles accessible through purchase or subscription
+            {t`Articles accessible through purchase or subscription`}
           </p>
         </div>
         
@@ -120,7 +116,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
             variant={user?.subscription?.status === 'ACTIVE' ? 'default' : 'secondary'}
             className="dark:border-gray-600"
           >
-            {user?.subscription?.status === 'ACTIVE' ? 'Active Subscription' : 'No Active Subscription'}
+            {user?.subscription?.status === 'ACTIVE' ? t`Active Subscription` : t`No Active Subscription`}
           </Badge>
         </div>
       </div>
@@ -136,7 +132,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
             : 'dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
           }
         >
-          All Premium
+          {t`All Premium`}
         </Button>
         <Button
           variant={activeFilter === 'purchased' ? 'primary' : 'outline'}
@@ -148,7 +144,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
           }
         >
           <Crown className="mr-2" size={14} />
-          Purchased
+          {t`Purchased`}
         </Button>
         <Button
           variant={activeFilter === 'subscription' ? 'primary' : 'outline'}
@@ -160,7 +156,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
           }
         >
           <Check className="mr-2" size={14} />
-          Subscription
+          {t`Subscription`}
         </Button>
       </div>
 
@@ -169,19 +165,19 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
         <div className="text-center py-12 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
           <Lock className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            {activeFilter === 'all' ? 'No premium access yet' : `No ${activeFilter} articles`}
+            {activeFilter === 'all' ? t`No premium access yet` : t`No ${activeFilter} articles`}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
             {activeFilter === 'all' 
-              ? "Purchase individual articles or subscribe to get access to premium content"
-              : `You don't have any ${activeFilter === 'purchased' ? 'purchased' : 'subscription'} articles yet`
+              ? t`Purchase individual articles or subscribe to get access to premium content`
+              : t`You don't have any ${activeFilter === 'purchased' ? 'purchased' : 'subscription'} articles yet`
             }
           </p>
           <Button 
             onClick={() => window.location.href = '/dashboard/articles'}
             className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
           >
-            Browse Premium Articles
+            {t`Browse Premium Articles`}
           </Button>
         </div>
       ) : (
@@ -190,7 +186,7 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
             {filteredArticles.map((access) => (
               <div 
                 key={access.id} 
-                className="flex flex-col h-full" // Added flex-col and h-full
+                className="flex flex-col h-full"
               >
                 {/* Card Container */}
                 <div className="relative group flex-grow">
@@ -205,17 +201,17 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
                         : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300 dark:border-purple-800'
                       }
                     >
-                      {access.accessType === 'SUBSCRIPTION' ? 'Subscription' : 'Purchased'}
+                      {access.accessType === 'SUBSCRIPTION' ? t`Subscription` : t`Purchased`}
                     </Badge>
                   </div>
                 </div>
                 
-                {/* Access Info - Now properly spaced below the card */}
+                {/* Access Info */}
                 <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 flex-shrink-0">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Calendar size={14} />
-                      <span>Access until:</span>
+                      <span>{t`Access until:`}</span>
                     </div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
                       {formatDate(access.accessUntil)}
@@ -225,17 +221,16 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Clock size={14} />
-                      <span>Remaining:</span>
+                      <span>{t`Remaining:`}</span>
                     </div>
                     <span className={`font-medium ${
                       getRemainingDays(access.accessUntil) < 7 
                         ? 'text-amber-600 dark:text-amber-400' 
                         : 'text-green-600 dark:text-green-400'
                     }`}>
-                      {getRemainingDays(access.accessUntil)} days
+                      {getRemainingDays(access.accessUntil)} {t`days`}
                     </span>
                   </div>
-               
                 </div>
               </div>
             ))}
@@ -246,15 +241,15 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                  Access Summary
+                  {t`Access Summary`}
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   <span className="font-medium text-green-600 dark:text-green-400">
                     {articles.filter(a => a.accessType === 'SUBSCRIPTION').length}
-                  </span> subscription articles • 
+                  </span> {t`subscription articles`} • 
                   <span className="font-medium text-purple-600 dark:text-purple-400 ml-1">
                     {articles.filter(a => a.accessType === 'PURCHASED').length}
-                  </span> purchased articles
+                  </span> {t`purchased articles`}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -263,14 +258,14 @@ export function PremiumArticlesTab({ articles = [], onRefresh }: PremiumArticles
                   onClick={onRefresh}
                   className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  Refresh Access
+                  {t`Refresh Access`}
                 </Button>
                 <Button 
                   variant="primary"
                   onClick={() => window.location.href = '/dashboard/articles'}
                   className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
-                  Browse More
+                  {t`Browse More`}
                 </Button>
               </div>
             </div>

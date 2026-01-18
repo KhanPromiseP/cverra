@@ -1,21 +1,22 @@
-// apps/client/src/services/api.ts
+// services/notificationApi.ts - COMPLETE
 import { apiClient } from './api-client';
 
 export interface Notification {
   id: string;
-  type: 'like' | 'comment' | 'reply' | 'follow' | 'achievement' | 'premium' | 'system';
+  type: string;
   title: string;
   message: string;
-  data: any;
+  data?: any;
   read: boolean;
   createdAt: string;
   actor?: {
     id: string;
     name: string;
     picture?: string;
+    username?: string;
   };
   target?: {
-    type: 'article' | 'comment' | 'user';
+    type: string;
     id: string;
     title?: string;
     slug?: string;
@@ -24,52 +25,171 @@ export interface Notification {
 
 export interface NotificationsResponse {
   notifications: Notification[];
-  unreadCount: number;
   total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  unreadCount: number;
+  hasMore: boolean;
 }
 
-export const notificationsApi = {
-  // Get all notifications
-  getNotifications: async (params?: { limit?: number; page?: number; unreadOnly?: boolean }): Promise<NotificationsResponse> => {
-    const response = await apiClient.get('/notifications', { params });
-    return response.data;
-  },
+export interface NotificationSettings {
+  emailArticleLikes: boolean;
+  emailArticleComments: boolean;
+  emailCommentReplies: boolean;
+  emailAchievements: boolean;
+  emailReadingDigest: boolean;
+  emailRecommendations: boolean;
+  emailSystemAnnouncements: boolean;
+  pushArticleLikes: boolean;
+  pushArticleComments: boolean;
+  pushCommentReplies: boolean;
+  pushAchievements: boolean;
+  pushReadingMilestones: boolean;
+  digestFrequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'NEVER';
+  quietStartHour: number;
+  quietEndHour: number;
+}
 
-  // Mark a notification as read
-  markAsRead: async (id: string): Promise<{ success: boolean }> => {
-    const response = await apiClient.put(`/notifications/${id}/read`);
-    return response.data;
-  },
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  read: number;
+  readPercentage: number;
+  byType: Record<string, number>;
+  recentActivity: number;
+}
 
-  // Mark all notifications as read
-  markAllAsRead: async (): Promise<{ success: boolean; markedCount: number }> => {
-    const response = await apiClient.put('/notifications/read-all');
-    return response.data;
-  },
+// Get notifications
+export const getNotifications = async (params?: {
+  page?: number;
+  limit?: number;
+  unreadOnly?: boolean;
+  types?: string[];
+}): Promise<NotificationsResponse> => {
+  try {
+    const queryParams: any = {};
+    if (params?.page) queryParams.page = params.page;
+    if (params?.limit) queryParams.limit = params.limit;
+    if (params?.unreadOnly) queryParams.unreadOnly = params.unreadOnly;
+    if (params?.types?.length) queryParams.types = params.types.join(',');
 
-  // Delete a notification
-  deleteNotification: async (id: string): Promise<{ success: boolean }> => {
-    const response = await apiClient.delete(`/notifications/${id}`);
-    return response.data;
-  },
-
-  // Get unread count
-  getUnreadCount: async (): Promise<{ unreadCount: number }> => {
-    const response = await apiClient.get('/notifications/unread-count');
-    return response.data;
-  },
-
-  // Subscribe to real-time notifications (WebSocket)
-  subscribeToNotifications: async (callback: (notification: Notification) => void) => {
-    // This would typically set up a WebSocket connection
-    // For now, we'll simulate with polling or use a global WebSocket
-    console.log('Subscribing to notifications...');
+    const response = await apiClient.get('/notifications', { params: queryParams });
+    
+    if (response.data?.success) {
+      return response.data.data;
+    }
+    
+    // Fallback structure
+    return {
+      notifications: [],
+      total: 0,
+      page: params?.page || 1,
+      limit: params?.limit || 20,
+      totalPages: 0,
+      unreadCount: 0,
+      hasMore: false,
+    };
+  } catch (error) {
+    console.error('Failed to fetch notifications:', error);
+    throw error;
   }
 };
 
-// Re-export for backward compatibility
-export const getNotifications = notificationsApi.getNotifications;
-export const markAsRead = notificationsApi.markAsRead;
-export const markAllAsRead = notificationsApi.markAllAsRead;
-export const deleteNotification = notificationsApi.deleteNotification;
-export const subscribeToNotifications = notificationsApi.subscribeToNotifications;
+// Mark notification as read
+export const markAsRead = async (notificationId: string): Promise<any> => {
+  try {
+    const response = await apiClient.put(`/notifications/${notificationId}/read`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+    throw error;
+  }
+};
+
+// Mark all as read
+export const markAllAsRead = async (): Promise<any> => {
+  try {
+    const response = await apiClient.post('/notifications/read-all');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error);
+    throw error;
+  }
+};
+
+// Delete notification
+export const deleteNotification = async (notificationId: string): Promise<any> => {
+  try {
+    const response = await apiClient.delete(`/notifications/${notificationId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to delete notification:', error);
+    throw error;
+  }
+};
+
+// Clear all notifications
+export const clearAllNotifications = async (): Promise<any> => {
+  try {
+    const response = await apiClient.delete('/notifications/clear/all');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to clear all notifications:', error);
+    throw error;
+  }
+};
+
+// Get notification settings
+export const getNotificationSettings = async (): Promise<NotificationSettings> => {
+  try {
+    const response = await apiClient.get('/notifications/settings');
+    return response.data?.data || {};
+  } catch (error) {
+    console.error('Failed to get notification settings:', error);
+    throw error;
+  }
+};
+
+// Update notification settings
+export const updateNotificationSettings = async (settings: Partial<NotificationSettings>): Promise<NotificationSettings> => {
+  try {
+    const response = await apiClient.put('/notifications/settings', settings);
+    return response.data?.data || {};
+  } catch (error) {
+    console.error('Failed to update notification settings:', error);
+    throw error;
+  }
+};
+
+// Get notification statistics
+export const getNotificationStats = async (): Promise<NotificationStats> => {
+  try {
+    const response = await apiClient.get('/notifications/stats');
+    return response.data?.data || {};
+  } catch (error) {
+    console.error('Failed to get notification stats:', error);
+    throw error;
+  }
+};
+
+// Test endpoints (development only)
+export const testLikeNotification = async (): Promise<any> => {
+  try {
+    const response = await apiClient.post('/notifications/test/like');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to test like notification:', error);
+    throw error;
+  }
+};
+
+export const testAchievementNotification = async (): Promise<any> => {
+  try {
+    const response = await apiClient.post('/notifications/test/achievement');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to test achievement notification:', error);
+    throw error;
+  }
+};

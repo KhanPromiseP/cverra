@@ -30,7 +30,7 @@ export const Icon = ({ size = 32, className }: Props) => {
       src={src}
       width={size}
       height={size}
-      alt="Cverra"
+      alt="Inlirah"
       className={cn("rounded-sm", className)}
     />
   );

@@ -1,13 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { t, Trans } from "@lingui/macro";
 import { 
   BookOpen, 
   Clock, 
-  Eye, 
   Calendar,
-  Target
+  Target,
+  Trophy
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@reactive-resume/ui";
-import { apiClient } from "@/client/services/api-client";
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
   <Card>
@@ -26,48 +25,108 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
   </Card>
 );
 
-export function ReadingStats() {
-  const { data: stats } = useQuery({
-    queryKey: ['/articles/user/reading/stats'],
-    queryFn: async () => {
-      const response = await apiClient.get('/articles/user/reading/stats');
-      return response.data;
-    },
-  });
+export interface ReadingStatsProps {
+  stats?: {
+    totalArticlesRead?: number;
+    totalReadingTime?: number;
+    readingStreak?: number;
+    weeklyProgress?: number;
+    weeklyGoal?: number;
+    savedArticlesCount?: number;
+    likedArticlesCount?: number;
+    averageReadingTime?: number;
+    favoriteCategory?: string;
+    nextMilestone?: {
+      name: string;
+      target: number;
+      progress: number;
+    };
+  };
+}
+
+export function ReadingStats({ stats }: ReadingStatsProps) {
+  // Calculate hours from minutes safely
+  const totalHours = stats?.totalReadingTime 
+    ? Math.round(stats.totalReadingTime / 60) 
+    : 0;
+  
+  // Handle next milestone with safe defaults
+  const nextMilestone = stats?.nextMilestone || {
+    name: t`Getting Started`,
+    target: 10,
+    progress: stats?.totalArticlesRead || 0
+  };
+
+  // Calculate weekly goal progress percentage
+  const weeklyGoalPercentage = stats?.weeklyGoal 
+    ? Math.min(100, Math.round(((stats.weeklyProgress || 0) / stats.weeklyGoal) * 100))
+    : 0;
 
   return (
     <>
       <StatCard
-        title="Articles Read"
+        title={t`Articles Read`}
         value={stats?.totalArticlesRead || 0}
         icon={BookOpen}
         color="text-blue-500"
-        subtitle="Total articles completed"
+        subtitle={t`Total articles completed`}
       />
       
       <StatCard
-        title="Total Reading Time"
-        value={`${Math.round((stats?.totalReadingTime || 0) / 60)}h`}
+        title={t`Total Reading Time`}
+        value={`${totalHours}h`}
         icon={Clock}
         color="text-green-500"
-        subtitle="Time spent reading"
+        subtitle={t`Time spent reading`}
       />
       
       <StatCard
-        title="Reading Streak"
-        value={`${stats?.readingStreak || 0} days`}
+        title={t`Reading Streak`}
+        value={`${stats?.readingStreak || 0} ${t`days`}`}
         icon={Calendar}
         color="text-amber-500"
-        subtitle="Current streak"
+        subtitle={t`Current streak`}
       />
       
       <StatCard
-        title="Weekly Goal"
-        value={`${stats?.weeklyProgress || 0}/${stats?.weeklyGoal || 5}`}
+        title={t`Weekly Goal`}
+        value={`${stats?.weeklyProgress || 0}/${stats?.weeklyGoal}`}
         icon={Target}
         color="text-purple-500"
-        subtitle="Articles this week"
+        subtitle={t`${weeklyGoalPercentage}% completed`}
       />
+
+      {/* Optional: Next Milestone Card */}
+      {stats?.nextMilestone && (
+        <StatCard
+          title={t`Next Milestone`}
+          value={nextMilestone.name}
+          icon={Trophy}
+          color="text-red-500"
+          subtitle={t`${nextMilestone.progress}/${nextMilestone.target} articles`}
+        />
+      )}
+
+      {/* Additional stats */}
+      {stats?.savedArticlesCount !== undefined && (
+        <StatCard
+          title={t`Saved Articles`}
+          value={stats.savedArticlesCount}
+          icon={BookOpen}
+          color="text-indigo-500"
+          subtitle={t`Articles bookmarked`}
+        />
+      )}
+
+      {stats?.likedArticlesCount !== undefined && (
+        <StatCard
+          title={t`Liked Articles`}
+          value={stats.likedArticlesCount}
+          icon={Trophy}
+          color="text-pink-500"
+          subtitle={t`Articles you enjoyed`}
+        />
+      )}
     </>
   );
 }

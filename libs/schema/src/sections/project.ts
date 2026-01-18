@@ -4,7 +4,7 @@ import { defaultItem, defaultUrl, itemSchema, urlSchema } from "../shared";
 
 // Schema
 export const projectSchema = itemSchema.extend({
-  name: z.string().min(1),
+  name: z.string(),
   description: z.string(),
   date: z.string(),
   summary: z.string(),

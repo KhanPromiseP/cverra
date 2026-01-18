@@ -1,9 +1,7 @@
-import { CloudSun, Moon, Sun } from "@phosphor-icons/react";
+import { Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "@reactive-resume/hooks";
 import { Button } from "@reactive-resume/ui";
-import type { Variants } from "framer-motion";
-import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Props = {
   size?: number;
@@ -13,22 +11,41 @@ type Props = {
 export const ThemeSwitch = ({ size = 20, className }: Props) => {
   const { theme, toggleTheme } = useTheme();
 
-  const variants: Variants = useMemo(() => {
-    return {
-      light: { x: 0 },
-      system: { x: size * -1 },
-      dark: { x: size * -2 },
-    };
-  }, [size]);
+  // Determine which icon to show - only light/dark
+  const showSun = theme === "dark";
 
   return (
-    <Button size="icon" variant="ghost" className={className} onClick={toggleTheme}>
-      <div className="cursor-pointer overflow-hidden" style={{ width: size, height: size }}>
-        <motion.div animate={theme} variants={variants} className="flex">
-          <Sun size={size} className="shrink-0" />
-          <CloudSun size={size} className="shrink-0" />
-          <Moon size={size} className="shrink-0" />
-        </motion.div>
+    <Button 
+      size="icon" 
+      variant="ghost" 
+      className={`relative ${className}`} 
+      onClick={toggleTheme}
+      aria-label={`Switch to ${showSun ? "light" : "dark"} mode`}
+    >
+      <div className="relative" style={{ width: size, height: size }}>
+        <AnimatePresence mode="wait">
+          {showSun ? (
+            <motion.div
+              key="sun"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Sun size={size} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="moon"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Moon size={size} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Button>
   );

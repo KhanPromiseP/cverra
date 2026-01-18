@@ -3,6 +3,14 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  message?: string;
+  error?: string;
+  count?: number;
+}
+
 export interface Translation {
   id: string;
   article: {
@@ -19,6 +27,29 @@ export interface Translation {
   accessCount: number;
   translatedBy: 'AI' | 'HUMAN';
   createdAt: string;
+}
+
+export interface CategoryTranslation {
+  id: string;
+  categoryId?: string;
+  language: string;
+  name: string;
+  description?: string;
+  slug: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  qualityScore?: number;
+  confidence?: number;
+  needsReview: boolean;
+  translatedBy: 'AI' | 'HUMAN' | string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  accessCount?: number;
+  lastAccessed?: string;
+  article?: {
+    id: string;
+    title: string;
+    slug: string;
+  };
 }
 
 // ensure consistent response handling
@@ -207,6 +238,73 @@ export const getRecentArticles = (): Promise<any> =>
 
 export const getTopArticles = (): Promise<any> => 
   api.get('/articles/admin/articles/top');
+
+
+
+
+// Category Translation APIs
+
+export const updateCategoryTranslation = async (translationId: string, data: any) => {
+  try {
+    const response = await api.put(`/articles/translations/category/${translationId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating translation:', error);
+    throw error;
+  }
+};
+
+export const regenerateCategoryTranslation = async (translationId: string) => {
+  try {
+    const response = await api.post(`/articles/translations/category/${translationId}/regenerate`);
+    return response.data;
+  } catch (error) {
+    console.error('Error regenerating translation:', error);
+    throw error;
+  }
+};
+
+export const getCategoryTranslations = async (categoryId: string): Promise<CategoryTranslation[]> => {
+  try {
+    console.log(`📥 Fetching translations for category: ${categoryId}`);
+    
+    // Cast to ApiResponse type
+    const response = await api.get<ApiResponse<CategoryTranslation[]>>(
+      `/articles/categories/${categoryId}/translations`
+    ) as unknown as ApiResponse<CategoryTranslation[]>;
+    
+    console.log('📦 Category translations response:', response);
+    
+    if (response && response.success === true) {
+      const translations = response.data || [];
+      console.log(`📊 Found ${translations.length} translations`);
+      return translations;
+    }
+    
+    console.log('⚠️ No translations found or unexpected response format');
+    return [];
+  } catch (error: any) {
+    console.error('❌ Error fetching category translations:', error);
+    throw error;
+  }
+};
+
+
+export const generateCategoryTranslations = async (categoryId: string): Promise<any> => {
+  try {
+    console.log(`🚀 Generating translations for category: ${categoryId}`);
+    
+    const response = await api.post(`/articles/categories/${categoryId}/generate-translations`);
+    
+    console.log('📦 Generate translations response:', response);
+    
+    return response;
+  } catch (error: any) {
+    console.error('❌ Error generating translations:', error);
+    throw error;
+  }
+};
+
 
 
 

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { t, Trans } from "@lingui/macro";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@reactive-resume/ui";
 import { Sparkle, ArrowsClockwise, ThumbsUp, ThumbsDown } from "@phosphor-icons/react";
@@ -65,14 +66,14 @@ export function RecommendationsTab() {
       <div className="text-center py-12">
         <Sparkle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          No recommendations yet
+          {t`No recommendations yet`}
         </h3>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Start reading articles to get personalized recommendations
+          {t`Start reading articles to get personalized recommendations`}
         </p>
         <Button onClick={handleRefresh}>
           <ArrowsClockwise className="mr-2" size={18} />
-          Refresh Recommendations
+          {t`Refresh Recommendations`}
         </Button>
       </div>
     );
@@ -83,15 +84,15 @@ export function RecommendationsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Personalized For You
+            {t`Personalized For You`}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Based on your reading history and preferences
+            {t`Based on your reading history and preferences`}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh}>
           <ArrowsClockwise className="mr-2" size={16} />
-          Refresh
+          {t`Refresh`}
         </Button>
       </div>
 
@@ -122,7 +123,7 @@ export function RecommendationsTab() {
       </div>
 
       <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-        💡 Tell us what you like to improve recommendations
+        {t`Your recommendations`}
       </div>
     </div>
   );

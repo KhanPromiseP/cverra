@@ -41,6 +41,7 @@ import articleApi, { Comment as CommentType, FilterParams } from '../../services
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import updateLocale from 'dayjs/plugin/updateLocale';
+import { t, Trans } from "@lingui/macro"; // Added Lingui macro
 
 dayjs.extend(relativeTime);
 dayjs.extend(updateLocale);
@@ -48,19 +49,19 @@ dayjs.extend(updateLocale);
 // Configure dayjs relative time thresholds
 dayjs.updateLocale('en', {
   relativeTime: {
-    future: 'in %s',
-    past: '%s ago',
-    s: 'a few seconds',
-    m: '1 minute',
-    mm: '%d minutes',
-    h: '1 hour',
-    hh: '%d hours',
-    d: '1 day',
-    dd: '%d days',
-    M: '1 month',
-    MM: '%d months',
-    y: '1 year',
-    yy: '%d years'
+    future: t`in %s`,
+    past: t`%s ago`,
+    s: t`a few seconds`,
+    m: t`1 minute`,
+    mm: t`%d minutes`,
+    h: t`1 hour`,
+    hh: t`%d hours`,
+    d: t`1 day`,
+    dd: t`%d days`,
+    M: t`1 month`,
+    MM: t`%d months`,
+    y: t`1 year`,
+    yy: t`%d years`
   }
 });
 
@@ -126,12 +127,12 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
         setComments(response.data.data || []);
         setTotal(response.data.total || 0);
       } else {
-        throw new Error(response.message || 'Failed to load comments');
+        throw new Error(response.message || t`Failed to load comments`);
       }
     } catch (error: any) {
       console.error('Failed to load comments:', error);
-      setError(error.response?.data?.message || 'Failed to load comments. Please try again.');
-      message.error('Failed to load comments');
+      setError(error.response?.data?.message || t`Failed to load comments. Please try again.`);
+      message.error(t`Failed to load comments`);
     } finally {
       setLoading(false);
     }
@@ -154,7 +155,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
     if (!newComment.trim()) return;
     
     if (!user) {
-      message.error('Please login to comment');
+      message.error(t`Please login to comment`);
       return;
     }
 
@@ -198,17 +199,17 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
       }
 
       if (success) {
-        message.success('Comment added successfully');
+        message.success(t`Comment added successfully`);
         setNewComment('');
         setReplyTo(null);
         setReplyContent('');
       } else {
-        throw new Error('Failed to add comment');
+        throw new Error(t`Failed to add comment`);
       }
     } catch (error: any) {
       console.error('Failed to add comment:', error);
-      setError(error.response?.data?.message || 'Failed to add comment. Please try again.');
-      message.error('Failed to add comment');
+      setError(error.response?.data?.message || t`Failed to add comment. Please try again.`);
+      message.error(t`Failed to add comment`);
     } finally {
       setSubmitting(false);
     }
@@ -218,7 +219,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
     if (!replyContent.trim()) return;
     
     if (!user) {
-      message.error('Please login to reply');
+      message.error(t`Please login to reply`);
       return;
     }
 
@@ -245,16 +246,16 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
             : c
         ));
         
-        message.success('Reply added');
+        message.success(t`Reply added`);
         setReplyTo(null);
         setReplyContent('');
       } else {
-        throw new Error(response.message || 'Failed to add reply');
+        throw new Error(response.message || t`Failed to add reply`);
       }
     } catch (error: any) {
       console.error('Failed to add reply:', error);
-      setError(error.response?.data?.message || 'Failed to add reply. Please try again.');
-      message.error('Failed to add reply');
+      setError(error.response?.data?.message || t`Failed to add reply. Please try again.`);
+      message.error(t`Failed to add reply`);
     } finally {
       setSubmitting(false);
     }
@@ -262,7 +263,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
 
   const handleLike = async (commentId: string) => {
     if (!user) {
-      message.error('Please login to like comments');
+      message.error(t`Please login to like comments`);
       return;
     }
 
@@ -300,7 +301,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
       }
     } catch (error: any) {
       console.error('Failed to like comment:', error);
-      message.error(error.response?.data?.message || 'Failed to like comment');
+      message.error(error.response?.data?.message || t`Failed to like comment`);
     }
   };
 
@@ -334,11 +335,11 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
 
         setComments(updateCommentContent(comments));
         setEditingId(null);
-        message.success('Comment updated');
+        message.success(t`Comment updated`);
       }
     } catch (error: any) {
       console.error('Failed to update comment:', error);
-      message.error(error.response?.data?.message || 'Failed to update comment');
+      message.error(error.response?.data?.message || t`Failed to update comment`);
     } finally {
       setSubmitting(false);
     }
@@ -352,11 +353,11 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
     }
 
     Modal.confirm({
-      title: 'Delete Comment',
-      content: 'Are you sure you want to delete this comment? This action cannot be undone.',
-      okText: 'Delete',
+      title: t`Delete Comment`,
+      content: t`Are you sure you want to delete this comment? This action cannot be undone.`,
+      okText: t`Delete`,
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t`Cancel`,
       onOk: async () => {
         try {
           const response = await articleApi.deleteComment(commentId);
@@ -374,11 +375,11 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
 
             setComments(removeComment(comments));
             setTotal(prev => Math.max(0, prev - 1));
-            message.success('Comment deleted');
+            message.success(t`Comment deleted`);
           }
         } catch (error: any) {
           console.error('Failed to delete comment:', error);
-          message.error(error.response?.data?.message || 'Failed to delete comment');
+          message.error(error.response?.data?.message || t`Failed to delete comment`);
         }
       },
     });
@@ -399,13 +400,13 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
           {
             key: 'edit',
             icon: <EditOutlined />,
-            label: 'Edit',
+            label: t`Edit`,
             onClick: () => handleEdit(comment),
           },
           {
             key: 'delete',
             icon: <DeleteOutlined />,
-            label: 'Delete',
+            label: t`Delete`,
             danger: true,
             onClick: () => handleDelete(comment.id),
           }
@@ -490,7 +491,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 
                 {/* Badges */}
                 {comment.isFeatured && (
-                  <Tooltip title="Featured comment">
+                  <Tooltip title={t`Featured comment`}>
                     <Badge 
                       count={<StarOutlined style={{ color: '#faad14', fontSize: '10px' }} />}
                       style={{ 
@@ -503,7 +504,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 )}
                 
                 {comment.isPinned && (
-                  <Tooltip title="Pinned comment">
+                  <Tooltip title={t`Pinned comment`}>
                     <Badge 
                       count={<PushpinOutlined style={{ color: '#52c41a', fontSize: '10px' }} />}
                       style={{ 
@@ -521,7 +522,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 <Tooltip title={dayjs(comment.createdAt).format('MMM D, YYYY h:mm A')}>
                   <Text type="secondary" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                     {dayjs(comment.createdAt).fromNow()}
-                    {comment.updatedAt !== comment.createdAt && ' • Edited'}
+                    {comment.updatedAt !== comment.createdAt && t` • Edited`}
                   </Text>
                 </Tooltip>
                 
@@ -567,14 +568,14 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                     onClick={() => handleSaveEdit(comment.id)}
                     loading={submitting}
                   >
-                    Save
+                    <Trans>Save</Trans>
                   </Button>
                   <Button 
                     size="small"
                     onClick={() => setEditingId(null)}
                     disabled={submitting}
                   >
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </Button>
                 </Space>
               </div>
@@ -626,7 +627,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                   style={{ padding: '0 8px' }}
                 >
                   <span style={{ marginLeft: 4, fontSize: '12px' }}>
-                    Reply
+                    <Trans>Reply</Trans>
                   </span>
                 </Button>
               )}
@@ -637,7 +638,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
               <div style={{ marginBottom: 16 }}>
                 <Space.Compact style={{ width: '100%' }}>
                   <Input
-                    placeholder={`Reply to ${comment.author?.name}...`}
+                    placeholder={t`Reply to ${comment.author?.name}...`}
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     onPressEnter={() => handleReply(comment.id)}
@@ -666,7 +667,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                   }}
                   style={{ marginTop: 8 }}
                 >
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
               </div>
             )}
@@ -711,7 +712,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
               <Text strong style={{ fontSize: '18px' }}>
-                Comments
+                <Trans>Comments</Trans>
               </Text>
               {total > 0 && (
                 <Badge 
@@ -731,9 +732,9 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
               size="middle"
               suffixIcon={<SortAscendingOutlined />}
             >
-              <Option value="recent">Most Recent</Option>
-              <Option value="popular">Most Popular</Option>
-              <Option value="oldest">Oldest First</Option>
+              <Option value="recent"><Trans>Most Recent</Trans></Option>
+              <Option value="popular"><Trans>Most Popular</Trans></Option>
+              <Option value="oldest"><Trans>Oldest First</Trans></Option>
             </Select>
           </div>
         )
@@ -747,7 +748,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Error"
+          message={t`Error`}
           description={error}
           type="error"
           showIcon
@@ -770,7 +771,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
             </Avatar>
             <div style={{ flex: 1 }}>
               <TextArea
-                placeholder="Share your thoughts..."
+                placeholder={t`Share your thoughts...`}
                 rows={3}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
@@ -786,7 +787,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
               />
               <Space style={{ justifyContent: 'space-between', width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Press Ctrl+Enter to submit
+                  <Trans>Press Ctrl+Enter to submit</Trans>
                 </Text>
                 <Button
                   type="primary"
@@ -795,7 +796,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                   loading={submitting}
                   disabled={!newComment.trim()}
                 >
-                  Comment
+                  <Trans>Comment</Trans>
                 </Button>
               </Space>
             </div>
@@ -813,7 +814,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
           <Space direction="vertical" size={8}>
             <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
             <Text type="secondary">
-              Please <a href="/login" style={{ fontWeight: 500 }}>login</a> to join the discussion
+              <Trans>Please <a href="/login" style={{ fontWeight: 500 }}>login</a> to join the discussion</Trans>
             </Text>
           </Space>
         </div>
@@ -833,9 +834,9 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
           image={<UserOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
           description={
             <Space direction="vertical" size={8}>
-              <Text type="secondary">No comments yet</Text>
+              <Text type="secondary"><Trans>No comments yet</Trans></Text>
               <Text type="secondary" style={{ fontSize: '14px' }}>
-                Be the first to share your thoughts!
+                <Trans>Be the first to share your thoughts!</Trans>
               </Text>
             </Space>
           }
@@ -849,7 +850,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
               <Space style={{ marginBottom: 16 }}>
                 <PushpinOutlined style={{ color: '#52c41a' }} />
                 <Text strong style={{ fontSize: '16px' }}>
-                  Pinned Comments
+                  <Trans>Pinned Comments</Trans>
                 </Text>
               </Space>
               {pinnedComments.map(comment => renderComment(comment))}
@@ -883,7 +884,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                 showSizeChanger={false}
                 showQuickJumper
                 showTotal={(total, range) => 
-                  `${range[0]}-${range[1]} of ${total} comments`
+                  `${range[0]}-${range[1]} of ${total} ${t`comments`}`
                 }
               />
             </div>

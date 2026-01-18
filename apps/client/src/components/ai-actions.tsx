@@ -120,8 +120,7 @@
 //   );
 // };
 
-
-import { t } from "@lingui/macro";
+import { t, Trans } from "@lingui/macro";
 import {
   CaretDown,
   ChatTeardropText,
@@ -151,7 +150,6 @@ import { useAuthStore } from "@/client/stores/auth";
 import { useWallet } from "@/client/hooks/useWallet";
 import { CoinConfirmPopover } from "@/client/components/modals/coin-confirm-modal";
 
-
 type Action = "improve" | "fix" | "tone";
 type Mood = "casual" | "professional" | "confident" | "friendly";
 
@@ -164,25 +162,25 @@ type Props = {
 export const AiActions = ({ value, onChange, className }: Props) => {
   const [loading, setLoading] = useState<Action | false>(false);
   const [showCoinPopover, setShowCoinPopover] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{action: Action, mood?: Mood} | null>(null);
-  
+  const [pendingAction, setPendingAction] = useState<{ action: Action; mood?: Mood } | null>(null);
+
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  
+
   // Wallet and coin management
-  const { 
-    balance, 
-    canAfford, 
-    deductCoinsWithRollback, 
-    completeTransaction, 
-    refundTransaction, 
-    fetchBalance 
-  } = useWallet(user?.id || '');
-  
+  const {
+    balance,
+    canAfford,
+    deductCoinsWithRollback,
+    completeTransaction,
+    refundTransaction,
+    fetchBalance,
+  } = useWallet(user?.id || "");
+
   const improveButtonRef = useRef<HTMLButtonElement>(null);
   const fixButtonRef = useRef<HTMLButtonElement>(null);
   const toneButtonRef = useRef<HTMLButtonElement>(null);
-  
+
   const AI_ACTION_COST = 3; // 3 coins per AI action
 
   const generateTransactionId = (action: string): string => {
@@ -192,8 +190,8 @@ export const AiActions = ({ value, onChange, className }: Props) => {
   const handleAiAction = async (action: Action, mood?: Mood) => {
     if (!user) {
       toast({
-        title: "Authentication Required",
-        description: "Please sign in to use AI features",
+        title: t`Authentication Required`,
+        description: t`Please sign in to use AI features`,
         variant: "error",
       });
       return;
@@ -201,8 +199,8 @@ export const AiActions = ({ value, onChange, className }: Props) => {
 
     if (!value || value.trim().length === 0) {
       toast({
-        title: "Text Required",
-        description: "Please enter some text to use AI features",
+        title: t`Text Required`,
+        description: t`Please enter some text to use AI features`,
         variant: "error",
       });
       return;
@@ -210,7 +208,7 @@ export const AiActions = ({ value, onChange, className }: Props) => {
 
     // Check if user can afford
     const affordable = await canAfford(AI_ACTION_COST);
-    
+
     if (!affordable) {
       setPendingAction({ action, mood });
       setShowCoinPopover(true);
@@ -224,13 +222,13 @@ export const AiActions = ({ value, onChange, className }: Props) => {
   const processAiAction = async (action: Action, mood?: Mood) => {
     const transactionId = generateTransactionId(action);
     let transactionSuccess = false;
-    
+
     setLoading(action);
 
     // Show loading toast
     const loadingToast = toast({
-      title: `Processing ${getActionName(action, mood)}`,
-      description: `Applying AI enhancement (Cost: ${AI_ACTION_COST} coins)...`,
+      title: t`Processing ${getActionName(action, mood)}`,
+      description: t`Applying AI enhancement (Cost: ${AI_ACTION_COST} coins)...`,
       variant: "default",
     });
 
@@ -239,11 +237,11 @@ export const AiActions = ({ value, onChange, className }: Props) => {
       const transactionResult = await deductCoinsWithRollback(
         AI_ACTION_COST,
         `AI ${getActionName(action, mood)}`,
-        { 
-          transactionId, 
+        {
+          transactionId,
           action: `ai_${action}`,
           mood: mood,
-          textLength: value.length
+          textLength: value.length,
         }
       );
 
@@ -264,44 +262,43 @@ export const AiActions = ({ value, onChange, className }: Props) => {
       if (loadingToast && typeof loadingToast.dismiss === 'function') {
         loadingToast.dismiss();
       }
-      
+
       onChange(result);
-      
+
       // Mark transaction as completed
       await completeTransaction(transactionId, {
         result: 'success',
         action: `ai_${action}`,
         mood: mood,
         textLength: value.length,
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
       });
 
       toast({
-        title: "AI Enhancement Applied!",
-        description: `Your text has been enhanced. ${AI_ACTION_COST} coins deducted.`,
+        title: t`AI Enhancement Applied!`,
+        description: t`Your text has been enhanced. ${AI_ACTION_COST} coins deducted.`,
         variant: "success",
       });
 
       setShowCoinPopover(false);
       setPendingAction(null);
-
     } catch (error: any) {
       console.error("AI action failed:", error);
-      
+
       // Dismiss loading toast
       if (loadingToast && typeof loadingToast.dismiss === 'function') {
         loadingToast.dismiss();
       }
-      
+
       // Refund coins if transaction was successful
       if (transactionSuccess) {
         try {
           await refundTransaction(transactionId, error.message || 'AI action failed');
           await fetchBalance();
-          
+
           toast({
-            title: "Action Failed",
-            description: `${AI_ACTION_COST} coins refunded`,
+            title: t`Action Failed`,
+            description: t`${AI_ACTION_COST} coins refunded`,
             variant: "info",
           });
         } catch (refundError) {
@@ -330,8 +327,8 @@ export const AiActions = ({ value, onChange, className }: Props) => {
 
       if (!affordable) {
         toast({
-          title: "Insufficient Coins",
-          description: "You don't have enough coins for this AI action",
+          title: t`Insufficient Coins`,
+          description: t`You don't have enough coins for this AI action`,
           variant: "error",
         });
         setShowCoinPopover(false);
@@ -340,12 +337,11 @@ export const AiActions = ({ value, onChange, className }: Props) => {
       }
 
       await processAiAction(pendingAction.action, pendingAction.mood);
-
     } catch (error: any) {
       console.error("AI action preparation failed:", error);
       toast({
-        title: "Action Failed",
-        description: "Failed to prepare AI action",
+        title: t`Action Failed`,
+        description: t`Failed to prepare AI action`,
         variant: "error",
       });
       setShowCoinPopover(false);
@@ -367,39 +363,39 @@ export const AiActions = ({ value, onChange, className }: Props) => {
   const getActionName = (action: Action, mood?: Mood): string => {
     switch (action) {
       case "improve":
-        return "Writing Improvement";
+        return t`Writing Improvement`;
       case "fix":
-        return "Grammar Fix";
+        return t`Grammar Fix`;
       case "tone":
-        return mood ? `Tone Change (${mood})` : "Tone Change";
+        return mood ? t`Tone Change (${mood})` : t`Tone Change`;
       default:
-        return "AI Enhancement";
+        return t`AI Enhancement`;
     }
   };
 
   const getActionDescription = (action: Action, mood?: Mood): string => {
     switch (action) {
       case "improve":
-        return "Enhance your writing with AI-powered improvements for better clarity and impact.";
+        return t`Enhance your writing with AI-powered improvements for better clarity and impact.`;
       case "fix":
-        return "Fix spelling and grammar errors to ensure professional communication.";
+        return t`Fix spelling and grammar errors to ensure professional communication.`;
       case "tone":
         const toneDescriptions = {
-          casual: "Make your text more casual and conversational.",
-          professional: "Give your text a formal, business-appropriate tone.",
-          confident: "Make your writing more assertive and self-assured.",
-          friendly: "Add warmth and approachability to your text."
+          casual: t`Make your text more casual and conversational.`,
+          professional: t`Give your text a formal, business-appropriate tone.`,
+          confident: t`Make your writing more assertive and self-assured.`,
+          friendly: t`Add warmth and approachability to your text.`,
         };
-        return mood ? toneDescriptions[mood] : "Adjust the tone of your writing.";
+        return mood ? toneDescriptions[mood] : t`Adjust the tone of your writing.`;
       default:
-        return "Apply AI enhancement to your text.";
+        return t`Apply AI enhancement to your text.`;
     }
   };
 
   // Get current trigger ref based on pending action
   const getTriggerRef = () => {
     if (!pendingAction) return undefined;
-    
+
     switch (pendingAction.action) {
       case "improve":
         return improveButtonRef;
@@ -412,8 +408,6 @@ export const AiActions = ({ value, onChange, className }: Props) => {
     }
   };
 
-  // if (!aiEnabled) return null;
-
   return (
     <>
       <div
@@ -425,19 +419,19 @@ export const AiActions = ({ value, onChange, className }: Props) => {
       >
         {/* User balance display */}
         {user && (
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-50 dark:bg-yellow-900/30 rounded-full border border-yellow-200 dark:border-yellow-800">
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 transform">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full border bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800">
               <Coins size={12} className="text-yellow-600 dark:text-yellow-400" />
               <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300">{balance}</span>
             </div>
           </div>
         )}
 
-        <Button 
+        <Button
           ref={improveButtonRef}
-          size="sm" 
-          className="border border-gray-700 relative group" 
-          variant="outline" 
+          size="sm"
+          className="relative border border-gray-700 group"
+          variant="outline"
           disabled={!!loading || !user}
           onClick={() => handleAiAction("improve")}
         >
@@ -448,18 +442,18 @@ export const AiActions = ({ value, onChange, className }: Props) => {
               <PenNib />
               <span className="ml-2 text-xs">{t`Improve Writing`}</span>
               {/* Coin badge */}
-              <div className="absolute -top-1 -right-1 flex items-center justify-center h-4 w-4 rounded-full bg-yellow-500 text-white text-[8px] font-bold shadow-sm">
+              <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[8px] font-bold text-white shadow-sm">
                 {AI_ACTION_COST}
               </div>
             </>
           )}
         </Button>
 
-        <Button 
+        <Button
           ref={fixButtonRef}
-          size="sm" 
-          className="border border-gray-700 relative group" 
-          variant="outline" 
+          size="sm"
+          className="relative border border-gray-700 group"
+          variant="outline"
           disabled={!!loading || !user}
           onClick={() => handleAiAction("fix")}
         >
@@ -470,7 +464,7 @@ export const AiActions = ({ value, onChange, className }: Props) => {
               <Exam />
               <span className="ml-2 text-xs">{t`Fix Spelling & Grammar`}</span>
               {/* Coin badge */}
-              <div className="absolute -top-1 -right-1 flex items-center justify-center h-4 w-4 rounded-full bg-yellow-500 text-white text-[8px] font-bold shadow-sm">
+              <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[8px] font-bold text-white shadow-sm">
                 {AI_ACTION_COST}
               </div>
             </>
@@ -479,11 +473,11 @@ export const AiActions = ({ value, onChange, className }: Props) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
+            <Button
               ref={toneButtonRef}
-              size="sm" 
-              className="border border-gray-700 relative group" 
-              variant="outline" 
+              size="sm"
+              className="relative border border-gray-700 group"
+              variant="outline"
               disabled={!!loading || !user}
             >
               {loading === "tone" ? (
@@ -493,7 +487,7 @@ export const AiActions = ({ value, onChange, className }: Props) => {
                   <ChatTeardropText />
                   <span className="mx-2 text-xs">{t`Change Tone`}</span>
                   {/* Coin badge */}
-                  <div className="absolute -top-1 -right-1 flex items-center justify-center h-4 w-4 rounded-full bg-yellow-500 text-white text-[8px] font-bold shadow-sm">
+                  <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[8px] font-bold text-white shadow-sm">
                     {AI_ACTION_COST}
                   </div>
                   <CaretDown />
@@ -544,11 +538,11 @@ export const AiActions = ({ value, onChange, className }: Props) => {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         {/* Info text */}
-        <div className="w-full text-center mt-2">
+        <div className="mt-2 w-full text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            💡 Each AI action costs {AI_ACTION_COST} coins
+            {t`Each AI action costs ${AI_ACTION_COST} coins`}
           </p>
         </div>
       </div>
@@ -564,15 +558,17 @@ export const AiActions = ({ value, onChange, className }: Props) => {
         balance={balance}
         onConfirm={confirmAiAction}
         onBuyCoins={handleBuyCoins}
-        title={pendingAction ? getActionName(pendingAction.action, pendingAction.mood) : "AI Enhancement"}
-        description={pendingAction ? getActionDescription(pendingAction.action, pendingAction.mood) : "Apply AI enhancement to your text."}
+        title={pendingAction ? getActionName(pendingAction.action, pendingAction.mood) : t`AI Enhancement`}
+        description={
+          pendingAction ? getActionDescription(pendingAction.action, pendingAction.mood) : t`Apply AI enhancement to your text.`
+        }
         actionType="enhance"
         triggerRef={getTriggerRef()}
         userId={user?.id}
         metadata={{
           action: pendingAction?.action,
           mood: pendingAction?.mood,
-          costBreakdown: `AI Action: ${AI_ACTION_COST} coins`,
+          costBreakdown: t`AI Action: ${AI_ACTION_COST} coins`,
           textLength: value?.length || 0,
         }}
       />

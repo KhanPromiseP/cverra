@@ -26,36 +26,59 @@ export const RightSidebar = () => {
   };
 
   return (
-    <div className="flex bg-secondary-accent/30 border-r border-gray-700 border-l border-gray-700">
+    <div className="flex bg-secondary-accent/30 border-r border-gray-700 border-l border-gray-700 sm:mx-0"> {/* Added mx-4 for mobile */}
       <ScrollArea orientation="vertical" className="h-screen flex-1 pb-16 lg:pb-0">
-        <div ref={containterRef} className="border-r border-gray-700 grid gap-y-6 p-6 @container/right">
+        <div ref={containterRef} className="border-r border-gray-700 grid gap-y-6 p-6 @container/right"> {/* Added sm:rounded-lg */}
+          <div className="mx-8">
           <TemplateSection />
+          </div>
           <Separator />
+
+           <div className="mx-8">
           <LayoutSection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <TypographySection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <ThemeSection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <CssSection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <PageSection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <SharingSection />
+          </div>
           <Separator />
+           <div className="mx-8">
           <StatisticsSection />
+          </div>
           <Separator />
+
           <ExportSection />
+
           <Separator />
+           <div className="mx-8">
           <NotesSection />
+          </div>
           <Separator />
+
           <InformationSection />
+
           <Separator />
        
         </div>
       </ScrollArea>
 
-      <div className="hidden basis-12 flex-col  items-center justify-between bg-secondary-accent/30 py-4 sm:flex">
+      <div className="hidden basis-12 flex-col items-center justify-between bg-secondary-accent/30 py-4 sm:flex">
         <div />
 
         <div className="flex flex-col items-center justify-center gap-y-2">

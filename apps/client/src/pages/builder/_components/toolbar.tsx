@@ -1,213 +1,4 @@
-// import { t } from "@lingui/macro";
-// import {
-//   ArrowClockwise,
-//   ArrowCounterClockwise,
-//   ArrowsOutCardinal,
-//   CircleNotch,
-//   ClockClockwise,
-//   CubeFocus,
-//   FilePdf,
-//   Hash,
-//   LineSegment,
-//   LinkSimple,
-//   MagnifyingGlass,
-//   MagnifyingGlassMinus,
-//   MagnifyingGlassPlus,
-// } from "@phosphor-icons/react";
-// import { Button, Separator, Toggle, Tooltip } from "@reactive-resume/ui";
-// import { motion } from "framer-motion";
-// import { useState } from "react";
-
-// import { useToast } from "@/client/hooks/use-toast";
-// import { usePrintResume } from "@/client/services/resume";
-// import { useBuilderStore } from "@/client/stores/builder";
-// import { useResumeStore, useTemporalResumeStore } from "@/client/stores/resume";
-
-// const openInNewTab = (url: string) => {
-//   const win = window.open(url, "_blank");
-//   if (win) win.focus();
-// };
-
-// export const BuilderToolbar = () => {
-//   const { toast } = useToast();
-
-//   const [panMode, setPanMode] = useState<boolean>(true);
-
-//   const setValue = useResumeStore((state) => state.setValue);
-//   const undo = useTemporalResumeStore((state) => state.undo);
-//   const redo = useTemporalResumeStore((state) => state.redo);
-//   const frameRef = useBuilderStore((state) => state.frame.ref);
-
-//   const id = useResumeStore((state) => state.resume.id);
-//   const isPublic = useResumeStore((state) => state.resume.visibility === "public");
-//   const pageOptions = useResumeStore((state) => state.resume.data.metadata.page.options);
-
-//   const { printResume, loading } = usePrintResume();
-
-//   const onPrint = async () => {
-//     const { url } = await printResume({ id });
-
-//     openInNewTab(url);
-//   };
-
-//   const onCopy = async () => {
-//     const { url } = await printResume({ id });
-//     await navigator.clipboard.writeText(url);
-
-//     toast({
-//       variant: "success",
-//       title: t`A link has been copied to your clipboard.`,
-//       description: t`Anyone with this link can view and download the resume. Share it on your profile or with recruiters.`,
-//     });
-//   };
-
-//   const onZoomIn = () => frameRef?.contentWindow?.postMessage({ type: "ZOOM_IN" }, "*");
-//   const onZoomOut = () => frameRef?.contentWindow?.postMessage({ type: "ZOOM_OUT" }, "*");
-//   const onResetView = () => frameRef?.contentWindow?.postMessage({ type: "RESET_VIEW" }, "*");
-//   const onCenterView = () => frameRef?.contentWindow?.postMessage({ type: "CENTER_VIEW" }, "*");
-//   const onTogglePanMode = () => {
-//     setPanMode(!panMode);
-//     frameRef?.contentWindow?.postMessage({ type: "TOGGLE_PAN_MODE", panMode: !panMode }, "*");
-//   };
-
-//   return (
-//     <motion.div className="fixed inset-x-0 bottom-0 mx-auto hidden py-6 text-center md:block">
-//       <div className="inline-flex items-center justify-center rounded-full bg-background px-4 shadow-xl  border border-gray-700">
-//         <Tooltip content={t`Undo`}>
-//           <Button
-//             size="icon"
-//             variant="ghost"
-//             className="rounded-none"
-//             onClick={() => {
-//               undo();
-//             }}
-//           >
-//             <ArrowCounterClockwise />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-
-//         <Tooltip content={t`Redo`}>
-//           <Button
-//             size="icon"
-//             variant="ghost"
-//             className="rounded-none"
-//             onClick={() => {
-//               redo();
-//             }}
-//           >
-//             <ArrowClockwise />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={panMode ? t`Scroll to Pan` : t`Scroll to Zoom`}>
-//           <Toggle className="rounded-none" pressed={panMode} onPressedChange={onTogglePanMode}>
-//             {panMode ? <ArrowsOutCardinal /> : <MagnifyingGlass />}
-//           </Toggle>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={t`Zoom In`}>
-//           <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomIn}>
-//             <MagnifyingGlassPlus />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-
-//         <Tooltip content={t`Zoom Out`}>
-//           <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomOut}>
-//             <MagnifyingGlassMinus />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={t`Reset Zoom`}>
-//           <Button size="icon" variant="ghost" className="rounded-none" onClick={onResetView}>
-//             <ClockClockwise />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={t`Center Artboard`}>
-//           <Button size="icon" variant="ghost" className="rounded-none" onClick={onCenterView}>
-//             <CubeFocus />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={t`Toggle Page Break Line`}>
-//           <Toggle
-//             className="rounded-none"
-//             pressed={pageOptions.breakLine}
-//             onPressedChange={(pressed) => {
-//               setValue("metadata.page.options.breakLine", pressed);
-//             }}
-//           >
-//             <LineSegment />
-//           </Toggle>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-//         <Tooltip content={t`Toggle Page Numbers`}>
-//           <Toggle
-//             className="rounded-none"
-//             pressed={pageOptions.pageNumbers}
-//             onPressedChange={(pressed) => {
-//               setValue("metadata.page.options.pageNumbers", pressed);
-//             }}
-//           >
-//             <Hash />
-//           </Toggle>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-
-//         <Tooltip content={t`Copy Link to Resume`}>
-//           <Button
-//             size="icon"
-//             variant="ghost"
-//             className="rounded-none"
-//             disabled={!isPublic}
-//             onClick={onCopy}
-//           >
-//             <LinkSimple />
-//           </Button>
-//         </Tooltip>
-
-//         <Separator orientation="vertical" className="h-9" />
-
-
-//         <Tooltip content={t`Download PDF`}>
-//           <Button
-//             size="icon"
-//             variant="ghost"
-//             disabled={loading}
-//             className="rounded-none"
-//             onClick={onPrint}
-//           >
-//             {loading ? <CircleNotch className="animate-spin" /> : <FilePdf />}
-//           </Button>
-//         </Tooltip>
-//       </div>
-//     </motion.div>
-//   );
-// };
-
-
-
-import { t } from "@lingui/macro";
+import { t, Trans } from "@lingui/macro";
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
@@ -287,8 +78,8 @@ export const BuilderToolbar = () => {
   const onPrint = async () => {
     if (!user) {
       toast({
-        title: "Authentication Required",
-        description: "Please sign in to export your resume",
+        title: t`Authentication Required`,
+        description: t`Please sign in to export your resume`,
         variant: "error",
       });
       return;
@@ -315,8 +106,8 @@ export const BuilderToolbar = () => {
 
     // Show loading toast
     const loadingToast = toast({
-      title: "Generating PDF",
-      description: `Processing your resume (Cost: ${pdfExportCost} coins)...`,
+      title: t`Generating PDF`,
+      description: t`Processing your resume (Cost: ${pdfExportCost} coins)...`,
       variant: "default",
     });
 
@@ -348,6 +139,22 @@ export const BuilderToolbar = () => {
           loadingToast.dismiss();
         }
         
+        // === AUTOMATIC DOWNLOAD ===
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${resume.title.replace(/[^\w\s]/gi, '_')}_Resume.pdf`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        window.URL.revokeObjectURL(downloadUrl);
+        
+        // Also open in new tab for preview
         openInNewTab(url);
         
         // Mark transaction as completed
@@ -360,20 +167,10 @@ export const BuilderToolbar = () => {
         });
 
         toast({
-          title: "PDF Generated Successfully!",
-          description: `Your resume PDF is ready to download. ${pdfExportCost} coins deducted.`,
+          title: t`PDF Downloaded Successfully!`,
+          description: t`"${resume.title}" has been downloaded to your device. ${pdfExportCost} coins deducted.`,
           variant: "success",
-          action: (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openInNewTab(url)}
-              className="gap-2"
-            >
-              <FilePdf size={14} />
-              Download
-            </Button>
-          ),
+          duration: 5000,
         });
 
         setShowPdfCoinPopover(false);
@@ -388,15 +185,14 @@ export const BuilderToolbar = () => {
     } catch (error: any) {
       console.error("PDF export failed:", error);
       
-      // Refund coins if transaction was successful
       if (transactionSuccess) {
         try {
           await refundTransaction(transactionId, error.message || 'PDF export failed');
           await fetchBalance();
           
           toast({
-            title: "Export Failed",
-            description: `${pdfExportCost} coins refunded`,
+            title: t`Export Failed`,
+            description: t`${pdfExportCost} coins refunded`,
             variant: "info",
           });
         } catch (refundError) {
@@ -405,8 +201,8 @@ export const BuilderToolbar = () => {
       }
 
       toast({
-        title: "PDF Generation Failed",
-        description: error.message || "Failed to generate PDF. Please try again.",
+        title: t`PDF Generation Failed`,
+        description: error.message || t`Failed to generate PDF. Please try again.`,
         variant: "error",
       });
 
@@ -423,8 +219,8 @@ export const BuilderToolbar = () => {
 
       if (!affordable) {
         toast({
-          title: "Insufficient Coins",
-          description: "You don't have enough coins to export this resume",
+          title: t`Insufficient Coins`,
+          description: t`You don't have enough coins to export this resume`,
           variant: "error",
         });
         setShowPdfCoinPopover(false);
@@ -436,8 +232,8 @@ export const BuilderToolbar = () => {
     } catch (error: any) {
       console.error("PDF export preparation failed:", error);
       toast({
-        title: "Export Failed",
-        description: "Failed to prepare PDF export",
+        title: t`Export Failed`,
+        description: t`Failed to prepare PDF export`,
         variant: "error",
       });
       setShowPdfCoinPopover(false);
@@ -478,43 +274,43 @@ export const BuilderToolbar = () => {
   const getTemplateDisplayName = () => {
     const templateId = resume.data.metadata?.template || 'vertex';
     const names: Record<string, string> = {
-      'sovereign': 'Sovereign',
-      'apex': 'Apex',
-      'imperial': 'Imperial',
-      'vanguard': 'Vanguard',
-      'vertex': 'Vertex',
-      'meridian': 'Meridian',
-      'ascend': 'Ascend',
-      'clarity': 'Clarity',
-      'legacy': 'Legacy',
-      'prestige': 'Prestige',
-      'noble': 'Noble',
-      'regal': 'Regal',
+      'sovereign': t`Sovereign`,
+      'apex': t`Apex`,
+      'imperial': t`Imperial`,
+      'vanguard': t`Vanguard`,
+      'vertex': t`Vertex`,
+      'meridian': t`Meridian`,
+      'ascend': t`Ascend`,
+      'clarity': t`Clarity`,
+      'legacy': t`Legacy`,
+      'prestige': t`Prestige`,
+      'noble': t`Noble`,
+      'regal': t`Regal`,
     };
-    return names[templateId] || 'Professional';
+    return names[templateId] || t`Professional`;
   };
 
   // Get template category
   const getTemplateCategory = () => {
     const templateId = resume.data.metadata?.template || 'vertex';
     const categories: Record<string, string> = {
-      'sovereign': 'Executive / Authority',
-      'apex': 'Executive / Authority',
-      'imperial': 'Executive / Authority',
-      'vanguard': 'Executive / Authority',
-      'vertex': 'Modern / Professional',
-      'meridian': 'Modern / Professional',
-      'ascend': 'Modern / Professional',
-      'clarity': 'Modern / Professional',
-      'legacy': 'Timeless / Trusted',
-      'prestige': 'Timeless / Trusted',
-      'noble': 'Timeless / Trusted',
-      'regal': 'Timeless / Trusted',
+      'sovereign': t`Executive / Authority`,
+      'apex': t`Executive / Authority`,
+      'imperial': t`Executive / Authority`,
+      'vanguard': t`Executive / Authority`,
+      'vertex': t`Modern / Professional`,
+      'meridian': t`Modern / Professional`,
+      'ascend': t`Modern / Professional`,
+      'clarity': t`Modern / Professional`,
+      'legacy': t`Timeless / Trusted`,
+      'prestige': t`Timeless / Trusted`,
+      'noble': t`Timeless / Trusted`,
+      'regal': t`Timeless / Trusted`,
     };
-    return categories[templateId] || 'Professional';
+    return categories[templateId] || t`Professional`;
   };
 
-  // Add user balance display in toolbar
+  // User balance display component
   const UserBalance = () => {
     if (!user) return null;
     
@@ -652,7 +448,7 @@ export const BuilderToolbar = () => {
 
           <Separator orientation="vertical" className="h-9" />
 
-          <Tooltip content={`Download PDF (${getPdfExportCost()} coins)`}>
+          <Tooltip content={t`Download PDF (${getPdfExportCost()} coins)`}>
             <Button
               ref={pdfExportButtonRef}
               size="icon"
@@ -685,8 +481,8 @@ export const BuilderToolbar = () => {
         balance={balance}
         onConfirm={confirmPdfExport}
         onBuyCoins={handleBuyCoinsForPdf}
-        title={`Export ${getTemplateDisplayName()} Resume as PDF`}
-        description={`Export your professionally formatted ${getTemplateDisplayName()} resume as a high-quality PDF. This ${getTemplateCategory().toLowerCase()} template is optimized for printing and job applications.`}
+        title={t`Export ${getTemplateDisplayName()} Resume as PDF`}
+        description={t`Export your professionally formatted ${getTemplateDisplayName()} resume as a high-quality PDF. This ${getTemplateCategory().toLowerCase()} template is optimized for printing and job applications.`}
         actionType="export"
         triggerRef={pdfExportButtonRef}
         userId={user?.id}
@@ -694,7 +490,7 @@ export const BuilderToolbar = () => {
           template: resume.data.metadata?.template,
           templateName: getTemplateDisplayName(),
           templateCategory: getTemplateCategory(),
-          costBreakdown: `Template: ${getPdfExportCost()} coins`,
+          costBreakdown: t`Template: ${getPdfExportCost()} coins`,
         }}
       />
     </>

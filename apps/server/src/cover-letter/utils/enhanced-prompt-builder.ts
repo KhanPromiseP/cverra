@@ -91,38 +91,58 @@ export class EnhancedPromptBuilder {
   };
 
   static buildCategoryAwarePrompt(
-    category: string,
-    userData: UserData,
-    jobData: JobData,
-    style: string,
-    flow: LetterFlow,
-    resumeData?: ResumeData
-  ): string {
-    const categoryGuide = CATEGORY_CONTENT_GUIDES[category] || {};
-    
-    const promptParts = [
-      this.buildHeader(category, flow),
-      this.buildSectionInstructions(flow, categoryGuide),
-      this.buildUserContext(userData),
-      this.buildResumeContext(resumeData),
-      this.buildRecipientContext(category, jobData),
-      this.buildStyleAndRequirements(category, style, flow),
-      this.buildFormattingRules(flow),
-      this.buildFooter(category, flow.type)
-    ];
+  category: string,
+  userData: UserData,
+  jobData: JobData,
+  style: string,
+  flow: LetterFlow,
+  resumeData?: ResumeData
+): string {
+  const categoryGuide = CATEGORY_CONTENT_GUIDES[category] || {};
+  
+  const promptParts = [
+    // 🔥 CRITICAL: Strong opening instructions
+    `🚨 STRICT INSTRUCTIONS - VIOLATIONS WILL CAUSE FAILURE:
+1. OUTPUT ONLY THE LETTER TEXT WITH SECTION MARKERS
+2. NO explanations, reasoning, commentary, or thought process
+3. NO formatting tool text (like "✓ Editing", "Ctrl+Enter")
+4. NO discussions about template decisions
+5. If uncertain about structure, make silent decisions
 
-    return promptParts.filter(part => part.trim().length > 0).join('\n\n');
-  }
+ABSOLUTELY PROHIBITED:
+- "According to the template..."
+- "However, to follow..."
+- "I have placed..."
+- "Should be placed..."
+- Any text explaining your choices
+- Any commentary on formatting`,
+    
+    this.buildHeader(category, flow),
+    this.buildSectionInstructions(flow, categoryGuide),
+    this.buildUserContext(userData),
+    this.buildResumeContext(resumeData),
+    this.buildRecipientContext(category, jobData),
+    this.buildStyleAndRequirements(category, style, flow),
+    this.buildFormattingRules(flow),
+    this.buildFooter(category, flow.type)
+  ];
+
+  return promptParts.filter(part => part.trim().length > 0).join('\n\n');
+}
 
   private static buildHeader(category: string, flow: LetterFlow): string {
-    return `You are an expert letter writer creating a ${category.toLowerCase()}. 
+  return `You are an expert letter writer creating a ${category.toLowerCase()}. 
+
+CRITICAL LANGUAGE RULE: Write the ENTIRE letter in the SAME LANGUAGE as the user input data below.
+- ALL sections same language (contact info, date, greeting, body, closing, signature)
+- Never mix languages within the letter
 
 CATEGORY: ${category}
 FLOW TYPE: ${flow.type.toUpperCase()}
 
 REQUIRED SECTIONS (in this exact order):
 ${flow.sections.join(' → ')}`;
-  }
+}
 
   private static buildSectionInstructions(flow: LetterFlow, categoryGuide: any): string {
     return `SECTION-BY-SECTION INSTRUCTIONS:
@@ -259,17 +279,29 @@ ${this.CATEGORY_REQUIREMENTS[category] || 'Professional and appropriate for the 
 - ${flow.formattingRules.join('\n- ')}`;
   }
 
-  private static buildFooter(category: string, flowType: LetterFlowType): string {
-    return `IMPORTANT: Generate content that perfectly follows the ${flowType} letter structure for a ${category}. 
-Return only the formatted letter with section markers, no explanations.
+private static buildFooter(category: string, flowType: LetterFlowType): string {
+  return `🚨 ABSOLUTE OUTPUT RULES:
+• OUTPUT ONLY THE LETTER - NO explanations, thoughts, or commentary
+• NO "✓ Editing • Ctrl+Enter to save • Esc to revert" or similar tool text
+• NO reasoning about template decisions
+• NO "According to..." or "However..." explanations
+• NO "I have placed..." or "Should be placed..." commentary
 
-KEY SUCCESS FACTORS:
-- Tailor content specifically to ${category} context
-- Incorporate relevant qualifications and experience
-- Maintain consistent ${flowType} tone throughout
-- Ensure professional formatting and structure
-- Address recipient appropriately for ${category}`;
-  }
+🎯 REQUIRED OUTPUT:
+- Clean letter with section markers only
+- Professional tone appropriate for ${category}
+- All sections in consistent language
+- Follow ${flowType} structure exactly
+
+🚫 STRICTLY PROHIBITED:
+- Any text explaining your decisions
+- Any commentary on the template
+- Any tool interface text
+- Any markdown or formatting instructions
+- Any text that isn't part of the actual letter
+
+📝 GENERATE THE LETTER NOW (section markers only):`;
+}
 
   private static truncateText(text: string | undefined, maxLength: number): string {
     if (!text) return '';
@@ -294,9 +326,43 @@ KEY SUCCESS FACTORS:
 
     return `${basePrompt}
 
-CUSTOM INSTRUCTIONS:
-${customInstructions.trim()}
+  CUSTOM INSTRUCTIONS:
+  ${customInstructions.trim()}
 
-NOTE: While following these custom instructions, ensure the letter maintains proper ${category} structure and professional standards.`;
+  NOTE: While following these custom instructions, ensure the letter maintains proper ${category} structure, professional standards and should be in the language that the inputs are given in unless a new language is specified. `;
+  }
+
+
+  static buildPromptWithLanguageOverride(
+    category: string,
+    userData: UserData,
+    jobData: JobData,
+    style: string,
+    flow: LetterFlow,
+    resumeData?: ResumeData,
+    customInstructions?: string,
+    languageOverride?: string
+  ): string {
+    let prompt = this.buildCustomPrompt(category, userData, jobData, style, flow, resumeData, customInstructions);
+    
+    // Add language override instructions if provided
+    if (languageOverride && languageOverride.trim()) {
+      const languageInstruction = `
+  LANGUAGE OVERRIDE INSTRUCTION:
+  IMPORTANT: Regardless of the language detected in the input data, generate the entire letter in ${languageOverride.trim()}.
+  - Use proper grammar, syntax, and cultural conventions for ${languageOverride.trim()}
+  - Maintain the same meaning and content as specified in the user inputs
+  - Ensure all dates, addresses, and formatting follow ${languageOverride.trim()} conventions
+  - Do not mix languages - write entirely in ${languageOverride.trim()}`;
+      
+      prompt = prompt.replace(
+        'NOTE: While following these custom instructions, ensure the letter maintains',
+        `${languageInstruction}
+
+  NOTE: While following these custom instructions, ensure the letter maintains`
+      );
+    }
+    
+    return prompt;
   }
 }

@@ -1,4 +1,4 @@
-// pages/articles/Dashboard.tsx - SIMPLE WORKING VERSION
+import { t, Trans } from "@lingui/macro";
 import React, { useState, useEffect } from 'react';
 import { 
   Row, 
@@ -87,7 +87,7 @@ const Dashboard: React.FC = () => {
       setTopArticles(topData);
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
-      setError(error.message || 'Failed to load dashboard data');
+      setError(error.message || t`Failed to load dashboard data`);
     } finally {
       setLoading(false);
     }
@@ -105,40 +105,40 @@ const Dashboard: React.FC = () => {
 
   const statCards = [
   {
-    title: 'Total Articles',
+    title: t`Total Articles`,
     value: stats?.totalArticles || 0,
     icon: <FileTextOutlined />,
     color: '#1890ff',
     trend: stats?.monthlyGrowth || 0,
   },
   {
-    title: 'Published',
+    title: t`Published`,
     value: stats?.publishedArticles || 0,
     icon: <EyeOutlined />,
     color: '#52c41a',
     subtitle: `${stats?.publishedArticles || 0} / ${stats?.totalArticles || 0}`,
   },
   {
-    title: 'Premium Articles',
+    title: t`Premium Articles`,
     value: stats?.premiumArticles || 0,
     icon: <RiseOutlined />,
     color: '#722ed1',
   },
   {
-    title: 'Total Views',
-    value: stats?.totalViews ? stats.totalViews.toLocaleString() : '0',  // Fixed
+    title: t`Total Views`,
+    value: stats?.totalViews ? stats.totalViews.toLocaleString() : '0',
     icon: <EyeOutlined />,
     color: '#fa8c16',
   },
   {
-    title: 'Total Likes',
-    value: stats?.totalLikes ? stats.totalLikes.toLocaleString() : '0',  // Fixed
+    title: t`Total Likes`,
+    value: stats?.totalLikes ? stats.totalLikes.toLocaleString() : '0',
     icon: <LikeOutlined />,
     color: '#f5222d',
   },
   {
-    title: 'Total Comments',
-    value: stats?.totalComments ? stats.totalComments.toLocaleString() : '0',  // Fixed
+    title: t`Total Comments`,
+    value: stats?.totalComments ? stats.totalComments.toLocaleString() : '0',
     icon: <MessageOutlined />,
     color: '#13c2c2',
   },
@@ -147,7 +147,7 @@ const Dashboard: React.FC = () => {
   if (loading && !stats) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <Spin size="large" tip="Loading dashboard data..." />
+        <Spin size="large" tip={t`Loading dashboard data...`} />
       </div>
     );
   }
@@ -157,22 +157,22 @@ const Dashboard: React.FC = () => {
       {/* Article Admin Navbar */}
       <ArticleAdminNavbar 
         currentPath={window.location.pathname}
-        title="Article Management"
+        title={t`Article Management`}
       />
 
       {/* Breadcrumb */}
       <Breadcrumb 
         style={{ marginBottom: 16 }}
         items={[
-          { title: 'Dashboard', onClick: () => navigateTo('/dashboard') },
-          { title: 'Article Admin', onClick: () => navigateTo('/dashboard/article-admin') },
-          { title: 'Overview' },
+          { title: t`Dashboard`, onClick: () => navigateTo('/dashboard') },
+          { title: t`Article Admin`, onClick: () => navigateTo('/dashboard/article-admin') },
+          { title: t`Overview` },
         ]}
       />
 
       {error && (
         <Alert
-          message="Error"
+          message={t`Error`}
           description={error}
           type="error"
           showIcon
@@ -191,10 +191,10 @@ const Dashboard: React.FC = () => {
               style={{ width: 120 }}
               disabled={loading}
             >
-              <Option value="7days">Last 7 days</Option>
-              <Option value="30days">Last 30 days</Option>
-              <Option value="90days">Last 90 days</Option>
-              <Option value="year">This Year</Option>
+              <Option value="7days">{t`Last 7 days`}</Option>
+              <Option value="30days">{t`Last 30 days`}</Option>
+              <Option value="90days">{t`Last 90 days`}</Option>
+              <Option value="year">{t`This Year`}</Option>
             </Select>
             <RangePicker disabled={loading} />
           </Space>
@@ -203,7 +203,7 @@ const Dashboard: React.FC = () => {
             loading={loading}
             icon={<ReloadOutlined />}
           >
-            Refresh
+            {t`Refresh`}
           </Button>
         </div>
       </Card>
@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
                 prefix={card.icon}
                 valueStyle={{ color: card.color }}
                 suffix={
-                  card.trend && (
+                  card.trend !== undefined && (
                     <Tag color={card.trend > 0 ? 'success' : 'error'}>
                       {card.trend > 0 ? '+' : ''}{card.trend}%
                     </Tag>
@@ -240,13 +240,13 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={16}>
           <Card 
-            title="Recent Articles" 
+            title={t`Recent Articles`} 
             extra={
               <Button 
                 type="link" 
                 onClick={() => navigateTo('/dashboard/article-admin/articles')}
               >
-                View All
+                {t`View All`}
               </Button>
             }
             loading={loading}
@@ -259,7 +259,7 @@ const Dashboard: React.FC = () => {
               loading={loading}
               columns={[
                 {
-                  title: 'Article',
+                  title: t`Article`,
                   dataIndex: 'title',
                   render: (text, record) => (
                     <div>
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
                   ),
                 },
                 {
-                  title: 'Author',
+                  title: t`Author`,
                   dataIndex: 'author',
                   width: 120,
                   render: (author) => (
@@ -279,12 +279,12 @@ const Dashboard: React.FC = () => {
                       <Avatar size="small" src={author?.picture}>
                         {author?.name?.charAt(0) || 'U'}
                       </Avatar>
-                      <span>{author?.name || 'Unknown'}</span>
+                      <span>{author?.name || t`Unknown`}</span>
                     </Space>
                   ),
                 },
                 {
-                  title: 'Status',
+                  title: t`Status`,
                   dataIndex: 'status',
                   width: 100,
                   render: (status) => (
@@ -297,7 +297,7 @@ const Dashboard: React.FC = () => {
                   ),
                 },
                 {
-                  title: 'Actions',
+                  title: t`Actions`,
                   width: 100,
                   render: (_, record) => (
                     <Button 
@@ -306,7 +306,7 @@ const Dashboard: React.FC = () => {
                       onClick={() => navigateTo(`/dashboard/article-admin/articles/edit/${record.id}`)}
                       size="small"
                     >
-                      Edit
+                      {t`Edit`}
                     </Button>
                   ),
                 },
@@ -316,13 +316,13 @@ const Dashboard: React.FC = () => {
         </Col>
         <Col xs={24} lg={8}>
           <Card 
-            title="Top Categories"
+            title={t`Top Categories`}
             extra={
               <Button 
                 type="link" 
                 onClick={() => navigateTo('/dashboard/article-admin/categories')}
               >
-                Manage
+                {t`Manage`}
               </Button>
             }
             loading={loading}
@@ -336,7 +336,7 @@ const Dashboard: React.FC = () => {
                     title={
                       <Space>
                         <span style={{ fontWeight: '500' }}>{item.name}</span>
-                        <Tag>{item.count} articles</Tag>
+                        <Tag>{item.count} {t`articles`}</Tag>
                       </Space>
                     }
                     description={
@@ -361,13 +361,13 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
           <Card 
-            title="Top Performing Articles"
+            title={t`Top Performing Articles`}
             extra={
               <Button 
                 type="link" 
                 onClick={() => navigateTo('/dashboard/article-admin/articles')}
               >
-                See More
+                {t`See More`}
               </Button>
             }
             loading={loading}
@@ -421,7 +421,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title="Recent Activity" loading={loading}>
+          <Card title={t`Recent Activity`} loading={loading}>
             <Timeline>
               {stats?.recentActivity?.map((activity) => (
                 <Timeline.Item
@@ -456,5 +456,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-// Export the simple component
 export default Dashboard;

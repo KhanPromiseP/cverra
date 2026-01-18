@@ -1,4 +1,4 @@
-// client/components/cover-letter/cover-letter-wizard.tsx
+import { t, Trans } from "@lingui/macro";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@reactive-resume/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@reactive-resume/ui';
@@ -7,18 +7,21 @@ import { CoverLetterTemplate, TemplateStructure } from '../cover-letter/sidebars
 import { useResumes } from '@/client/services/resume';
 import type { ResumeDto } from "@reactive-resume/dto";
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
 
 
+import { useAuthStore } from '@/client/stores/auth';
+import { useWallet } from '@/client/hooks/useWallet';
+import { CoinConfirmPopover } from '@/client/components/modals/coin-confirm-modal';
+import { Loader2, Coins, Crown, ChevronDown, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
-
-
-
-import { 
-  FileText, User, Briefcase, Plus, Check, ArrowRight, 
+import {
+  FileText, User, Briefcase, Plus, Check, ArrowRight,
   Layout, Palette, Type, Download, Sparkles, Edit3,
   Building2, Mail, Phone, Award, Zap, BookOpen, Eye, EyeOff,
   GraduationCap, Heart, Handshake, ThumbsUp, Plane, AlertCircle,
-  ArrowLeft, ArrowRight as ArrowRightIcon, Target, Shield
+  ArrowLeft, ArrowRight as ArrowRightIcon, Target, Shield, Globe, Info,
+  Wand2
 } from 'lucide-react';
 
 interface CoverLetterWizardProps {
@@ -28,8 +31,7 @@ interface CoverLetterWizardProps {
 }
 
 type WizardStep = 'welcome' | 'category' | 'input-method' | 'data-input' | 'configuration';
-
-type LetterCategory = 
+type LetterCategory =
   | 'Job Application'
   | 'Internship Application'
   | 'Scholarship/Academic Request'
@@ -45,6 +47,18 @@ type LetterCategory =
 
 type InputMethod = 'resume' | 'manual';
 
+// Payment processing states - SAME AS AI SECTION
+type ProcessState = 'idle' | 'checking' | 'insufficient' | 'reserving' | 'processing' | 'success' | 'error';
+type ProcessType = 'generate';
+
+interface ProcessStatus {
+  state: ProcessState;
+  type?: ProcessType;
+  message?: string;
+  instructions?: string;
+  transactionId?: string;
+}
+
 const CATEGORY_CONFIG: Record<LetterCategory, {
   icon: any;
   description: string;
@@ -57,7 +71,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
 }> = {
   'Job Application': {
     icon: Briefcase,
-    description: 'Professional job application letters tailored to specific roles and companies',
+    description: t`Professional job application letters tailored to specific roles and companies`,
     color: 'blue',
     fields: {
       user: ['name', 'email', 'phone', 'skills', 'experience', 'achievements'],
@@ -65,9 +79,10 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
       custom: ['customInstructions']
     }
   },
+
   'Internship Application': {
     icon: GraduationCap,
-    description: 'Applications for internship positions focusing on learning and growth potential',
+    description: t`Applications for internship positions focusing on learning and growth potential`,
     color: 'green',
     fields: {
       user: ['name', 'email', 'phone', 'skills', 'experience', 'academicLevel', 'relevantCoursework', 'careerGoals'],
@@ -77,7 +92,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Scholarship/Academic Request': {
     icon: Award,
-    description: 'Formal requests for scholarships, grants, or academic opportunities',
+    description: t`Formal requests for scholarships, grants, or academic opportunities`,
     color: 'purple',
     fields: {
       user: ['name', 'email', 'phone', 'academicAchievements', 'researchInterests', 'academicGoals', 'futurePlans'],
@@ -87,7 +102,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Business Partnership Proposal': {
     icon: Handshake,
-    description: 'Professional proposals for business collaborations and partnerships',
+    description: t`Professional proposals for business collaborations and partnerships`,
     color: 'indigo',
     fields: {
       user: ['name', 'email', 'phone', 'company', 'experience'],
@@ -97,7 +112,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Contract / Offer Negotiation': {
     icon: FileText,
-    description: 'Formal letters for negotiating employment terms and contract details',
+    description: t`Formal letters for negotiating employment terms and contract details`,
     color: 'orange',
     fields: {
       user: ['name', 'email', 'phone', 'experience', 'achievements'],
@@ -107,7 +122,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Recommendation Request': {
     icon: ThumbsUp,
-    description: 'Polite requests for professional or academic recommendations',
+    description: t`Polite requests for professional or academic recommendations`,
     color: 'teal',
     fields: {
       user: ['name', 'email', 'phone', 'relationship'],
@@ -117,7 +132,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Apology Letter': {
     icon: AlertCircle,
-    description: 'Sincere apology letters for professional or personal situations',
+    description: t`Sincere apology letters for professional or personal situations`,
     color: 'red',
     fields: {
       user: ['name', 'email', 'phone'],
@@ -127,7 +142,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Appreciation Letter': {
     icon: Heart,
-    description: 'Heartfelt letters expressing gratitude and appreciation',
+    description: t`Heartfelt letters expressing gratitude and appreciation`,
     color: 'pink',
     fields: {
       user: ['name', 'email', 'phone'],
@@ -137,7 +152,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Letter to Parent/Relative': {
     icon: Heart,
-    description: 'Personal letters to family members with warm, caring tone',
+    description: t`Personal letters to family members with warm, caring tone`,
     color: 'rose',
     fields: {
       user: ['name', 'email', 'phone'],
@@ -147,7 +162,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Visa Request / Embassy Letter': {
     icon: Plane,
-    description: 'Formal letters for visa applications and embassy correspondence',
+    description: t`Formal letters for visa applications and embassy correspondence`,
     color: 'cyan',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
@@ -157,7 +172,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'Complaint Letter': {
     icon: AlertCircle,
-    description: 'Professional complaint letters addressing issues and seeking resolution',
+    description: t`Professional complaint letters addressing issues and seeking resolution`,
     color: 'amber',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
@@ -167,7 +182,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   },
   'General Official Correspondence': {
     icon: FileText,
-    description: 'Versatile formal letters for various official communications',
+    description: t`Versatile formal letters for various official communications`,
     color: 'gray',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
@@ -176,15 +191,38 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     }
   }
 };
-
 export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverLetterWizardProps) => {
+  // Wizard states
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
   const [selectedCategory, setSelectedCategory] = useState<LetterCategory | null>(null);
   const [inputMethod, setInputMethod] = useState<InputMethod | null>(null);
+
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  
+  // Payment states - SAME AS AI SECTION
+  const [showCoinPopover, setShowCoinPopover] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: ProcessType;
+    instructions?: string;
+    data?: any;
+    processedFormData?: CreateCoverLetterData;
+  } | null>(null);
+  
+  const [processStatus, setProcessStatus] = useState<ProcessStatus>({ state: 'idle' });
+  
+  // Wallet hooks
+  const { user } = useAuthStore();
+  const { balance, canAfford, deductCoinsWithRollback, completeTransaction, refundTransaction, fetchBalance } = useWallet(user?.id || '');
+  
+  // Cost for generating a letter
+  const GENERATE_COST = 5;
+
+
   const [formData, setFormData] = useState<CreateCoverLetterData>({
     title: '',
-    style: 'Professional',
+    style: t`Professional`,
     layout: 'professional',
+    
     userData: {
       name: '',
       email: '',
@@ -218,7 +256,7 @@ export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverL
       personalContext: '',
       familyUpdates: '',
       personalNews: '',
-      emotionalTone: 'Warm and caring',
+      emotionalTone: t`Warm and caring`,
       travelPurpose: '',
       destination: '',
       duration: '',
@@ -267,30 +305,26 @@ export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverL
       keyInformation: ''
     },
     customInstructions: '',
-    
+   
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [showImportedData, setShowImportedData] = useState(true);
   const [isImportingResume, setIsImportingResume] = useState(false);
-
   const { resumes, loading: isLoadingResumes, error: resumesError } = useResumes();
   const hasResumes = resumes && resumes.length > 0;
   const resumeServiceAvailable = !resumesError;
-
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-
-
+  const [languageOverride, setLanguageOverride] = useState<string>('');
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-
-
   const handleUserDataChange = (field: string, value: any) => {
   setFormData(prev => ({
     ...prev,
@@ -299,13 +333,12 @@ export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverL
       [field]: value
     }
   } as CreateCoverLetterData));
-  
+ 
   const errorKey = `user${field.charAt(0).toUpperCase() + field.slice(1)}`;
   if (errors[errorKey]) {
     setErrors(prev => ({ ...prev, [errorKey]: '' }));
   }
 };
-
 const handleJobDataChange = (field: string, value: any) => {
   setFormData(prev => ({
     ...prev,
@@ -314,7 +347,7 @@ const handleJobDataChange = (field: string, value: any) => {
       [field]: value
     }
   } as CreateCoverLetterData));
-  
+ 
   const errorKey = `job${field.charAt(0).toUpperCase() + field.slice(1)}`;
   if (errors[errorKey]) {
     setErrors(prev => ({ ...prev, [errorKey]: '' }));
@@ -326,7 +359,6 @@ const handleJobDataChange = (field: string, value: any) => {
   const resumeData = resume.data as any;
   const basics = resumeData.basics || {};
   const sections = resumeData.sections || {};
-
   // Helper function to strip HTML tags with proper type checking
   const stripHtmlTags = (input: any): string => {
     // Handle null, undefined, or non-string inputs
@@ -339,7 +371,7 @@ const handleJobDataChange = (field: string, value: any) => {
         return '';
       }
     }
-    
+   
     return input
       .replace(/<[^>]*>/g, '') // Remove HTML tags
       .replace(/&nbsp;/g, ' ') // Replace &nbsp; with regular spaces
@@ -350,17 +382,6 @@ const handleJobDataChange = (field: string, value: any) => {
       .replace(/\s+/g, ' ') // Replace multiple spaces with single space
       .trim(); // Remove leading/trailing whitespace
   };
-
-  console.log('=== RESUME DATA DEBUG ===');
-  console.log('Full resume data:', resumeData);
-  console.log('Basics:', basics);
-  console.log('Sections:', sections);
-  console.log('Skills section:', sections.skills);
-  console.log('Experience section:', sections.experience);
-  console.log('Projects section:', sections.projects);
-  console.log('Awards section:', sections.awards);
-  console.log('=== END DEBUG ===');
-
   // Extract structured skills
   const structuredSkills: Array<{ name: string; level?: string }> = [];
   const skillsSection = sections.skills;
@@ -370,7 +391,7 @@ const handleJobDataChange = (field: string, value: any) => {
         structuredSkills.push({ name: stripHtmlTags(item) });
       } else if (item && typeof item === 'object') {
         if (item.name) {
-          structuredSkills.push({ 
+          structuredSkills.push({
             name: stripHtmlTags(item.name),
             level: item.level ? stripHtmlTags(item.level) : undefined
           });
@@ -386,7 +407,6 @@ const handleJobDataChange = (field: string, value: any) => {
       }
     });
   }
-
   // Extract structured experience
   const structuredExperience: Array<{
     position: string;
@@ -398,13 +418,13 @@ const handleJobDataChange = (field: string, value: any) => {
   if (experienceSection && Array.isArray(experienceSection.items)) {
     experienceSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       const position = stripHtmlTags(item.position || item.title || item.name || 'Position');
       const company = stripHtmlTags(item.company || item.employer || item.organization || 'Company');
       const startDate = item.startDate || item.date || '';
       const endDate = item.endDate || item.end || 'Present';
       const description = stripHtmlTags(item.summary || item.description || '');
-      
+     
       structuredExperience.push({
         position,
         company,
@@ -413,7 +433,6 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Extract structured achievements from multiple sections
   const structuredAchievements: Array<{
     type: 'award' | 'project' | 'certification' | 'publication' | 'volunteer';
@@ -422,13 +441,13 @@ const handleJobDataChange = (field: string, value: any) => {
     date?: string;
     description?: string;
   }> = [];
-  
+ 
   // Awards
   const awardsSection = sections.awards;
   if (awardsSection && Array.isArray(awardsSection.items)) {
     awardsSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       structuredAchievements.push({
         type: 'award',
         title: stripHtmlTags(item.title || item.name || 'Award'),
@@ -438,29 +457,27 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Projects
   const projectsSection = sections.projects;
   if (projectsSection && Array.isArray(projectsSection.items)) {
     projectsSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       structuredAchievements.push({
         type: 'project',
         title: stripHtmlTags(item.name || item.title || 'Project'),
-        description: item.description ? stripHtmlTags(item.description) : 
+        description: item.description ? stripHtmlTags(item.description) :
                      item.summary ? stripHtmlTags(item.summary) : undefined,
         date: item.date
       });
     });
   }
-
   // Certifications
   const certificationsSection = sections.certifications;
   if (certificationsSection && Array.isArray(certificationsSection.items)) {
     certificationsSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       structuredAchievements.push({
         type: 'certification',
         title: stripHtmlTags(item.name || item.title || 'Certification'),
@@ -470,13 +487,12 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Publications
   const publicationsSection = sections.publications;
   if (publicationsSection && Array.isArray(publicationsSection.items)) {
     publicationsSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       structuredAchievements.push({
         type: 'publication',
         title: stripHtmlTags(item.name || item.title || 'Publication'),
@@ -486,13 +502,12 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Volunteer experience
   const volunteerSection = sections.volunteer;
   if (volunteerSection && Array.isArray(volunteerSection.items)) {
     volunteerSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       structuredAchievements.push({
         type: 'volunteer',
         title: stripHtmlTags(item.position || item.title || item.name || 'Volunteer Role'),
@@ -502,7 +517,6 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Extract education
   const structuredEducation: Array<{
     institution: string;
@@ -515,14 +529,14 @@ const handleJobDataChange = (field: string, value: any) => {
   if (educationSection && Array.isArray(educationSection.items)) {
     educationSection.items.forEach((item: any) => {
       if (!item) return;
-      
+     
       const institution = stripHtmlTags(item.institution || item.school || 'Institution');
       const degree = stripHtmlTags(item.degree || item.studyType || '');
       const area = stripHtmlTags(item.area || item.field || '');
       const startDate = item.startDate || '';
       const endDate = item.endDate || item.date || '';
       const description = stripHtmlTags(item.summary || item.description || '');
-      
+     
       structuredEducation.push({
         institution,
         degree,
@@ -532,20 +546,17 @@ const handleJobDataChange = (field: string, value: any) => {
       });
     });
   }
-
   // Extract summary
   const summarySection = sections.summary;
-  const professionalSummary = summarySection && summarySection.content ? 
+  const professionalSummary = summarySection && summarySection.content ?
     stripHtmlTags(summarySection.content) : '';
-
   // Extract address properly with null checks
   const address = stripHtmlTags(
-    (basics.location && basics.location.address) || 
-    basics.location || 
-    basics.address || 
+    (basics.location && basics.location.address) ||
+    basics.location ||
+    basics.address ||
     ''
   );
-
  // Update form data with all extracted information
 setFormData(prev => ({
   ...prev,
@@ -556,16 +567,16 @@ setFormData(prev => ({
     email: stripHtmlTags(basics.email || prev.userData?.email || ''),
     phone: stripHtmlTags(basics.phone || prev.userData?.phone || ''),
     address: address || prev.userData?.address || '',
-    
+   
     // Professional summary
     professionalSummary: professionalSummary || prev.userData?.professionalSummary || '',
-    
+   
     // Structured professional info - ensure these are arrays
     structuredSkills: Array.isArray(structuredSkills) ? structuredSkills : [],
     structuredExperience: Array.isArray(structuredExperience) ? structuredExperience : [],
     structuredAchievements: Array.isArray(structuredAchievements) ? structuredAchievements : [],
     structuredEducation: Array.isArray(structuredEducation) ? structuredEducation : [],
-    
+   
     // Keep flat arrays for backward compatibility - ensure these are always arrays
     skills: Array.isArray(structuredSkills) ? structuredSkills.map(skill => skill.name).filter(Boolean) : [],
     experience: Array.isArray(structuredExperience) ? structuredExperience.map(exp => {
@@ -591,7 +602,7 @@ setFormData(prev => ({
       const description = edu.description ? `: ${edu.description}` : '';
       return `${institution}${degree}${area}${period}${description}`.trim();
     }).filter(Boolean) : [],
-    
+   
     // Initialize other array fields as empty arrays if not already set
     relevantCoursework: Array.isArray(prev.userData?.relevantCoursework) ? prev.userData.relevantCoursework : [],
     academicAchievements: Array.isArray(prev.userData?.academicAchievements) ? prev.userData.academicAchievements : [],
@@ -599,52 +610,47 @@ setFormData(prev => ({
     keyPoints: Array.isArray(prev.userData?.keyPoints) ? prev.userData.keyPoints : [],
   }
 }));
-
   setShowImportedData(true);
-  
+ 
   // Enhanced success message with detailed counts
   const importedItems = [
-    basics.name && 'name',
-    basics.email && 'email', 
-    basics.phone && 'phone',
-    address && 'address',
-    professionalSummary && 'professional summary',
-    structuredSkills.length > 0 && `${structuredSkills.length} skills`,
-    structuredExperience.length > 0 && `${structuredExperience.length} experiences`,
-    structuredEducation.length > 0 && `${structuredEducation.length} education entries`,
-    structuredAchievements.length > 0 && `${structuredAchievements.length} achievements`
+    basics.name && t`name`,
+    basics.email && t`email`,
+    basics.phone && t`phone`,
+    address && t`address`,
+    professionalSummary && t`professional summary`,
+    structuredSkills.length > 0 && t`${structuredSkills.length} skills`,
+    structuredExperience.length > 0 && t`${structuredExperience.length} experiences`,
+    structuredEducation.length > 0 && t`${structuredEducation.length} education entries`,
+    structuredAchievements.length > 0 && t`${structuredAchievements.length} achievements`
   ].filter(Boolean).join(', ');
-
   toast.success(
     <div>
-      <div className="font-semibold">✓ Data imported from "{resume.title}"</div>
-      <div className="text-sm">Imported: {importedItems}</div>
+      <div className="font-semibold">{t`✓ Data imported from "${resume.title}"`}</div>
+      <div className="text-sm">{t`Imported: ${importedItems}`}</div>
       {(!structuredSkills.length && !structuredExperience.length && !structuredAchievements.length) && (
         <div className="text-xs text-orange-600 mt-1">
-          Note: No skills, experience, or achievements found in this resume
+          {t`Note: No skills, experience, or achievements found in this resume`}
         </div>
       )}
     </div>,
     { duration: 5000 }
   );
-  
+ 
   setIsImportingResume(false);
 }, []);
-
-
 const hasAutoSelectedTemplate = useRef(false);
-
 // Template fetching - FIXED: Remove problematic dependencies
 useEffect(() => {
   const fetchTemplatesByCategory = async () => {
     if (!selectedCategory) return;
-    
+   
     setIsLoadingTemplates(true);
     try {
       const encodedCategory = encodeURIComponent(selectedCategory);
       const response = await coverLetterService.getTemplatesByCategory(encodedCategory);
       setTemplates(response);
-      
+     
       // Auto-select first template only once when category changes
       if (response.length > 0 && !formData.layout && !hasAutoSelectedTemplate.current) {
         setFormData(prev => ({
@@ -655,30 +661,26 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Failed to fetch templates:', error);
-      toast.error('Failed to load templates. Using default templates.');
+      toast.error(t`Failed to load templates. Using default templates.`);
       // Set default templates if API fails
       setTemplates([]);
     } finally {
       setIsLoadingTemplates(false);
     }
   };
-
   fetchTemplatesByCategory();
-  
+ 
   // Cleanup: reset the ref when category changes
   return () => {
     hasAutoSelectedTemplate.current = false;
   };
 }, [selectedCategory]); // Only selectedCategory as dependency
-
-
   // Auto-select first resume if available and in resume mode
   useEffect(() => {
     if (inputMethod === 'resume' && hasResumes && !selectedResumeId) {
       setSelectedResumeId(resumes[0].id);
     }
   }, [inputMethod, hasResumes, resumes, selectedResumeId]);
-
   // Handle resume selection and data import
 useEffect(() => {
   if (selectedResumeId && inputMethod === 'resume' && resumes) {
@@ -687,412 +689,440 @@ useEffect(() => {
       importResumeData(selectedResume);
     }
   }
-}, [selectedResumeId, inputMethod, resumes, importResumeData]); 
-
-  
-
+}, [selectedResumeId, inputMethod, resumes, importResumeData]);
+ 
   {isImportingResume && (
     <div className="text-center py-2">
       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 mx-auto"></div>
-      <p className="text-xs text-gray-500 mt-1">Importing data...</p>
+      <p className="text-xs text-gray-500 mt-1">{t`Importing data...`}</p>
     </div>
   )}
-
   const validateForm = (): boolean => {
   const newErrors: Record<string, string> = {};
-
   // Basic required fields
   if (!formData.title?.trim()) {
-    newErrors.title = 'Letter title is required';
+    newErrors.title = t`Letter title is required`;
   }
-  
+ 
   if (!formData.userData?.name?.trim()) {
-    newErrors.userName = 'Your name is required';
+    newErrors.userName = t`Your name is required`;
   }
-
   // Category-specific required fields
   if (selectedCategory) {
     const config = CATEGORY_CONFIG[selectedCategory];
-    
+   
     // Check required user fields
     config.fields.user.forEach(field => {
       const fieldConfig = getFieldConfig(field);
       if (fieldConfig.required) {
         const value = formData.userData?.[field as keyof typeof formData.userData];
         if (!value || (typeof value === 'string' && !value.trim())) {
-          newErrors[`user${field.charAt(0).toUpperCase() + field.slice(1)}`] = `${fieldConfig.label} is required`;
+          newErrors[`user${field.charAt(0).toUpperCase() + field.slice(1)}`] = t`${fieldConfig.label} is required`;
         }
       }
     });
   }
-
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
-
-
 const getFieldConfig = (field: string) => {
   const fieldConfig: Record<string, any> = {
     // Personal Information
     name: {
-      label: 'Your Name',
+      label: t`Your Name`,
       type: 'text',
-      placeholder: 'John Doe',
+      placeholder: t`John Doe`,
       required: true
     },
     email: {
-      label: 'Email Address',
+      label: t`Email Address`,
       type: 'email',
-      placeholder: 'john@example.com',
+      placeholder: t`john@example.com`,
       required: false
     },
     phone: {
-      label: 'Phone Number',
+      label: t`Phone Number`,
       type: 'tel',
-      placeholder: '+1 (555) 123-4567',
+      placeholder: t`+1 (555) 123-4567`,
       required: false
     },
     address: {
-      label: 'Your Address',
+      label: t`Your Address`,
       type: 'text',
-      placeholder: '123 Main St, City, State 12345',
+      placeholder: t`123 Main St, City, State 12345`,
       required: false
     },
-
     // Professional Information
     skills: {
-      label: 'Key Skills & Qualifications',
+      label: t`Key Skills & Qualifications`,
       type: 'textarea',
-      placeholder: 'JavaScript, React, Project Management, Leadership...',
+      placeholder: t`JavaScript, React, Project Management, Leadership...`,
       required: false
     },
     experience: {
-      label: 'Professional Experience',
+      label: t`Professional Experience`,
       type: 'textarea',
-      placeholder: 'Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...',
+      placeholder: t`Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...`,
       required: false
     },
     achievements: {
-      label: 'Achievements & Awards',
+      label: t`Achievements & Awards`,
       type: 'textarea',
-      placeholder: 'Employee of the Year 2022, Best Project Award...',
+      placeholder: t`Employee of the Year 2022, Best Project Award...`,
       required: false
     },
     professionalSummary: {
-      label: 'Professional Summary',
+      label: t`Professional Summary`,
       type: 'textarea',
-      placeholder: 'Experienced professional with expertise in...',
+      placeholder: t`Experienced professional with expertise in...`,
       required: false
     },
-
     // Academic Information
     academicLevel: {
-      label: 'Academic Level',
+      label: t`Academic Level`,
       type: 'text',
-      placeholder: 'e.g., Undergraduate, Graduate, PhD Candidate',
+      placeholder: t`e.g., Undergraduate, Graduate, PhD Candidate`,
       required: false
     },
     relevantCoursework: {
-      label: 'Relevant Coursework',
+      label: t`Relevant Coursework`,
       type: 'textarea',
-      placeholder: 'List relevant courses separated by commas',
+      placeholder: t`List relevant courses separated by commas`,
       required: false
     },
     careerGoals: {
-      label: 'Career Goals',
+      label: t`Career Goals`,
       type: 'textarea',
-      placeholder: 'Describe your career aspirations and goals',
+      placeholder: t`Describe your career aspirations and goals`,
       required: false
     },
     academicAchievements: {
-      label: 'Academic Achievements',
+      label: t`Academic Achievements`,
       type: 'textarea',
-      placeholder: 'Honors, awards, publications, research experience',
+      placeholder: t`Honors, awards, publications, research experience`,
       required: false
     },
     researchInterests: {
-      label: 'Research Interests',
+      label: t`Research Interests`,
       type: 'textarea',
-      placeholder: 'Your specific research interests and focus areas',
+      placeholder: t`Your specific research interests and focus areas`,
       required: false
     },
     academicGoals: {
-      label: 'Academic Goals',
+      label: t`Academic Goals`,
       type: 'textarea',
-      placeholder: 'Your educational objectives and plans',
+      placeholder: t`Your educational objectives and plans`,
       required: false
     },
     futurePlans: {
-      label: 'Future Plans',
+      label: t`Future Plans`,
       type: 'textarea',
-      placeholder: 'Your long-term career or academic plans',
+      placeholder: t`Your long-term career or academic plans`,
       required: false
     },
-
     // Professional & Business
     company: {
-      label: 'Your Company/Organization',
+      label: t`Your Company/Organization`,
       type: 'text',
-      placeholder: 'Your current company or organization',
+      placeholder: t`Your current company or organization`,
       required: false
     },
     partnershipType: {
-      label: 'Partnership Type',
+      label: t`Partnership Type`,
       type: 'text',
-      placeholder: 'e.g., Strategic Alliance, Joint Venture, Collaboration',
+      placeholder: t`e.g., Strategic Alliance, Joint Venture, Collaboration`,
       required: false
     },
     collaborationDetails: {
-      label: 'Collaboration Details',
+      label: t`Collaboration Details`,
       type: 'textarea',
-      placeholder: 'Specific details about the proposed collaboration',
+      placeholder: t`Specific details about the proposed collaboration`,
       required: false
     },
     currentOffer: {
-      label: 'Current Offer Details',
+      label: t`Current Offer Details`,
       type: 'textarea',
-      placeholder: 'Details of the current contract or offer',
+      placeholder: t`Details of the current contract or offer`,
       required: false
     },
     negotiationPoints: {
-      label: 'Negotiation Points',
+      label: t`Negotiation Points`,
       type: 'textarea',
-      placeholder: 'Key points you want to negotiate',
+      placeholder: t`Key points you want to negotiate`,
       required: false
     },
-
     // Recommendation & Relationships
     relationship: {
-      label: 'Relationship',
+      label: t`Relationship`,
       type: 'text',
-      placeholder: 'e.g., Former Manager, Professor, Colleague',
+      placeholder: t`e.g., Former Manager, Professor, Colleague`,
       required: false
     },
     purpose: {
-      label: 'Purpose',
+      label: t`Purpose`,
       type: 'textarea',
-      placeholder: 'Purpose of this request or letter',
+      placeholder: t`Purpose of this request or letter`,
       required: false
     },
     keyPoints: {
-      label: 'Key Points to Highlight',
+      label: t`Key Points to Highlight`,
       type: 'textarea',
-      placeholder: 'Important points you want emphasized',
+      placeholder: t`Important points you want emphasized`,
       required: false
     },
-
     // Apology & Complaint
     situation: {
-      label: 'Situation Description',
+      label: t`Situation Description`,
       type: 'textarea',
-      placeholder: 'Describe what happened',
+      placeholder: t`Describe what happened`,
       required: false
     },
     impact: {
-      label: 'Impact',
+      label: t`Impact`,
       type: 'textarea',
-      placeholder: 'Describe the impact or consequences',
+      placeholder: t`Describe the impact or consequences`,
       required: false
     },
     resolution: {
-      label: 'Proposed Resolution',
+      label: t`Proposed Resolution`,
       type: 'textarea',
-      placeholder: 'How you plan to resolve the situation',
+      placeholder: t`How you plan to resolve the situation`,
       required: false
     },
-
     // Appreciation & Personal
     recipient: {
-      label: 'Recipient',
+      label: t`Recipient`,
       type: 'text',
-      placeholder: 'Name of the person or organization',
+      placeholder: t`Name of the person or organization`,
       required: false
     },
     reason: {
-      label: 'Reason for Appreciation',
+      label: t`Reason for Appreciation`,
       type: 'textarea',
-      placeholder: 'Why you are expressing appreciation',
+      placeholder: t`Why you are expressing appreciation`,
       required: false
     },
-
     // Personal/Family Letters
     personalContext: {
-      label: 'Personal Context',
+      label: t`Personal Context`,
       type: 'textarea',
-      placeholder: 'Background information or context',
+      placeholder: t`Background information or context`,
       required: false
     },
     familyUpdates: {
-      label: 'Family Updates',
+      label: t`Family Updates`,
       type: 'textarea',
-      placeholder: 'Recent family news or updates',
+      placeholder: t`Recent family news or updates`,
       required: false
     },
     personalNews: {
-      label: 'Personal News',
+      label: t`Personal News`,
       type: 'textarea',
-      placeholder: 'Your personal updates and news',
+      placeholder: t`Your personal updates and news`,
       required: false
     },
     emotionalTone: {
-      label: 'Emotional Tone',
+      label: t`Emotional Tone`,
       type: 'text',
-      placeholder: 'e.g., Warm and caring, Formal, Casual',
+      placeholder: t`e.g., Warm and caring, Formal, Casual`,
       required: false
     },
-
     // Visa & Travel
     travelPurpose: {
-      label: 'Travel Purpose',
+      label: t`Travel Purpose`,
       type: 'textarea',
-      placeholder: 'Reason for travel or visa application',
+      placeholder: t`Reason for travel or visa application`,
       required: false
     },
     destination: {
-      label: 'Destination',
+      label: t`Destination`,
       type: 'text',
-      placeholder: 'Country and city you are traveling to',
+      placeholder: t`Country and city you are traveling to`,
       required: false
     },
     duration: {
-      label: 'Duration of Stay',
+      label: t`Duration of Stay`,
       type: 'text',
-      placeholder: 'e.g., 2 weeks, 6 months, 1 year',
+      placeholder: t`e.g., 2 weeks, 6 months, 1 year`,
       required: false
     },
     supportingDocs: {
-      label: 'Supporting Documents',
+      label: t`Supporting Documents`,
       type: 'textarea',
-      placeholder: 'Documents you are submitting with application',
+      placeholder: t`Documents you are submitting with application`,
       required: false
     },
     accommodation: {
-      label: 'Accommodation Details',
+      label: t`Accommodation Details`,
       type: 'textarea',
-      placeholder: 'Where you will be staying',
+      placeholder: t`Where you will be staying`,
       required: false
     },
     financialSupport: {
-      label: 'Financial Support',
+      label: t`Financial Support`,
       type: 'textarea',
-      placeholder: 'How your trip will be funded',
+      placeholder: t`How your trip will be funded`,
       required: false
     },
     returnPlans: {
-      label: 'Return Plans',
+      label: t`Return Plans`,
       type: 'textarea',
-      placeholder: 'Your plans to return home',
+      placeholder: t`Your plans to return home`,
       required: false
     },
-
     // Complaint & Resolution
     issue: {
-      label: 'Issue Description',
+      label: t`Issue Description`,
       type: 'textarea',
-      placeholder: 'Detailed description of the problem',
+      placeholder: t`Detailed description of the problem`,
       required: false
     },
     productService: {
-      label: 'Product/Service',
+      label: t`Product/Service`,
       type: 'text',
-      placeholder: 'Product or service involved',
+      placeholder: t`Product or service involved`,
       required: false
     },
     desiredResolution: {
-      label: 'Desired Resolution',
+      label: t`Desired Resolution`,
       type: 'textarea',
-      placeholder: 'What you would like to happen',
+      placeholder: t`What you would like to happen`,
       required: false
     },
-
     // General Correspondence
     keyInformation: {
-      label: 'Key Information',
+      label: t`Key Information`,
       type: 'textarea',
-      placeholder: 'Main points or information to include',
+      placeholder: t`Main points or information to include`,
       required: false
     },
-
     // Job Specific
     position: {
-      label: 'Position/Role',
+      label: t`Position/Role`,
       type: 'text',
-      placeholder: 'Job title or position you are applying for',
+      placeholder: t`Job title or position you are applying for`,
       required: false
     },
     hiringManager: {
-      label: 'Hiring Manager/Recipient Name',
+      label: t`Hiring Manager/Recipient Name`,
       type: 'text',
-      placeholder: 'Name of the hiring manager or recipient',
+      placeholder: t`Name of the hiring manager or recipient`,
       required: false
     },
     jobDescription: {
-      label: 'Job Description/Requirements',
+      label: t`Job Description/Requirements`,
       type: 'textarea',
-      placeholder: 'Key requirements and responsibilities from job description',
+      placeholder: t`Key requirements and responsibilities from job description`,
       required: false
     },
     programName: {
-      label: 'Program Name',
+      label: t`Program Name`,
       type: 'text',
-      placeholder: 'Name of the program or opportunity',
+      placeholder: t`Name of the program or opportunity`,
       required: false
     },
     institution: {
-      label: 'Institution/Organization',
+      label: t`Institution/Organization`,
       type: 'text',
-      placeholder: 'Name of the institution or organization',
+      placeholder: t`Name of the institution or organization`,
       required: false
     },
     fieldOfStudy: {
-      label: 'Field of Study',
+      label: t`Field of Study`,
       type: 'text',
-      placeholder: 'Your academic or professional field',
+      placeholder: t`Your academic or professional field`,
       required: false
     },
     department: {
-      label: 'Department',
+      label: t`Department`,
       type: 'text',
-      placeholder: 'Specific department or division',
+      placeholder: t`Specific department or division`,
       required: false
     }
   };
-
-  return fieldConfig[field] || { 
-    label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'), 
-    type: 'text', 
-    placeholder: `Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-    required: false 
+  return fieldConfig[field] || {
+    label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
+    type: 'text',
+    placeholder: t`Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+    required: false
   };
 };
 
 
-  const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!validateForm()) {
-    toast.error('Please fill in all required fields');
-    return;
-  }
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error(t`Please fill in all required fields`);
+      return;
+    }
+    
+    // Check if user is authenticated
+    if (!user) {
+      toast.error(t`Please sign in to generate a cover letter`);
+      return;
+    }
+    
+    // Start checking balance
+    setProcessStatus({ 
+      state: 'checking', 
+      type: 'generate',
+      message: t`Checking coin balance...`
+    });
+    
+    try {
+      const affordable = await canAfford(GENERATE_COST);
+      
+      if (!affordable) {
+        setProcessStatus({ 
+          state: 'insufficient', 
+          type: 'generate',
+          message: t`Insufficient coins`
+        });
+        
+        // Prepare processed form data for later use
+        const processedFormData = await prepareFormData();
+        setPendingAction({ 
+          type: 'generate', 
+          processedFormData,
+          data: {
+            category: selectedCategory,
+            language: languageOverride.trim() || undefined
+          }
+        });
+        setShowCoinPopover(true);
+        return;
+      }
+      
+      // If they can afford, proceed directly
+      await executeLetterGeneration();
+      
+    } catch (error) {
+      console.error('Balance check failed:', error);
+      setProcessStatus({ 
+        state: 'error', 
+        type: 'generate',
+        message: t`Unable to check balance. Please try again.`
+      });
+      toast.error(t`Unable to check balance. Please try again.`);
+    }
+  };
 
-  // Helper function to convert string to array
+  const prepareFormData = async (): Promise<CreateCoverLetterData & { metadata?: any }> => {
   const stringToArray = (value: any): string[] => {
     if (Array.isArray(value)) return value;
     if (typeof value === 'string') {
-      // Split by commas or newlines, trim, and filter out empty strings
       return value.split(/[,;\n]+/).map(item => item.trim()).filter(Boolean);
     }
     return [];
   };
-
-  // Process form data to ensure arrays are properly formatted
-  const processedFormData = {
+  
+  const preparedData: CreateCoverLetterData & { metadata?: any } = {
     ...formData,
     category: selectedCategory!,
-    selectedResumeId: inputMethod === 'resume' ? selectedResumeId : undefined,
     userData: {
       ...formData.userData,
-      // Convert string fields to arrays
+      selectedResumeId: inputMethod === 'resume' ? selectedResumeId : undefined,
       skills: stringToArray(formData.userData?.skills),
       experience: stringToArray(formData.userData?.experience),
       achievements: stringToArray(formData.userData?.achievements),
@@ -1103,133 +1133,360 @@ const getFieldConfig = (field: string) => {
     },
     jobData: {
       ...formData.jobData,
-      // Convert string fields to arrays
       negotiationPoints: stringToArray(formData.jobData?.negotiationPoints),
       keyPoints: stringToArray(formData.jobData?.keyPoints),
+    },
+    // Add metadata as an optional field
+    metadata: {
+      language: languageOverride.trim() || undefined,
+      inputMethod: inputMethod,
+      // Any other metadata you need
+    }
+  };
+  
+  return preparedData;
+};
+
+
+
+// Add this helper function at the top of your component (inside the CoverLetterWizard function)
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message);
+  }
+  return t`An unknown error occurred`;
+};
+
+// Then fix your executeLetterGeneration function:
+const executeLetterGeneration = async () => {
+  if (!user) {
+    toast.error(t`Please sign in to generate a cover letter`);
+    return;
+  }
+
+  const transactionId = `generate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  let transactionSuccess = false;
+
+  try {
+    // 1. Start reservation process
+    setProcessStatus({ 
+      state: 'reserving', 
+      type: 'generate',
+      message: t`Reserving coins for letter generation...`,
+      transactionId
+    });
+
+    // 2. Reserve coins FIRST
+    const transactionResult = await deductCoinsWithRollback(
+      GENERATE_COST,
+      `Cover Letter Generation - ${selectedCategory}`,
+      { transactionId, actionType: 'generate', category: selectedCategory }
+    );
+
+    if (!transactionResult.success) {
+      throw new Error(transactionResult.error || t`Failed to process payment`);
+    }
+
+    transactionSuccess = true;
+
+    // 3. Update to processing state
+    setProcessStatus({ 
+      state: 'processing', 
+      type: 'generate',
+      message: t`Payment successful! Generating your letter with AI...`,
+      transactionId
+    });
+
+    // 4. Prepare data
+    const processedFormData = await prepareFormData();
+
+    // 5. 🚨 CALL THE CORRECT API METHOD - use create() not generate()
+    const result = await coverLetterService.create(processedFormData);
+    
+    // 6. Only mark as successful AFTER API call succeeds
+    setProcessStatus({ 
+      state: 'success', 
+      type: 'generate',
+      message: t`Letter generation completed successfully!`,
+      transactionId
+    });
+
+    await completeTransaction(transactionId, {
+      result: 'success',
+      actionType: 'generate',
+      category: selectedCategory
+    });
+
+    // Call onGenerate with the processedFormData (for parent component to handle)
+    // This will trigger the parent component's success flow
+    onGenerate(processedFormData);
+
+    toast.success(
+      <div className="space-y-1">
+        <div className="font-medium">{t`Letter generated successfully!`}</div>
+        <div className="text-xs text-green-600">
+          {t`Used ${GENERATE_COST} coins • Transaction: ${transactionId.slice(-8)}`}
+        </div>
+      </div>,
+      { duration: 5000 }
+    );
+
+  } catch (error) {
+    // Use the helper function to safely get error message
+    const errorMessage = getErrorMessage(error);
+    console.error('Letter generation failed:', error);
+    
+    setProcessStatus({ 
+      state: 'error', 
+      type: 'generate',
+      message: errorMessage,
+      transactionId
+    });
+
+    toast.error(
+      <div className="space-y-1">
+        <div className="font-medium">{t`Generation Failed`}</div>
+        <div className="text-xs text-red-600">
+          {errorMessage}
+        </div>
+        {transactionSuccess && (
+          <div className="text-xs text-amber-600 mt-1">
+            {t`Coins will be refunded...`}
+          </div>
+        )}
+      </div>,
+      { duration: 5000 }
+    );
+
+    // REFUND if payment was successful but generation failed
+    if (transactionSuccess) {
+      try {
+        await refundTransaction(transactionId, `Generation failed: ${errorMessage}`);
+        console.log(`💸 Refunded ${GENERATE_COST} coins due to generation failure`);
+        toast.info(t`${GENERATE_COST} coins have been refunded to your account.`);
+      } catch (refundError) {
+        console.error('Failed to process refund:', refundError);
+        toast.error(t`Failed to process refund. Please contact support.`);
+      }
+    }
+    
+    // 🚨 DO NOT call onGenerate on error!
+    // The parent component's onGenerate should handle failures separately
+    
+  } finally {
+    await fetchBalance();
+  }
+};
+// Handle coin confirmation
+ const handleCoinConfirm = async () => {
+    setShowCoinPopover(false);
+    if (pendingAction?.type === 'generate' && pendingAction.processedFormData) {
+      await executeLetterGeneration();
+    }
+    setPendingAction(null);
+  };
+
+// Handle buying coins
+const handleBuyCoins = (goSubscription = false) => {
+    setShowCoinPopover(false);
+    setPendingAction(null);
+    setProcessStatus({ state: 'idle' });
+    
+    if (goSubscription) {
+      window.location.href = "/dashboard/pricing";
+    } else {
+      const cost = pendingAction?.type === 'generate' ? GENERATE_COST : 5;
+      window.location.href = `/dashboard/coins?needed=${Math.max(0, cost - balance)}`;
     }
   };
 
-  console.log('=== SUBMITTING FORM DATA ===');
-  console.log('Skills:', processedFormData.userData.skills);
-  console.log('Experience:', processedFormData.userData.experience);
-  console.log('Achievements:', processedFormData.userData.achievements);
-  console.log('=== END DEBUG ===');
+  const StatusDisplay = () => {
+    if (processStatus.state === 'idle') return null;
+    
+    const statusConfig = {
+      checking: {
+        icon: Loader2,
+        color: 'text-yellow-500',
+        bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+        borderColor: 'border-yellow-200 dark:border-yellow-800',
+        spin: true
+      },
+      insufficient: {
+        icon: XCircle,
+        color: 'text-amber-500',
+        bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+        borderColor: 'border-amber-200 dark:border-amber-800',
+        spin: false
+      },
+      reserving: {
+        icon: Loader2,
+        color: 'text-yellow-500',
+        bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+        borderColor: 'border-yellow-200 dark:border-yellow-800',
+        spin: true
+      },
+      processing: {
+        icon: Loader2,
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+        borderColor: 'border-blue-200 dark:border-blue-800',
+        spin: true
+      },
+      success: {
+        icon: CheckCircle2,
+        color: 'text-green-500',
+        bgColor: 'bg-green-50 dark:bg-green-900/20',
+        borderColor: 'border-green-200 dark:border-green-800',
+        spin: false
+      },
+      error: {
+        icon: XCircle,
+        color: 'text-red-500',
+        bgColor: 'bg-red-50 dark:bg-red-900/20',
+        borderColor: 'border-red-200 dark:border-red-800',
+        spin: false
+      }
+    };
 
-  onGenerate(processedFormData as CreateCoverLetterData);
-};
+    const config = statusConfig[processStatus.state];
+    const IconComponent = config.icon;
+
+    return (
+      <div className={`p-3 rounded-lg border ${config.bgColor} ${config.borderColor} animate-in slide-in-from-bottom-2 duration-300 mb-4`}>
+        <div className="flex items-start space-x-2">
+          <IconComponent className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.color} ${config.spin ? 'animate-spin' : ''}`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
+              {processStatus.message}
+            </p>
+            {processStatus.state === 'error' && (
+              <div className="mt-2 space-y-2">
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setProcessStatus({ state: 'idle' })}
+                    className="text-xs h-7"
+                  >
+                    {t`Dismiss`}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
 
   const getCategoryColor = (category: LetterCategory) => {
     return CATEGORY_CONFIG[category].color;
   };
-
   const getCategoryIcon = (category: LetterCategory) => {
     const IconComponent = CATEGORY_CONFIG[category].icon;
     return <IconComponent className="w-6 h-6" />;
   };
-
 const renderField = (field: string, category: LetterCategory) => {
   const config = CATEGORY_CONFIG[category];
   const isUserField = config.fields.user.includes(field);
-  const value = isUserField 
+  const value = isUserField
     ? formData.userData?.[field as keyof typeof formData.userData] || ''
     : formData.jobData?.[field as keyof typeof formData.jobData] || '';
   const onChange = isUserField ? handleUserDataChange : handleJobDataChange;
-
   const fieldConfig: Record<string, any> = {
     name: {
-      label: 'Your Name *',
+      label: t`Your Name *`,
       type: 'text',
-      placeholder: 'John Doe',
+      placeholder: t`John Doe`,
       required: true
     },
     email: {
-      label: 'Email Address',
+      label: t`Email Address`,
       type: 'email',
-      placeholder: 'john@example.com'
+      placeholder: t`john@example.com`
     },
     phone: {
-      label: 'Phone Number',
+      label: t`Phone Number`,
       type: 'tel',
-      placeholder: '+1 (555) 123-4567'
+      placeholder: t`+1 (555) 123-4567`
     },
     address: {
-      label: 'Your Address',
+      label: t`Your Address`,
       type: 'text',
-      placeholder: '123 Main St, City, State 12345'
+      placeholder: t`123 Main St, City, State 12345`
     },
     skills: {
-      label: 'Key Skills & Qualifications',
+      label: t`Key Skills & Qualifications`,
       type: 'textarea',
-      placeholder: 'JavaScript, React, Project Management, Leadership...'
+      placeholder: t`JavaScript, React, Project Management, Leadership...`
     },
     experience: {
-      label: 'Professional Experience',
+      label: t`Professional Experience`,
       type: 'textarea',
-      placeholder: 'Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...'
+      placeholder: t`Senior Developer at Tech Corp (2020-Present): Led team of 5 developers...`
     },
     achievements: {
-      label: 'Achievements & Awards',
+      label: t`Achievements & Awards`,
       type: 'textarea',
-      placeholder: 'Employee of the Year 2022, Best Project Award...'
+      placeholder: t`Employee of the Year 2022, Best Project Award...`
     },
     academicLevel: {
-      label: 'Academic Level',
+      label: t`Academic Level`,
       type: 'text',
-      placeholder: 'e.g., Undergraduate, Graduate, PhD Candidate'
+      placeholder: t`e.g., Undergraduate, Graduate, PhD Candidate`
     },
     relevantCoursework: {
-      label: 'Relevant Coursework',
+      label: t`Relevant Coursework`,
       type: 'textarea',
-      placeholder: 'List relevant courses separated by commas'
+      placeholder: t`List relevant courses separated by commas`
     },
     careerGoals: {
-      label: 'Career Goals',
+      label: t`Career Goals`,
       type: 'textarea',
-      placeholder: 'Describe your career aspirations and goals'
+      placeholder: t`Describe your career aspirations and goals`
     },
     academicAchievements: {
-      label: 'Academic Achievements',
+      label: t`Academic Achievements`,
       type: 'textarea',
-      placeholder: 'Honors, awards, publications, research experience'
+      placeholder: t`Honors, awards, publications, research experience`
     },
     researchInterests: {
-      label: 'Research Interests',
+      label: t`Research Interests`,
       type: 'textarea',
-      placeholder: 'Your specific research interests and focus areas'
+      placeholder: t`Your specific research interests and focus areas`
     },
     // Add more field configurations as needed...
   };
-
-  const fieldInfo = fieldConfig[field] || { 
-    label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'), 
-    type: 'text', 
-    placeholder: `Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}` 
+  const fieldInfo = fieldConfig[field] || {
+    label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
+    type: 'text',
+    placeholder: t`Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`
   };
-
   // List of fields that should be treated as arrays
   const arrayFields = [
-    'skills', 'experience', 'achievements', 
-    'relevantCoursework', 'academicAchievements', 
+    'skills', 'experience', 'achievements',
+    'relevantCoursework', 'academicAchievements',
     'negotiationPoints', 'keyPoints'
   ];
-
   if (fieldInfo.type === 'textarea') {
     const isArrayField = arrayFields.includes(field);
-    
+   
     // For array fields: display as comma/line-separated string for editing
     // But store as array in state
-    const displayValue = isArrayField && Array.isArray(value) 
-      ? value.join(', ')  // Show array as comma-separated string
+    const displayValue = isArrayField && Array.isArray(value)
+      ? value.join(', ') // Show array as comma-separated string
       : (typeof value === 'string' ? value : '');
-
     return (
       <div key={field}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {fieldInfo.label} {fieldInfo.required && '*'}
           {isArrayField && (
             <span className="text-xs text-gray-500 ml-2">
-              (Separate with commas or new lines)
+              {t`(Separate with commas or new lines)`}
             </span>
           )}
         </label>
@@ -1265,13 +1522,12 @@ const renderField = (field: string, category: LetterCategory) => {
         />
         {isArrayField && Array.isArray(value) && value.length > 0 && (
           <div className="mt-2 text-xs text-gray-500">
-            {value.length} item{value.length !== 1 ? 's' : ''} entered
+            {value.length} {t`item${value.length !== 1 ? 's' : ''}`} {t`entered`}
           </div>
         )}
       </div>
     );
   }
-
   // For regular input fields
   return (
     <div key={field}>
@@ -1279,7 +1535,7 @@ const renderField = (field: string, category: LetterCategory) => {
         {fieldInfo.label} {fieldInfo.required && '*'}
         {arrayFields.includes(field) && (
           <span className="text-xs text-gray-500 ml-2">
-            (Separate with commas)
+            {t`(Separate with commas)`}
           </span>
         )}
       </label>
@@ -1315,17 +1571,16 @@ const renderField = (field: string, category: LetterCategory) => {
       />
       {arrayFields.includes(field) && Array.isArray(value) && value.length > 0 && (
         <div className="mt-1 text-xs text-gray-500">
-          {value.length} item{value.length !== 1 ? 's' : ''} entered
+          {value.length} {t`item${value.length !== 1 ? 's' : ''}`} {t`entered`}
         </div>
       )}
     </div>
   );
 };
-
  // Step 1: Welcome Screen
 if (currentStep === 'welcome') {
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="text-center space-y-12 py-16">
         {/* Hero Section with Animated Elements */}
         <div className="relative">
@@ -1333,94 +1588,89 @@ if (currentStep === 'welcome') {
           <div className="absolute -top-20 -left-20 w-40 h-40 bg-blue-200/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -top-10 -right-20 w-60 h-60 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
           <div className="absolute bottom-10 left-1/4 w-32 h-32 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-          
          
-
+        
           {/* Main Heading */}
           <CardTitle className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-6 leading-tight">
-            Craft Letters That
+            {t`Craft Letters That`}
             <span className="block bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Open Doors
+              {t`Open Doors`}
             </span>
           </CardTitle>
-
           {/* Subtitle */}
           <CardDescription className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed font-light">
-            Transform your communication with AI-powered precision. From job applications to professional correspondence, 
-            create letters that make <span className="font-semibold text-purple-600 dark:text-purple-400">lasting impressions</span>.
+            {t`Transform your communication with AI-powered precision. From job applications to professional correspondence, create letters that make`} <span className="font-semibold text-purple-600 dark:text-purple-400">{t`lasting impressions`}</span>.
           </CardDescription>
         </div>
-
         {/* CTA Section */}
         <div className="space-y-8">
           <div className="space-y-4">
             <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Ready to Make Your Mark?
+              {t`Ready to Make Your Mark?`}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Join thousands of professionals who've transformed their communication with our AI-powered platform.
+              {t`Join thousands of professionals who've transformed their communication with our AI-powered platform.`}
             </p>
           </div>
-
           {/* Enhanced CTA Button */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button 
+            <Button
               size="lg"
               onClick={() => setCurrentStep('category')}
               className="relative bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-6 text-lg font-semibold rounded-2xl shadow-2xl transform hover:scale-105 transition-all duration-300 group overflow-hidden"
             >
               {/* Shine effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              
+             
               <span className="relative flex items-center">
-                Start Creating Now
+                {t`Start Creating Now`}
                 <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
               </span>
             </Button>
-
-            <Button 
+           <Button
               variant="outline"
               size="lg"
-              onClick={onCancel}
+              onClick={() => {
+                onCancel(); // Call the existing onCancel function if needed
+                navigate('/docs/#letter-builder'); // Navigate to the letter builder docs
+              }}
               className="px-8 py-6 text-lg rounded-2xl border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
             >
-              Explore Examples
+              {t`Get Help`}
             </Button>
           </div>
-
           {/* Security Badge */}
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400 pt-4">
             <Shield className="w-4 h-4 text-green-500" />
-            <span>Secure & Confidential • No Spam</span>
+            <span>{t`Secure & Confidential • No Spam`}</span>
           </div>
         </div>
-
         {/* Value Proposition Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {[
             {
               icon: <Zap className="w-8 h-8" />,
-              title: "Lightning Fast",
-              description: "Generate professional letters in minutes, not hours",
-              stats: "Save 80% time",
+              title: t`Lightning Fast`,
+              description: t`Generate professional letters in minutes, not hours`,
+              stats: t`Save 80% time`,
               color: "from-yellow-500 to-orange-500"
             },
             {
               icon: <Target className="w-8 h-8" />,
-              title: "Precision Crafted",
-              description: "Tailored content for every scenario and audience",
-              stats: "12+ categories",
+              title: t`Precision Crafted`,
+              description: t`Tailored content for every scenario and audience`,
+              stats: t`12+ categories`,
               color: "from-green-500 to-teal-500"
             },
             {
               icon: <Award className="w-8 h-8" />,
-              title: "Professional Quality",
-              description: "Industry-standard templates that impress recruiters",
-              stats: "98% success rate",
+              title: t`Professional Quality`,
+              description: t`Industry-standard templates that impress recruiters`,
+              stats: t`98% success rate`,
               color: "from-purple-500 to-pink-500"
             }
           ].map((feature, index) => (
-            <div 
+            <div
               key={feature.title}
               className="group relative bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg rounded-2xl p-8 border border-gray-200/50 dark:border-gray-700/50 hover:border-transparent transition-all duration-500 hover:scale-105 hover:shadow-2xl"
             >
@@ -1428,7 +1678,7 @@ if (currentStep === 'welcome') {
               <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl p-0.5 -z-10">
                 <div className={`w-full h-full bg-gradient-to-r ${feature.color} rounded-2xl`}></div>
               </div>
-              
+             
               <div className="relative">
                 {/* Icon */}
                 <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
@@ -1436,7 +1686,6 @@ if (currentStep === 'welcome') {
                     {feature.icon}
                   </div>
                 </div>
-
                 {/* Content */}
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
                   {feature.title}
@@ -1451,15 +1700,14 @@ if (currentStep === 'welcome') {
             </div>
           ))}
         </div>
-
         {/* Trust Indicators */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-2xl p-8 mb-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { number: "10K+", label: "Letters Generated" },
-              { number: "95%", label: "User Satisfaction" },
-              { number: "12+", label: "Letter Categories" },
-              { number: "2min", label: "Average Creation Time" }
+              { number: "10K+", label: t`Letters Generated` },
+              { number: "95%", label: t`User Satisfaction` },
+              { number: "12+", label: t`Letter Categories` },
+              { number: "2min", label: t`Average Creation Time` }
             ].map((stat, index) => (
               <div key={stat.label} className="space-y-2">
                 <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -1472,14 +1720,11 @@ if (currentStep === 'welcome') {
             ))}
           </div>
         </div>
-
-        
+       
       </div>
     </div>
   );
 }
-
-
   // Step 2: Category Selection
 if (currentStep === 'category') {
   const getColorClasses = (color: string) => {
@@ -1569,39 +1814,36 @@ if (currentStep === 'category') {
         button: 'bg-gray-600 hover:bg-gray-700 text-white'
       }
     };
-    
+   
     return colorMap[color] || colorMap.blue;
   };
-
   return (
-    <div className="max-w-6xl mx-auto py-8">
+    <div className="max-w-7xl mx-auto py-8">
       <CardHeader className="border-b border-gray-200 dark:border-gray-700 pb-8 pt-6">
   <div className="flex flex-col space-y-4">
     {/* Back button positioned at the top */}
     <div className="flex justify-between items-start">
-      <Button 
-        variant="ghost" 
-        size="sm" 
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setCurrentStep('welcome')}
         className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Back to Welcome</span>
+        <span>{t`Back to Welcome`}</span>
       </Button>
     </div>
-    
+   
     {/* Main title and description */}
     <div className="text-center space-y-3">
       <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-        Choose Your Letter Type
+        {t`Choose Your Letter Type`}
       </CardTitle>
       <CardDescription className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
-        Select the category that best matches your purpose. We'll customize the experience 
-        and templates specifically for your needs.
+        {t`Select the category that best matches your purpose. We'll customize the experience and templates specifically for your needs.`}
       </CardDescription>
     </div>
-
-   
+  
   </div>
 </CardHeader>
       <CardContent className="p-8">
@@ -1610,7 +1852,7 @@ if (currentStep === 'category') {
             const config = CATEGORY_CONFIG[category];
             const Icon = config.icon;
             const colorClasses = getColorClasses(config.color);
-            
+           
             return (
               <div
                 key={category}
@@ -1631,7 +1873,7 @@ if (currentStep === 'category') {
                     {config.description}
                   </p>
                   <Button className={`w-full mt-4 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl ${colorClasses.button}`}>
-                    Select
+                    {t`Select`}
                     <ArrowRightIcon className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
@@ -1643,20 +1885,19 @@ if (currentStep === 'category') {
     </div>
   );
 }
-
   // Step 3: Input Method Selection
   if (currentStep === 'input-method' && selectedCategory) {
     const config = CATEGORY_CONFIG[selectedCategory];
-    
+   
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* <Card className="border-0 shadow-xl"> */}
           <CardHeader className="border-b border-gray-200 dark:border-gray-700 pb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Button variant="ghost" size="sm" onClick={() => setCurrentStep('category')}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  {t`Back`}
                 </Button>
                 <div className="flex justify-between space-x-2">
                   <div className={`w-8 h-8 bg-${config.color}-100 dark:bg-${config.color}-900 rounded-full flex items-center justify-center`}>
@@ -1667,7 +1908,7 @@ if (currentStep === 'category') {
                       {selectedCategory}
                     </CardTitle>
                     <CardDescription>
-                      How would you like to provide your information?
+                      {t`How would you like to provide your information?`}
                     </CardDescription>
                   </div>
                 </div>
@@ -1677,7 +1918,7 @@ if (currentStep === 'category') {
           <CardContent className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Manual Entry */}
-              <div 
+              <div
                 onClick={() => {
                   setInputMethod('manual');
                   setCurrentStep('data-input');
@@ -1690,44 +1931,42 @@ if (currentStep === 'category') {
                       <Edit3 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                      Enter Details Manually
+                      {t`Enter Details Manually`}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mb-6 flex-grow">
-                      Fill in the specific information needed for your {selectedCategory.toLowerCase()}. 
-                      We'll show you only the relevant fields.
+                      {t`Fill in the specific information needed for your ${selectedCategory.toLowerCase()}. We'll show you only the relevant fields.`}
                     </p>
                     <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400 text-left w-full">
                       <div className="flex items-center space-x-2">
                         <Check className="w-4 h-4 text-green-500" />
-                        <span>Category-specific fields only</span>
+                        <span>{t`Category-specific fields only`}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Check className="w-4 h-4 text-green-500" />
-                        <span>Full control over content</span>
+                        <span>{t`Full control over content`}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Check className="w-4 h-4 text-green-500" />
-                        <span>Optimized for {selectedCategory.toLowerCase()}</span>
+                        <span>{t`Optimized for ${selectedCategory.toLowerCase()}`}</span>
                       </div>
                     </div>
                     <Button className="w-full mt-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       <Edit3 className="w-4 h-4 mr-2" />
-                      Start Filling Details
+                      {t`Start Filling Details`}
                     </Button>
                   </div>
                 </div>
               </div>
-
               {/* Resume Import */}
-              <div 
+              <div
                 onClick={() => {
                   if (hasResumes && resumeServiceAvailable) {
                     setInputMethod('resume');
                     setCurrentStep('data-input');
                   } else if (!resumeServiceAvailable) {
-                    toast.error('Resume service is currently unavailable.');
+                    toast.error(t`Resume service is currently unavailable.`);
                   } else {
-                    toast.error('No resumes found. Please create a resume first.');
+                    toast.error(t`No resumes found. Please create a resume first.`);
                   }
                 }}
                 className={`group cursor-pointer transition-all duration-300 ${
@@ -1735,8 +1974,8 @@ if (currentStep === 'category') {
                 }`}
               >
                 <div className={`relative p-8 border-2 rounded-2xl bg-white dark:bg-gray-800 transition-all duration-300 h-full ${
-                  hasResumes && resumeServiceAvailable 
-                    ? 'border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-400 hover:shadow-2xl' 
+                  hasResumes && resumeServiceAvailable
+                    ? 'border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-400 hover:shadow-2xl'
                     : 'border-gray-200 dark:border-gray-700'
                 }`}>
                   <div className="flex flex-col items-center text-center h-full">
@@ -1752,40 +1991,40 @@ if (currentStep === 'category') {
                       }`} />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                      Import from Resume
+                      {t`Import from Resume`}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mb-6 flex-grow">
-                      Quickly import your information from an existing resume and review the imported data.
+                      {t`Quickly import your information from an existing resume and review the imported data.`}
                     </p>
-                    
+                   
                     {isLoadingResumes ? (
                       <div className="w-full py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto"></div>
-                        <p className="text-sm text-gray-500 mt-2">Loading resumes...</p>
+                        <p className="text-sm text-gray-500 mt-2">{t`Loading resumes...`}</p>
                       </div>
                     ) : hasResumes ? (
                       <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400 text-left w-full">
                         <div className="flex items-center space-x-2">
                           <Check className="w-4 h-4 text-green-500" />
-                          <span>Auto-fill from {resumes.length} resume{resumes.length !== 1 ? 's' : ''}</span>
+                          <span>{t`Auto-fill from ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}`}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Check className="w-4 h-4 text-green-500" />
-                          <span>Edit imported data before generating</span>
+                          <span>{t`Edit imported data before generating`}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Check className="w-4 h-4 text-green-500" />
-                          <span>Quick setup with full control</span>
+                          <span>{t`Quick setup with full control`}</span>
                         </div>
                       </div>
                     ) : (
                       <div className="text-sm text-orange-600 dark:text-orange-400 w-full py-4">
                         <FileText className="w-6 h-6 mx-auto mb-2" />
-                        <p>No resumes found</p>
+                        <p>{t`No resumes found`}</p>
                       </div>
                     )}
-                    
-                    <Button 
+                   
+                    <Button
                       className={`w-full mt-6 transition-colors ${
                         hasResumes && resumeServiceAvailable
                           ? 'group-hover:bg-green-600 group-hover:text-white'
@@ -1794,7 +2033,7 @@ if (currentStep === 'category') {
                       disabled={!hasResumes || !resumeServiceAvailable}
                     >
                       <FileText className="w-4 h-4 mr-2" />
-                      {hasResumes ? 'Import from Resume' : 'No Resumes Available'}
+                      {hasResumes ? t`Import from Resume` : t`No Resumes Available`}
                     </Button>
                   </div>
                 </div>
@@ -1805,20 +2044,19 @@ if (currentStep === 'category') {
       </div>
     );
   }
-
   // Step 4: Data Input (Manual or Resume-based)
   if (currentStep === 'data-input' && selectedCategory && inputMethod) {
     const config = CATEGORY_CONFIG[selectedCategory];
-    
+   
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* <Card className="border-0 shadow-xl"> */}
           <CardHeader className="border-b border-gray-200 dark:border-gray-700 pb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Button variant="ghost" size="sm" onClick={() => setCurrentStep('input-method')}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  {t`Back`}
                 </Button>
                 <div className="flex items-center space-x-2">
                   <div className={`w-8 h-8 bg-${config.color}-100 dark:bg-${config.color}-900 rounded-full flex items-center justify-center`}>
@@ -1826,42 +2064,42 @@ if (currentStep === 'category') {
                   </div>
                   <div>
                     <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
-                      {selectedCategory} Details
+                      {selectedCategory} {t`Details`}
                     </CardTitle>
                     <CardDescription>
-                      {inputMethod === 'manual' 
-                        ? `Provide the information needed for your ${selectedCategory.toLowerCase()}`
-                        : 'Review and edit your imported information'
+                      {inputMethod === 'manual'
+                        ? t`Provide the information needed for your ${selectedCategory.toLowerCase()}`
+                        : t`Review and edit your imported information`
                       }
                     </CardDescription>
                   </div>
                 </div>
               </div>
               {inputMethod === 'resume' && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowImportedData(!showImportedData)}
                 >
                   {showImportedData ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
-                  {showImportedData ? 'Hide Preview Data' : 'Show Preview Data'}
+                  {showImportedData ? t`Hide Preview Data` : t`Show Preview Data`}
                 </Button>
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-8">
+          <CardContent className="p-2">
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Resume Selection (only for resume mode) */}
               {inputMethod === 'resume' && (
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-2xl p-6">
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-2xl p-2">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <FileText className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                    Select Resume to Import From
+                    {t`Select Resume to Import From`}
                   </h3>
                   {isLoadingResumes ? (
                     <div className="text-center py-4">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto mb-2"></div>
-                      <p className="text-gray-600 dark:text-gray-400">Loading your resumes...</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t`Loading your resumes...`}</p>
                     </div>
                   ) : (
                     <select
@@ -1869,15 +2107,15 @@ if (currentStep === 'category') {
                       onChange={(e) => setSelectedResumeId(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-800"
                     >
-                      <option value="">Choose a resume to import from...</option>
+                      <option value="">{t`Choose a resume to import from...`}</option>
                       {resumes?.map(resume => {
                         const resumeData = resume.data as any;
                         const basics = resumeData.basics || {};
                         return (
                           <option key={resume.id} value={resume.id}>
-                            {basics.name || 'Untitled'} - {resume.title}
-                            {resumeData.skills?.length > 0 && ` • ${resumeData.skills.length} skills`}
-                            {resumeData.work?.length > 0 && ` • ${resumeData.work.length} positions`}
+                            {basics.name || t`Untitled`} - {resume.title}
+                            {resumeData.skills?.length > 0 && ` • ${resumeData.skills.length} ${t`skills`}`}
+                            {resumeData.work?.length > 0 && ` • ${resumeData.work.length} ${t`positions`}`}
                           </option>
                         );
                       })}
@@ -1885,27 +2123,26 @@ if (currentStep === 'category') {
                   )}
                 </div>
               )}
-
               {/* Resume Data Preview */}
               {inputMethod === 'resume' && selectedResumeId && showImportedData && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-6">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-1">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                       <FileText className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                      Imported Resume Data Preview
+                      {t`Imported Resume Data Preview`}
                     </h3>
                     <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
                       <Check className="w-4 h-4" />
-                      <span className="text-sm font-medium">Data Imported</span>
+                      <span className="text-sm font-medium">{t`Data Imported`}</span>
                     </div>
                   </div>
-                  
+                 
                   {/* Resume-like Structured Layout */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-800 overflow-hidden">
                     {/* Header Section */}
                     <div className="bg-green-50 dark:bg-green-900/30 px-6 py-4 border-b border-green-200 dark:border-green-700">
                       <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                        {formData.userData.name || 'Your Name'}
+                        {formData.userData.name || t`Your Name`}
                       </h2>
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400 mt-2">
                         {formData.userData.email && (
@@ -1928,18 +2165,17 @@ if (currentStep === 'category') {
                         )}
                       </div>
                     </div>
-
                     <div className="p-6 space-y-6">
                       {/* Skills Section */}
                       {formData.userData.skills?.length > 0 && (
                         <div className="space-y-3">
                           <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
                             <Zap className="w-4 h-4 mr-2" />
-                            Skills & Qualifications
+                            {t`Skills & Qualifications`}
                           </h3>
                           <div className="flex flex-wrap gap-2">
                             {formData.userData.skills.map((skill, index) => (
-                              <span 
+                              <span
                                 key={index}
                                 className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm px-3 py-1 rounded-full border border-green-200 dark:border-green-700"
                               >
@@ -1949,13 +2185,12 @@ if (currentStep === 'category') {
                           </div>
                         </div>
                       )}
-
                       {/* Experience Section */}
                       {formData.userData.experience?.length > 0 && (
                         <div className="space-y-4">
                           <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
                             <Briefcase className="w-4 h-4 mr-2" />
-                            Professional Experience
+                            {t`Professional Experience`}
                           </h3>
                           <div className="space-y-4">
                             {formData.userData.experience.map((exp, index) => {
@@ -1963,7 +2198,7 @@ if (currentStep === 'category') {
                               const parts = exp.split(':');
                               const titleAndCompany = parts[0] || '';
                               const description = parts.slice(1).join(':').trim();
-                              
+                             
                               return (
                                 <div key={index} className="border-l-2 border-green-300 pl-4 py-1">
                                   <div className="font-medium text-gray-900 dark:text-white">
@@ -1980,13 +2215,12 @@ if (currentStep === 'category') {
                           </div>
                         </div>
                       )}
-
                       {/* Achievements Section */}
                       {formData.userData.achievements?.length > 0 && (
                         <div className="space-y-4">
                           <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center">
                             <Award className="w-4 h-4 mr-2" />
-                            Achievements & Projects
+                            {t`Achievements & Projects`}
                           </h3>
                           <div className="space-y-3">
                             {formData.userData.achievements.map((achievement, index) => (
@@ -2000,26 +2234,25 @@ if (currentStep === 'category') {
                           </div>
                         </div>
                       )}
-
                       {/* Summary Stats */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <div className="text-center">
                           <div className="text-lg font-bold text-green-600 dark:text-green-400">
                             {formData.userData.skills?.length || 0}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Skills</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{t`Skills`}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-bold text-green-600 dark:text-green-400">
                             {formData.userData.experience?.length || 0}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Experiences</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{t`Experiences`}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-bold text-green-600 dark:text-green-400">
                             {formData.userData.achievements?.length || 0}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Achievements</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{t`Achievements`}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-bold text-green-600 dark:text-green-400">
@@ -2030,21 +2263,19 @@ if (currentStep === 'category') {
                               formData.userData.address
                             ].filter(Boolean).length}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Contact Info</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{t`Contact Info`}</div>
                         </div>
                       </div>
                     </div>
                   </div>
-
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <p className="text-sm text-blue-700 dark:text-blue-400 flex items-center">
                       <Edit3 className="w-4 h-4 mr-2" />
-                      <strong>Tip:</strong> You can edit any of the imported data in the fields below before generating your letter.
+                      <strong>{t`Tip:`}</strong> {t`You can edit any of the imported data in the fields below before generating your letter.`}
                     </p>
                   </div>
                 </div>
               )}
-
               {/* Data Input Fields */}
               <div className="space-y-6">
                 {/* User Information Fields */}
@@ -2052,25 +2283,24 @@ if (currentStep === 'category') {
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                       <User className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-                      Your Information
+                      {t`Your Information`}
                     </h3>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {config.fields.user.map(field => renderField(field, selectedCategory))}
                     </div>
                   </div>
                 )}
-
                 {/* Rest of your existing code remains the same */}
                 {/* Job/Recipient Information Fields */}
                 {config.fields.job && config.fields.job.length > 0 && (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                       <Target className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                      {selectedCategory.includes('Job') || selectedCategory.includes('Internship') 
-                        ? 'Job Information' 
+                      {selectedCategory.includes('Job') || selectedCategory.includes('Internship')
+                        ? t`Job Information`
                         : selectedCategory.includes('Recommendation') || selectedCategory.includes('Appreciation')
-                        ? 'Recipient Information'
-                        : 'Letter Details'
+                        ? t`Recipient Information`
+                        : t`Letter Details`
                       }
                     </h3>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2078,41 +2308,41 @@ if (currentStep === 'category') {
                     </div>
                   </div>
                 )}
-
                 {/* Custom Instructions */}
+
+                
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-6">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <Type className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" />
-                    Additional Instructions (Optional)
+                    {t`Additional Instructions (Optional)`}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Provide specific guidance to tailor your letter exactly how you want it.
+                    {t`Provide specific guidance to tailor your letter exactly how you want it.`}
                   </p>
+                  
                   <textarea
                     value={formData.customInstructions}
                     onChange={(e) => handleInputChange('customInstructions', e.target.value)}
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none bg-white dark:bg-gray-800"
-                    placeholder={`Specific guidance for your ${selectedCategory.toLowerCase()}... Address particular requirements or concerns
-                            `}
+                    placeholder={t`Specific guidance for your ${selectedCategory.toLowerCase()}... Address particular requirements or concerns`}
                   />
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Please here you make sure to specify all the requirements.
+                    {t`Please here you make sure to specify all the requirements.`}
                   </p>
                 </div>
               </div>
-
               {/* Navigation */}
               <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="outline" onClick={() => setCurrentStep('input-method')}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  {t`Back`}
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setCurrentStep('configuration')}
                   disabled={!formData.userData.name.trim()}
                 >
-                  Continue to Configuration
+                  {t`Continue to Configuration`}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -2122,20 +2352,19 @@ if (currentStep === 'category') {
       </div>
     );
   }
-
   // Step 5: Final Configuration
   if (currentStep === 'configuration' && selectedCategory) {
     const config = CATEGORY_CONFIG[selectedCategory];
-    
+   
     return (
-       <div className="max-w-4xl mx-auto py-8">
+       <div className="max-w-7xl mx-auto py-8">
         {/* <Card className="border-0 shadow-xl"> */}
           <CardHeader className="border-b border-gray-200 dark:border-gray-700 pb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Button variant="ghost" size="sm" onClick={() => setCurrentStep('data-input')}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  {t`Back`}
                 </Button>
                 <div className="flex items-center space-x-2">
                   <div className={`w-8 h-8 bg-${config.color}-100 dark:bg-${config.color}-900 rounded-full flex items-center justify-center`}>
@@ -2143,159 +2372,461 @@ if (currentStep === 'category') {
                   </div>
                   <div>
                     <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
-                      Final Configuration
+                      {t`Final Configuration`}
                     </CardTitle>
                     <CardDescription>
-                      Review your settings and generate your {selectedCategory.toLowerCase()}
+                      {t`Review your settings and generate your ${selectedCategory.toLowerCase()}`}
                     </CardDescription>
                   </div>
                 </div>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-8">
+          <CardContent className="p-2">
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Letter Configuration */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-1">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                   <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-                  Letter Configuration
+                  {t`Letter Configuration`}
                 </h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Letter Title *
+                      {t`Letter Title *`}
                     </label>
                     <input
                       type="text"
                       required
                       value={formData.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
-                      className={`w-full px-4 py-3 border text-gray-700  dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                      className={`w-full px-4 py-3 border text-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
                         errors.title ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                       }`}
-                      placeholder={`e.g., ${selectedCategory} for ${formData.jobData.company || 'Target Company'}`}
+                      placeholder={`e.g., ${selectedCategory} for ${formData.jobData.company || t`Target Company`}`}
                     />
                     {errors.title && (
                       <p className="text-red-500 text-sm mt-1">{errors.title}</p>
                     )}
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         <Palette className="w-4 h-4 inline mr-1" />
-                        Writing Style
+                        {t`Writing Style`}
                       </label>
                       <select
                         value={formData.style}
                         onChange={(e) => handleInputChange('style', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
                       >
-                        <option value="Professional">Professional</option>
-                        <option value="Modern">Modern</option>
-                        <option value="Traditional">Traditional</option>
-                        <option value="Executive">Executive</option>
-                        <option value="Creative">Creative</option>
-                        <option value="Minimalist">Minimalist</option>
-                        <option value="Academic">Academic</option>
-                        <option value="Technical">Technical</option>
+                        <option value="Professional">{t`Professional`}</option>
+                        <option value="Modern">{t`Modern`}</option>
+                        <option value="Traditional">{t`Traditional`}</option>
+                        <option value="Executive">{t`Executive`}</option>
+                        <option value="Creative">{t`Creative`}</option>
+                        <option value="Minimalist">{t`Minimalist`}</option>
+                        <option value="Academic">{t`Academic`}</option>
+                        <option value="Technical">{t`Technical`}</option>
                       </select>
                     </div>
-
-                    <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Layout className="w-4 h-4 inline mr-1" />
-                      Template Layout
-                    </label>
-                    <select
-                      value={formData.layout || (templates.length > 0 ? templates[0].id : '')}
-                      onChange={(e) => handleInputChange('layout', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
-                      disabled={isLoadingTemplates || templates.length === 0}
-                    >
-                      {isLoadingTemplates ? (
-                        <option value="">Loading templates for {selectedCategory}...</option>
-                      ) : templates.length === 0 ? (
-                        <option value="">No templates available</option>
-                      ) : (
-                        <>
-                          <option value="">Select a template...</option>
-                          {templates.map(template => (
-                            <option key={template.id} value={template.id}>
-                              {template.name} {template.premium ? '⭐' : ''}
-                            </option>
-                          ))}
-                        </>
+                   {/* Template Selection Button */}
+                    {/* Template Selection - Simple Button */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <Layout className="w-4 h-4 inline mr-1" />
+                        {t`Letter Template`}
+                      </label>
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowTemplateSelector(true)}
+                        className="w-full justify-between px-4 py-3 h-auto"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center flex-shrink-0">
+                            <Layout className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium">
+                              {formData.layout 
+                                ? templates.find(t => t.id === formData.layout)?.name || t`Selected Template`
+                                : t`Choose a template...`
+                              }
+                            </div>
+                            {formData.layout && (
+                              <div className="text-xs text-gray-500">
+                                {templates.find(t => t.id === formData.layout)?.style || ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      </Button>
+                      
+                      {formData.layout && (
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Check className="w-3 h-3 text-green-500" />
+                          {t`Template selected`} • {t`Click to change`}
+                        </div>
                       )}
-                    </select>
-                    {templates.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {templates.length} template{templates.length !== 1 ? 's' : ''} available for {selectedCategory}
-                      </p>
-                    )}
+                    </div>
+
                   </div>
+
+                  {/*LANGUAGE OVERRIDE HERE */}
+                  <div className="lg:col-span-2 mt-4">
+                    <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-800 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Globe className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {t`Language Override (Optional)`}
+                          </label>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={languageOverride}
+                              onChange={(e) => setLanguageOverride(e.target.value)}
+                              placeholder={t`e.g., Spanish, French, German (leave empty for auto-detection)`}
+                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800"
+                            />
+                            <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                              <p className="flex items-center">
+                                <Info className="w-3 h-3 mr-1" />
+                                {t`By default, the system auto-detects language from your inputs.`}
+                              </p>
+                              <p className="flex items-center">
+                                <Zap className="w-3 h-3 mr-1 text-green-500" />
+                                {t`Examples: "Spanish", "French", "German", "Italian"`}
+                              </p>
+                              <p className="flex items-center">
+                                <AlertCircle className="w-3 h-3 mr-1 text-amber-500" />
+                                {t`Use this only if you want to override the auto-detection.`}
+                              </p>
+                            </div>
+                            
+                            {/* Show current language detection hint */}
+                            {!languageOverride && (
+                              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                  <strong>{t`Auto-detection active:`}</strong> {t`The letter will be generated in the same language as your inputs.`}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Show override confirmation */}
+                            {languageOverride && (
+                              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                                <p className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">
+                                  {t`✓ Language override set to:`} <span className="font-bold">{languageOverride}</span>
+                                </p>
+                                <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                                  {t`The letter will be generated in ${languageOverride}, regardless of input language.`}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+           
+
                 </div>
               </div>
-
               {/* Preview Summary */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Ready to Generate!
+                  {t`Ready to Generate!`}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Category:</strong> {selectedCategory}
+                    <strong>{t`Category:`}</strong> {selectedCategory}
                   </div>
                   <div>
-                    <strong>Style:</strong> {formData.style}
+                    <strong>{t`Style:`}</strong> {formData.style}
                   </div>
                   <div>
-                    <strong>Template:</strong> {templates.find(t => t.layout === formData.layout)?.name || 'Professional'}
+                    <strong>{t`Template:`}</strong> {templates.find(t => t.layout === formData.layout)?.name || t`Professional`}
                   </div>
                   <div>
-                    <strong>Input Method:</strong> {inputMethod === 'manual' ? 'Manual Entry' : 'Resume Import'}
+                    <strong>{t`Input Method:`}</strong> {inputMethod === 'manual' ? t`Manual Entry` : t`Resume Import`}
                   </div>
                 </div>
               </div>
+
+
+              {/* Submit Button */}
+                <StatusDisplay />
 
               {/* Submit Button */}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="outline" onClick={() => setCurrentStep('data-input')} className="w-full sm:w-auto">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Details
+                  {t`Back to Details`}
                 </Button>
+                
+                {/* Coin Balance Display */}
+                <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
+                  <Coins className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {balance} <span className="text-gray-500 dark:text-gray-400">coins</span>
+                  </span>
+                  <Crown className="w-4 h-4 text-yellow-400" />
+                </div>
+                
                 <div className="flex gap-3 w-full sm:w-auto">
-                  <Button variant="outline" onClick={onCancel} disabled={isGenerating} className="flex-1 sm:flex-none">
-                    Cancel
+                  <Button variant="outline" onClick={onCancel} disabled={processStatus.state === 'processing' || processStatus.state === 'reserving'} className="flex-1 sm:flex-none">
+                    {t`Cancel`}
                   </Button>
-                <Button
-                  type="submit"
-                  disabled={isGenerating}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Generating Your Letter...
-                    </>
-                  ) : (
-                    <>
-                    
-                      Generate {selectedCategory}
-                    </>
-                  )}
-                </Button>
-
+                  
+                  <Button
+                    type="submit"
+                    ref={generateButtonRef}
+                    disabled={processStatus.state === 'processing' || processStatus.state === 'reserving' || processStatus.state === 'checking' || isGenerating}
+                    onClick={handleSubmit}
+                    className="w-full sm:w-auto py-3 px-4 sm:px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {processStatus.state === 'processing' || processStatus.state === 'reserving' || isGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                        <span className="whitespace-nowrap text-sm sm:text-base">
+                          {processStatus.state === 'reserving' ? t`Processing...` : t`Generating...`}
+                        </span>
+                      </span>
+                    ) : processStatus.state === 'checking' ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="whitespace-nowrap text-sm sm:text-base">
+                          {t`Checking...`}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2 whitespace-nowrap">
+                        <Wand2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="font-bold text-sm sm:text-base">
+                          {t`Generate Letter`}
+                        </span>
+                        <span className="text-xs sm:text-sm bg-white/20 px-2 py-0.5 rounded-full">
+                          {GENERATE_COST} coins
+                        </span>
+                      </span>
+                    )}
+                  </Button>
                 </div>
               </div>
-            </form>
-          </CardContent>
-        {/* </Card> */}
-      </div>
-    );
-  }
+        </form>
+      </CardContent>
+    {/* </Card> */}
 
+      <CoinConfirmPopover
+      open={showCoinPopover}
+      onClose={() => {
+        setShowCoinPopover(false);
+        setPendingAction(null);
+        setProcessStatus({ state: 'idle' });
+      }}
+      required={GENERATE_COST}
+      balance={balance}
+      onConfirm={handleCoinConfirm}
+      onBuyCoins={handleBuyCoins}
+      title={t`Generate ${selectedCategory}`}
+      description={t`Generate your professional ${selectedCategory?.toLowerCase()} with AI-powered customization. ${GENERATE_COST} coins will be deducted from your balance.`}
+      actionType="generate"
+      triggerRef={generateButtonRef}
+    />
+
+        {/* Template Selector Modal */}
+{showTemplateSelector && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {t`Select a Template`}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {t`Choose a design for your ${selectedCategory?.toLowerCase() || 'letter'}`}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowTemplateSelector(false)}
+            className="rounded-full"
+          >
+            ✕
+          </Button>
+        </div>
+      </div>
+
+      {/* Template Grid - Scrollable */}
+      <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+        {isLoadingTemplates ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t`Loading templates...`}
+            </p>
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="text-center py-12">
+            <Layout className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              {t`No Templates Available`}
+            </h4>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t`No templates found for ${selectedCategory}. Try a different category.`}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((template) => {
+              const isSelected = formData.layout === template.id;
+              const imageUrl = `/templates/jpg/letters/${template.id}.jpg`;
+
+              return (
+                <div
+                  key={template.id}
+                  onClick={() => {
+                    handleInputChange('layout', template.id);
+                    setShowTemplateSelector(false);
+                  }}
+                  className={`group cursor-pointer rounded-xl border-2 transition-all duration-200 ${
+                    isSelected
+                      ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-lg'
+                  }`}
+                >
+                  {/* Template Image */}
+                  <div className="relative aspect-[1/1.4142] overflow-hidden rounded-t-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                    <img
+                      src={imageUrl}
+                      alt={template.name}
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.style.opacity = "0";
+                        const parent = img.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                              <Layout class="w-12 h-12 text-gray-400 mb-3" />
+                              <div class="text-lg font-bold text-gray-600">${template.name}</div>
+                              <div class="text-sm text-gray-500 mt-1">${template.style}</div>
+                              <div class="text-xs text-gray-400 mt-2">Preview not available</div>
+                            </div>
+                          `;
+                        }
+                      }}
+                    />
+                    
+                    {/* Selection Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-3 right-3">
+                        <div className="bg-blue-600 text-white rounded-full p-2 shadow-lg">
+                          <Check className="w-5 h-5" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Template Info */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-1">
+                          {template.name}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {template.description || `${template.style} style template`}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-3 py-1 rounded-full ${
+                          template.style === 'Professional' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          template.style === 'Creative' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                          template.style === 'Modern' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                        }`}>
+                          {template.style}
+                        </span>
+                        {template.premium && (
+                          <span className="text-xs px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded-full">
+                            ⭐ Premium
+                          </span>
+                        )}
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        variant={isSelected ? "primary" : "outline"}
+                        className={isSelected ? "bg-blue-600 hover:bg-blue-700" : ""}
+                      >
+                        {isSelected ? t`Selected` : t`Choose`}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {formData.layout ? (
+              <span>
+                {t`Selected:`}{' '}
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {templates.find(t => t.id === formData.layout)?.name}
+                </span>
+              </span>
+            ) : (
+              t`No template selected`
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowTemplateSelector(false)}
+            >
+              {t`Cancel`}
+            </Button>
+            <Button
+              onClick={() => {
+                if (formData.layout) {
+                  setShowTemplateSelector(false);
+                }
+              }}
+              disabled={!formData.layout}
+            >
+              {t`Confirm Selection`}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+      </div>
+
+      
+    );
+
+    
+  }
   return null;
 };

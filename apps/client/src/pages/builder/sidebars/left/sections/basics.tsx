@@ -54,7 +54,7 @@ export const BasicsSection = () => {
           <Label htmlFor="basics.email">{t`Email`}</Label>
           <Input
             id="basics.email"
-            placeholder="john.doe@example.com"
+            placeholder="khan@example.com"
             value={basics.email}
             hasError={
               !basicsSchema.pick({ email: true }).safeParse({ email: basics.email }).success
@@ -81,7 +81,7 @@ export const BasicsSection = () => {
           <Label htmlFor="basics.phone">{t`Phone`}</Label>
           <Input
             id="basics.phone"
-            placeholder="+1 (123) 4567 7890"
+            placeholder="+1 (123) 4547 8490"
             value={basics.phone}
             onChange={(event) => {
               setValue("basics.phone", event.target.value);

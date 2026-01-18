@@ -34,7 +34,7 @@ export const RightSidebar = () => {
   };
 
   return (
-    <div className="flex border-l border-gray-500 dark:border-gray-700 h-full w-full bg-background">
+    <div className="flex border-l mt-20 border-gray-500 dark:border-gray-700 h-full w-full bg-background">
       {/* Content Area */}
       <div className="flex-1 flex flex-col">
         <ScrollArea orientation="vertical" className="flex-1">

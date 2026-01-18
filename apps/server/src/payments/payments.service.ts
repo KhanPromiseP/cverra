@@ -20,10 +20,10 @@ export class PaymentsService {
   }
 
   private initializeDrivers() {
-    // Always initialize MOCK driver
-    // this.drivers['MOCK'] = new MockDriver();
+    // Always initialize MOCK driver (for testing)
+    this.drivers['MOCK'] = new MockDriver();
     
-    // Initialize Tranzak driver if API key is available
+    // Initialize Tranzak driver
     if (process.env.TRANZAK_APP_ID && process.env.TRANZAK_APP_KEY) {
       try {
         this.drivers['TRANZAK'] = new TranzakDriver({
@@ -33,28 +33,43 @@ export class PaymentsService {
           callbackUrl: process.env.TRANZAK_CALLBACK_URL || `${process.env.APP_URL}/payments/callback`,
           webhookSecret: process.env.TRANZAK_WEBHOOK_SECRET,
         });
+        this.logger.log('Tranzak driver initialized');
       } catch (error) {
-        console.warn('Tranzak driver initialization failed:', error);
+        this.logger.warn('Tranzak driver initialization failed:', error);
       }
     }
-    // Initialize Stripe driver if credentials are available
-    if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET) {
+    
+    // Initialize Stripe driver with better error handling
+    if (process.env.STRIPE_SECRET_KEY) {
       try {
+        // Check if Stripe package is installed
+        try {
+          require('stripe');
+        } catch (e) {
+          this.logger.error('Stripe package not installed. Run: npm install stripe');
+          throw new Error('Stripe package not installed');
+        }
+        
+        if (!process.env.STRIPE_WEBHOOK_SECRET) {
+          this.logger.warn('STRIPE_WEBHOOK_SECRET not set. Webhook verification will fail.');
+        }
+        
         this.drivers['STRIPE'] = new StripeDriver({
           apiKey: process.env.STRIPE_SECRET_KEY,
-          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
         });
         this.logger.log('Stripe driver initialized successfully');
       } catch (error) {
-        this.logger.warn('Stripe driver initialization failed', error);
+        this.logger.error('Stripe driver initialization failed:', error);
+        // Don't fail the entire app if Stripe fails
       }
     } else {
-      this.logger.warn('STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET not found. Stripe payments disabled.');
+      this.logger.warn('STRIPE_SECRET_KEY not found. Stripe payments disabled.');
     }
-
-    // Log available drivers
+    
     this.logger.log(`Available payment drivers: ${Object.keys(this.drivers).join(', ')}`);
   }
+
 
   private getDriver(provider: string): IPaymentDriver {
     const normalizedProvider = provider.toUpperCase();

@@ -5,9 +5,10 @@ import { useUser } from "../services/user";
 type Props = {
   size?: number;
   className?: string;
+  withBorder?: boolean; // Add this prop if you want border control
 };
 
-export const UserAvatar = ({ size = 36, className }: Props) => {
+export const UserAvatar = ({ size = 36, className = "", withBorder = false }: Props) => {
   const { user } = useUser();
 
   if (!user) return null;
@@ -19,8 +20,12 @@ export const UserAvatar = ({ size = 36, className }: Props) => {
       <img
         alt={user.name}
         src={user.picture}
-        className="rounded-full"
-        style={{ width: size, height: size }}
+        className={`object-cover ${withBorder ? 'border-2 border-white dark:border-gray-800' : ''}`}
+        style={{ 
+          width: size, 
+          height: size,
+          borderRadius: '50%'
+        }}
       />
     );
   } else {
@@ -28,13 +33,31 @@ export const UserAvatar = ({ size = 36, className }: Props) => {
 
     picture = (
       <div
-        style={{ width: size, height: size }}
-        className="flex items-center justify-center rounded-full bg-secondary text-center text-[10px] font-semibold text-secondary-foreground"
+        style={{ 
+          width: size, 
+          height: size,
+          borderRadius: '50%',
+          fontSize: Math.max(10, size / 2.5)
+        }}
+        className={`flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold ${
+          withBorder ? 'border-2 border-white dark:border-gray-800' : ''
+        }`}
       >
         {initials}
       </div>
     );
   }
 
-  return <div className={className}>{picture}</div>;
+  return (
+    <div 
+      className={className}
+      style={{
+        borderRadius: '50%',
+        overflow: 'hidden', // Ensure no overflow
+        display: 'inline-block'
+      }}
+    >
+      {picture}
+    </div>
+  );
 };

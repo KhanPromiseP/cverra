@@ -1,5 +1,28 @@
-// server/cover-letter/dto/create-cover-letter.dto.ts
-import { IsString, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
+
+
+import { IsString, IsOptional, IsBoolean, IsArray, IsEnum, IsNotEmpty, IsNumber } from 'class-validator';
+
+// Add these enums if not already defined
+export enum TranslationStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
+}
+
+export enum TranslationMethod {
+  COMPLETE = 'complete',
+  SECTION_BY_SECTION = 'section-by-section',
+  PRESERVE_STRUCTURE = 'preserve-structure'
+}
+
+export enum TranslationPreservation {
+  ALL = 'all',
+  FORMATTING_ONLY = 'formatting-only',
+  STRUCTURE_ONLY = 'structure-only',
+  NONE = 'none'
+}
+
 
 export class UserDataDto {
   @IsString()
@@ -336,6 +359,11 @@ export class CreateCoverLetterDto {
   @IsString()
   @IsOptional()
   selectedResumeId?: string;
+
+  // language override field
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class UpdateCoverLetterDto {
@@ -370,4 +398,102 @@ export class EnhanceBlockDto {
   @IsString()
   @IsOptional()
   selectedResumeId?: string;
+}
+
+
+export class RegenerateCompleteLetterDto {
+  @IsString()
+  @IsNotEmpty()
+  instructions: string;
+
+  @IsOptional()
+  metadata?: {
+    transactionId?: string;
+  };
+}
+
+
+export class TranslationProgressDto {
+  @IsString()
+  translationId: string;
+
+  @IsEnum(TranslationStatus)
+  status: TranslationStatus;
+
+  @IsOptional()
+  @IsNumber()
+  progress?: number; // 0-100
+
+  @IsOptional()
+  @IsNumber()
+  translatedSections?: number;
+
+  @IsOptional()
+  @IsNumber()
+  totalSections?: number;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  result?: any;
+}
+
+export class TranslateLetterDto {
+  @IsString()
+  @IsNotEmpty()
+  targetLanguage: string;
+
+  @IsOptional()
+  @IsString()
+  sourceLanguage?: string;
+
+  @IsOptional()
+  @IsEnum(TranslationMethod)
+  method?: TranslationMethod = TranslationMethod.PRESERVE_STRUCTURE;
+
+  @IsOptional()
+  @IsEnum(TranslationPreservation)
+  preservation?: TranslationPreservation = TranslationPreservation.ALL;
+
+  @IsOptional()
+  @IsBoolean()
+  createNewVersion?: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  versionName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveNames?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveDates?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveNumbers?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveUrls?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveEmailAddresses?: boolean = true;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  preserveTerms?: string[] = [];
+
+  @IsOptional()
+  metadata?: {
+    transactionId?: string;
+    customInstructions?: string;
+    [key: string]: any;
+  };
 }

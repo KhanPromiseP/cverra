@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t, Trans } from "@lingui/macro";
 import { DownloadSimple } from "@phosphor-icons/react";
 import { KeyboardShortcut } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
@@ -16,7 +16,7 @@ export const ImportResumeCard = ({ compact = false }: ImportResumeCardProps) => 
   const { open } = useDialog("import");
 
   const handleClick = () => {
-    open("create"); // Changed from open("create") to open("import") if that's the correct dialog
+    open("create");
   };
 
   return (
@@ -80,9 +80,6 @@ export const ImportResumeCard = ({ compact = false }: ImportResumeCardProps) => 
 
         {/* Feature tags */}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {/* <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-            {t`PDF Upload`}
-          </span> */}
           <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
             {t`LinkedIn`}
           </span>
@@ -108,9 +105,8 @@ export const ImportResumeCard = ({ compact = false }: ImportResumeCardProps) => 
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ repeat: Infinity, duration: 2 }}
         >
-          {/* eslint-disable-next-line lingui/no-unlocalized-strings */}
           <KeyboardShortcut className="rounded-full bg-gray-900/10 px-4 py-2 text-xs font-semibold text-gray-700 backdrop-blur-sm dark:bg-white/10 dark:text-gray-200">
-            Click or press ⌘I
+            {t`Click or press ⌘I`}
           </KeyboardShortcut>
         </motion.div>
 
@@ -132,3 +128,4 @@ export const ImportResumeCard = ({ compact = false }: ImportResumeCardProps) => 
     </motion.div>
   );
 };
+

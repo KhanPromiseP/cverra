@@ -24,7 +24,7 @@ export const LeftSidebar = () => {
   };
 
   return (
-    <div className="flex h-full bg-secondary-accent/30 border-r border-gray-500 dark:border-gray-700">
+    <div className="flex h-full bg-secondary-accent/30 border-r mt-20 border-gray-500 dark:border-gray-700">
       {/* Icon Bar */}
       <div className="hidden basis-12 flex-col items-center justify-between bg-secondary-accent/30 border-r border-gray-500 dark:border-gray-700 py-4 sm:flex">
         <Button asChild size="icon" variant="ghost" className="size-8 rounded-full">

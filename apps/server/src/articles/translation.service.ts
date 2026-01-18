@@ -344,7 +344,7 @@ private sleep(ms: number): Promise<void> {
     return results;
   }
 
- private async performTranslation(
+ public async performTranslation(
     article: any,
     targetLanguage: string,
     aiModel: string = 'llama-3.3-70b-versatile'
@@ -776,3 +776,13 @@ Translate the following content:`;
 
   
 }
+
+
+
+
+
+
+
+
+
+
