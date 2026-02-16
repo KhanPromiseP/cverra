@@ -35,11 +35,11 @@ export const HomePage = () => {
       <Helmet prioritizeSeoTags>
         <html lang={i18n.locale} />
         <title>
-          {t`Inrah`} – {t`Build resumes, letters, and careers with Inrah`}
+          {t`Inlirah`} – {t`Build resumes, letters, and careers with Inlirah`}
         </title>
         <meta
           name="description"
-          content={t`Inrah is an AI-powered career platform that helps professionals build standout resumes, write impactful letters, and grow with expert knowledge.`}
+          content={t`Inlirah is an AI-powered career platform that helps professionals build standout resumes, write impactful letters, and grow with expert knowledge.`}
         />
       </Helmet>
 

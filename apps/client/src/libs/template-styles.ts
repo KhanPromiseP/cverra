@@ -19,9 +19,10 @@ export const generateTemplateStyles = (structure: TemplateStructure): TemplateSt
   // Subject line styles
   if (structure.subjectLineStyle) {
     const sls = structure.subjectLineStyle;
-    styles.subjectLine = {
+    
+    // Base styles
+    const subjectLineStyles: React.CSSProperties = {
       textTransform: sls.textTransform,
-      textDecoration: sls.textDecoration,
       fontWeight: sls.fontWeight,
       fontSize: sls.fontSize === 'small' ? '14px' :
                 sls.fontSize === 'large' ? '18px' :
@@ -30,6 +31,25 @@ export const generateTemplateStyles = (structure: TemplateStructure): TemplateSt
       marginBottom: '15px',
       fontFamily: "'Times New Roman', Georgia, serif"
     };
+    
+    // CRITICAL FIX: Handle underline specially for PDF export
+    if (sls.textDecoration === 'underline') {
+      subjectLineStyles.textDecoration = 'underline';
+      subjectLineStyles.textDecorationSkipInk = 'none';
+      subjectLineStyles.textUnderlineOffset = '2px';
+      subjectLineStyles.WebkitTextDecorationSkip = 'ink'; // Correct Webkit property
+      // Fallback for PDF engines that don't handle text-decoration
+      subjectLineStyles.borderBottom = '1px solid currentColor';
+      subjectLineStyles.paddingBottom = '2px';
+      subjectLineStyles.display = 'inline-block';
+      subjectLineStyles.width = '100%';
+    } else if (sls.textDecoration === 'bold') {
+      subjectLineStyles.fontWeight = 'bold';
+    } else if (sls.textDecoration === 'italic') {
+      subjectLineStyles.fontStyle = 'italic';
+    }
+    
+    styles.subjectLine = subjectLineStyles;
   }
   
   // Container styles (borders and background)

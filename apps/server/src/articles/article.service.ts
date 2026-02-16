@@ -5253,8 +5253,7 @@ import {
 import { 
   UpdateReadingProfileDto 
 } from './dto/recommendation.dto';  
-import { 
-  ArticleStatus, 
+import {  
   ContentAccess, 
   TransactionSource, 
   UsageAction, 
@@ -5264,6 +5263,17 @@ import { slugify } from '../auth/utils/slugify';
 import { EngagementService } from './engagement.service';
 import { TranslationService } from './translation.service';
 import { NotificationService } from '../notification/notification.service';
+
+enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
 
 
 interface RawActivityItem {
@@ -5314,10 +5324,21 @@ export class ArticleService {
     throw new BadRequestException('Category not found');
   }
 
-  const isPublished = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  // FIX: Use status from DTO, but validate based on user role
+  let finalStatus = dto.status || ArticleStatus.DRAFT;
+  
+  // Only allow publishing if user is admin
+  if (finalStatus === ArticleStatus.PUBLISHED && 
+      !(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')) {
+    finalStatus = ArticleStatus.DRAFT;
+  }
+  
+  // Only allow scheduling if user is admin
+  if (finalStatus === ArticleStatus.SCHEDULED && 
+      !(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')) {
+    finalStatus = ArticleStatus.DRAFT;
+  }
 
-  
-  
   const article = await this.prisma.article.create({
     data: {
       title: dto.title,
@@ -5337,8 +5358,10 @@ export class ArticleService {
       autoTranslate: dto.autoTranslate ?? true,
       availableLanguages: ['en'],
       targetLanguages: dto.targetLanguages || ['fr'],
-      status: isPublished ? ArticleStatus.PUBLISHED : ArticleStatus.DRAFT,
-      publishedAt: isPublished ? new Date() : null,
+      // FIX: Use the calculated finalStatus
+      status: finalStatus,
+      publishedAt: finalStatus === ArticleStatus.PUBLISHED ? new Date() : null,
+      scheduledFor: finalStatus === ArticleStatus.SCHEDULED ? dto.scheduledFor : null,
 
       isFeatured: dto.isFeatured || false,
       isTrending: dto.isTrending || false,
@@ -5364,8 +5387,10 @@ export class ArticleService {
   });
 
   // Process translations if article is published and auto-translate is enabled
-  if (isPublished && dto.autoTranslate !== false && dto.targetLanguages && dto.targetLanguages.length > 0) {
-    // Use a more reliable method than setTimeout
+  if (finalStatus === ArticleStatus.PUBLISHED && 
+      dto.autoTranslate !== false && 
+      dto.targetLanguages && 
+      dto.targetLanguages.length > 0) {
     this.queueTranslations(article.id, dto.targetLanguages);
   }
 
@@ -7486,7 +7511,7 @@ async listArticles(options: {
   };
 }
 
-async getDashboardStats(timeRange: string = '7days') {
+async getDashboardStats(timeRange: string = '7days', adminId?: string) {
   const now = new Date();
   const startDate = new Date();
   
@@ -7508,6 +7533,14 @@ async getDashboardStats(timeRange: string = '7days') {
       startDate.setDate(now.getDate() - 7);
   }
 
+  // Build base where clause
+  let whereClause: any = {};
+  
+  // If adminId is provided, filter to only admin's articles
+  if (adminId) {
+    whereClause.authorId = adminId;
+  }
+
   try {
     // Execute all queries in parallel
     const [
@@ -7522,50 +7555,78 @@ async getDashboardStats(timeRange: string = '7days') {
       topCategories,
       recentActivity,
     ] = await Promise.all([
-      // Total articles
-      this.prisma.article.count(),
+      // Total articles (filtered by author if admin)
+      this.prisma.article.count({ where: whereClause }),
       
       // Published articles
       this.prisma.article.count({
-        where: { status: ArticleStatus.PUBLISHED },
+        where: { 
+          ...whereClause,
+          status: ArticleStatus.PUBLISHED 
+        },
       }),
       
       // Draft articles
       this.prisma.article.count({
-        where: { status: ArticleStatus.DRAFT },
+        where: { 
+          ...whereClause,
+          status: ArticleStatus.DRAFT 
+        },
       }),
       
       // Premium articles
       this.prisma.article.count({
         where: { 
+          ...whereClause,
           accessType: ContentAccess.PREMIUM,
           status: ArticleStatus.PUBLISHED,
         },
       }),
       
-      // Total views
+      // Total views (filtered by admin's articles if needed)
       this.prisma.articleView.count({
-        where: { createdAt: { gte: startDate } },
+        where: { 
+          createdAt: { gte: startDate },
+          ...(adminId && {
+            article: {
+              authorId: adminId
+            }
+          })
+        },
       }),
       
       // Total likes
       this.prisma.articleLike.count({
-        where: { createdAt: { gte: startDate } },
+        where: { 
+          createdAt: { gte: startDate },
+          ...(adminId && {
+            article: {
+              authorId: adminId
+            }
+          })
+        },
       }),
       
       // Total comments
       this.prisma.articleComment.count({
-        where: { createdAt: { gte: startDate } },
+        where: { 
+          createdAt: { gte: startDate },
+          ...(adminId && {
+            article: {
+              authorId: adminId
+            }
+          })
+        },
       }),
       
       // Monthly growth (calculated from last month)
-      this.calculateMonthlyGrowth(startDate),
+      this.calculateMonthlyGrowth(startDate, adminId),
       
-      // Top categories
-      this.getTopCategories(),
+      // Top categories (filtered by admin if needed)
+      this.getTopCategories(adminId),
       
-      // Recent activity
-      this.getRecentActivity(),
+      // Recent activity (filtered by admin if needed)
+      this.getRecentActivity(adminId),
     ]);
 
     return {
@@ -7579,6 +7640,7 @@ async getDashboardStats(timeRange: string = '7days') {
       monthlyGrowth,
       topCategories,
       recentActivity,
+      isAdminView: !!adminId,
     };
   } catch (error) {
     this.logger.error('Error getting dashboard stats:', error);
@@ -7594,31 +7656,39 @@ async getDashboardStats(timeRange: string = '7days') {
       monthlyGrowth: 0,
       topCategories: [],
       recentActivity: [],
+      isAdminView: !!adminId,
     };
   }
 }
 
-private async calculateMonthlyGrowth(startDate: Date): Promise<number> {
+private async calculateMonthlyGrowth(startDate: Date, adminId?: string): Promise<number> {
   try {
     const previousMonthStart = new Date(startDate);
     previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
     
+    // Build where clauses
+    const currentWhere: any = { 
+      createdAt: { gte: startDate },
+      status: ArticleStatus.PUBLISHED,
+    };
+    
+    const previousWhere: any = { 
+      createdAt: { 
+        gte: previousMonthStart,
+        lt: startDate,
+      },
+      status: ArticleStatus.PUBLISHED,
+    };
+    
+    // Add admin filter if provided
+    if (adminId) {
+      currentWhere.authorId = adminId;
+      previousWhere.authorId = adminId;
+    }
+    
     const [currentArticles, previousArticles] = await Promise.all([
-      this.prisma.article.count({
-        where: { 
-          createdAt: { gte: startDate },
-          status: ArticleStatus.PUBLISHED,
-        },
-      }),
-      this.prisma.article.count({
-        where: { 
-          createdAt: { 
-            gte: previousMonthStart,
-            lt: startDate,
-          },
-          status: ArticleStatus.PUBLISHED,
-        },
-      }),
+      this.prisma.article.count({ where: currentWhere }),
+      this.prisma.article.count({ where: previousWhere }),
     ]);
     
     if (previousArticles === 0) {
@@ -7633,14 +7703,38 @@ private async calculateMonthlyGrowth(startDate: Date): Promise<number> {
   }
 }
 
-private async getTopCategories() {
+
+private async getTopCategories(adminId?: string) {
   try {
+    // Build base where clause
+    let whereClause: any = {};
+    
+    // If adminId is provided, filter to only admin's articles
+    if (adminId) {
+      whereClause.articles = {
+        some: {
+          authorId: adminId,
+          status: ArticleStatus.PUBLISHED
+        }
+      };
+    } else {
+      whereClause.articles = {
+        some: {
+          status: ArticleStatus.PUBLISHED
+        }
+      };
+    }
+    
     const categories = await this.prisma.articleCategory.findMany({
+      where: whereClause,
       include: {
         _count: {
           select: { 
             articles: {
-              where: { status: ArticleStatus.PUBLISHED }
+              where: {
+                status: ArticleStatus.PUBLISHED,
+                ...(adminId && { authorId: adminId })
+              }
             } 
           },
         },
@@ -7656,7 +7750,7 @@ private async getTopCategories() {
     // Process categories in parallel
     const categoriesWithGrowth = await Promise.all(
       categories.map(async (cat) => {
-        const growth = await this.calculateCategoryGrowth(cat.id);
+        const growth = await this.calculateCategoryGrowth(cat.id, adminId);
         return {
           id: cat.id,
           name: cat.name,
@@ -7673,6 +7767,7 @@ private async getTopCategories() {
     return [];
   }
 }
+
 
 
 async getTrendingArticles(limit: number = 6) {
@@ -7699,32 +7794,39 @@ async getTrendingArticles(limit: number = 6) {
   });
 }
 
-private async calculateCategoryGrowth(categoryId: string): Promise<number> {
+private async calculateCategoryGrowth(categoryId: string, adminId?: string): Promise<number> {
   try {
     const now = new Date();
     const lastMonth = new Date();
     lastMonth.setMonth(now.getMonth() - 1);
     
+    // Build where clauses
+    const currentWhere: any = { 
+      categoryId,
+      status: ArticleStatus.PUBLISHED,
+      createdAt: { 
+        gte: new Date(now.getFullYear(), now.getMonth(), 1)
+      },
+    };
+    
+    const previousWhere: any = { 
+      categoryId,
+      status: ArticleStatus.PUBLISHED,
+      createdAt: { 
+        gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
+        lt: new Date(now.getFullYear(), now.getMonth(), 1),
+      },
+    };
+    
+    // Add admin filter if provided
+    if (adminId) {
+      currentWhere.authorId = adminId;
+      previousWhere.authorId = adminId;
+    }
+    
     const [currentMonthArticles, lastMonthArticles] = await Promise.all([
-      this.prisma.article.count({
-        where: { 
-          categoryId,
-          status: ArticleStatus.PUBLISHED,
-          createdAt: { 
-            gte: new Date(now.getFullYear(), now.getMonth(), 1)
-          },
-        },
-      }),
-      this.prisma.article.count({
-        where: { 
-          categoryId,
-          status: ArticleStatus.PUBLISHED,
-          createdAt: { 
-            gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
-            lt: new Date(now.getFullYear(), now.getMonth(), 1),
-          },
-        },
-      }),
+      this.prisma.article.count({ where: currentWhere }),
+      this.prisma.article.count({ where: previousWhere }),
     ]);
     
     if (lastMonthArticles === 0) {
@@ -7739,14 +7841,29 @@ private async calculateCategoryGrowth(categoryId: string): Promise<number> {
   }
 }
 
-private async getRecentActivity() {
+private async getRecentActivity(adminId?: string) {
   try {
+    // Build base where clauses
+    const articleWhere: any = { 
+      status: ArticleStatus.PUBLISHED,
+      publishedAt: { not: null },
+    };
+    
+    const commentWhere: any = {
+      createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
+    };
+    
+    // Add admin filter if provided
+    if (adminId) {
+      articleWhere.authorId = adminId;
+      commentWhere.article = {
+        authorId: adminId
+      };
+    }
+
     // Get recent published articles
     const recentArticles = await this.prisma.article.findMany({
-      where: { 
-        status: ArticleStatus.PUBLISHED,
-        publishedAt: { not: null },
-      },
+      where: articleWhere,
       orderBy: { publishedAt: 'desc' },
       take: 5,
       include: {
@@ -7762,9 +7879,7 @@ private async getRecentActivity() {
 
     // Get recent comments
     const recentComments = await this.prisma.articleComment.findMany({
-      where: {
-        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
-      },
+      where: commentWhere,
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: {
@@ -7793,6 +7908,7 @@ private async getRecentActivity() {
       target: article.title,
       time: article.publishedAt!.toISOString(),
       avatar: article.author.picture,
+      isAdminActivity: !!adminId,
     }));
 
     const commentActivities = recentComments.map(comment => ({
@@ -7802,6 +7918,7 @@ private async getRecentActivity() {
       target: comment.article.title,
       time: comment.createdAt.toISOString(),
       avatar: comment.user.picture,
+      isAdminActivity: !!adminId,
     }));
 
     // Combine and sort
@@ -7817,12 +7934,19 @@ private async getRecentActivity() {
   }
 }
 
-async getRecentArticles() {
+async getRecentArticles(adminId?: string) {
   try {
+    const whereClause: any = { 
+      status: ArticleStatus.PUBLISHED,
+    };
+    
+    // Add admin filter if provided
+    if (adminId) {
+      whereClause.authorId = adminId;
+    }
+    
     return await this.prisma.article.findMany({
-      where: { 
-        status: ArticleStatus.PUBLISHED,
-      },
+      where: whereClause,
       orderBy: { publishedAt: 'desc' },
       take: 10,
       include: {
@@ -7856,12 +7980,19 @@ async getRecentArticles() {
   }
 }
 
-async getTopArticles() {
+async getTopArticles(adminId?: string) {
   try {
+    const whereClause: any = { 
+      status: ArticleStatus.PUBLISHED,
+    };
+    
+    // Add admin filter if provided
+    if (adminId) {
+      whereClause.authorId = adminId;
+    }
+    
     return await this.prisma.article.findMany({
-      where: { 
-        status: ArticleStatus.PUBLISHED,
-      },
+      where: whereClause,
       orderBy: [
         { viewCount: 'desc' },
         { likeCount: 'desc' },
@@ -7891,7 +8022,6 @@ async getTopArticles() {
     return [];
   }
 }
-
 
 // async getCommentsByArticleId(
 //   articleId: string, 
@@ -11622,4 +11752,1269 @@ async calculateCompletionRate(userId: string): Promise<number> {
       limit,
     });
   }
+
+
+
+  // ========== SUPER_ADMIN METHODS ==========
+  
+
+async getSystemStats() {
+  try {
+    const [
+      totalUsers,
+      totalAdmins,
+      totalSuperAdmins,
+      totalArticles,
+      totalRevenue,
+      activeSubscriptions,
+    ] = await Promise.all([
+      // Total users
+      this.prisma.user.count(),
+      
+      // Total admins (excluding super admins)
+      this.prisma.user.count({ 
+        where: { role: 'ADMIN' } 
+      }),
+      
+      // Total super admins
+      this.prisma.user.count({ 
+        where: { role: 'SUPER_ADMIN' } 
+      }),
+      
+      // Total articles
+      this.prisma.article.count(),
+      
+      // Total revenue from wallet transactions
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: { type: 'DEBIT' }
+      }),
+      
+      // Active subscriptions
+      this.prisma.userSubscription.count({ 
+        where: { 
+          status: 'ACTIVE',
+          currentPeriodEnd: { gt: new Date() }
+        } 
+      }),
+    ]);
+
+    // Get active users using groupBy instead of distinct
+    const dailyActiveUsersResult = await this.prisma.userEngagement.groupBy({
+      by: ['userId'],
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+        }
+      },
+    });
+
+    const monthlyActiveUsersResult = await this.prisma.userEngagement.groupBy({
+      by: ['userId'],
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        }
+      },
+    });
+
+    // System health check
+    const systemHealth = await this.checkSystemHealth();
+
+    // Get storage statistics
+    const storageStats = await this.getStorageStatistics();
+    
+    // Get performance metrics
+    const performanceMetrics = await this.getPerformanceMetrics();
+
+    return {
+      // User statistics
+      users: {
+        total: totalUsers,
+        admins: totalAdmins,
+        superAdmins: totalSuperAdmins,
+        dailyActive: dailyActiveUsersResult.length,
+        monthlyActive: monthlyActiveUsersResult.length,
+        growthRate: await this.calculateUserGrowthRate(),
+      },
+      
+      // Content statistics
+      content: {
+        totalArticles: totalArticles,
+        publishedArticles: await this.prisma.article.count({ 
+          where: { status: ArticleStatus.PUBLISHED } 
+        }),
+        draftArticles: await this.prisma.article.count({ 
+          where: { status: ArticleStatus.DRAFT } 
+        }),
+        premiumArticles: await this.prisma.article.count({ 
+          where: { 
+            status: ArticleStatus.PUBLISHED,
+            accessType: ContentAccess.PREMIUM 
+          } 
+        }),
+        totalTranslations: await this.prisma.articleTranslation.count(),
+      },
+      
+      // Financial statistics
+      financial: {
+        totalRevenue: totalRevenue._sum.amount || 0,
+        activeSubscriptions: activeSubscriptions,
+        monthlyRecurringRevenue: await this.calculateMRR(),
+        averageTransactionValue: await this.calculateATV(),
+        topEarningArticles: await this.getTopEarningArticles(10),
+      },
+      
+      // Engagement statistics
+      engagement: {
+        totalViews: await this.prisma.articleView.count(),
+        totalLikes: await this.prisma.articleLike.count(),
+        totalComments: await this.prisma.articleComment.count(),
+        totalSaves: await this.prisma.articleSave.count(),
+        averageEngagementRate: await this.calculateAverageEngagementRate(),
+      },
+      
+      // System information
+      system: {
+        health: systemHealth,
+        storage: storageStats,
+        performance: performanceMetrics,
+        serverTime: new Date().toISOString(),
+        uptime: process.uptime(),
+        memoryUsage: process.memoryUsage(),
+      },
+      
+      // Recent activity
+      recentActivity: {
+        newUsers: await this.getRecentUsers(5),
+        newArticles: await this.getRecentArticles(),
+        systemAlerts: await this.getSystemAlerts(),
+      }
+    };
+  } catch (error) {
+    this.logger.error('Error getting system stats:', error);
+    throw new BadRequestException('Failed to retrieve system statistics');
+  }
+}
+
+
+
+async getAllUsers(page: number = 1, limit: number = 20, filters?: {
+  role?: string;
+  search?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+}) {
+  try {
+    const skip = (page - 1) * limit;
+    
+    // Build where clause
+    const where: any = {};
+    
+    if (filters) {
+      if (filters.role) {
+        where.role = filters.role;
+      }
+      
+      if (filters.search) {
+        where.OR = [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { email: { contains: filters.search, mode: 'insensitive' } },
+          { username: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+      
+      if (filters.dateFrom || filters.dateTo) {
+        where.createdAt = {};
+        if (filters.dateFrom) {
+          where.createdAt.gte = filters.dateFrom;
+        }
+        if (filters.dateTo) {
+          where.createdAt.lte = filters.dateTo;
+        }
+      }
+    }
+    
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+          role: true,
+          picture: true,
+          emailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              articles: {
+                where: { status: ArticleStatus.PUBLISHED }
+              },
+              articleComments: {
+                where: { status: 'ACTIVE' }
+              },
+              articleLikes: true,
+              articleSaves: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    // Enhance user data with additional statistics
+    const enhancedUsers = await Promise.all(
+      users.map(async (user) => {
+        // Get reading statistics
+        const readingStats = await this.getUserReadingStats(user.id);
+        
+        // Get premium access information
+        const premiumAccess = await this.prisma.premiumAccess.count({
+          where: { 
+            userId: user.id,
+            accessUntil: { gt: new Date() }
+          }
+        });
+        
+        // Get subscription information
+        const subscription = await this.prisma.userSubscription.findFirst({
+          where: { 
+            userId: user.id,
+            status: 'ACTIVE',
+            currentPeriodEnd: { gt: new Date() }
+          },
+          select: {
+            planId: true,
+            amount: true,
+            currentPeriodEnd: true,
+          }
+        });
+
+        return {
+          ...user,
+          readingStats: {
+            totalArticlesRead: readingStats.totalArticlesRead,
+            totalReadingTime: readingStats.totalReadingTime,
+            readingStreak: readingStats.readingStreak,
+          },
+          premiumAccess: {
+            hasAccess: premiumAccess > 0 || !!subscription,
+            purchasedArticles: premiumAccess,
+            hasActiveSubscription: !!subscription,
+            subscriptionPlan: subscription?.planId,
+            subscriptionEnd: subscription?.currentPeriodEnd,
+          },
+          activityScore: await this.calculateUserActivityScore(user.id),
+        };
+      })
+    );
+
+    return {
+      users: enhancedUsers,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: total > skip + limit,
+        filters,
+      },
+    };
+  } catch (error) {
+    this.logger.error('Error getting all users:', error);
+    throw new BadRequestException('Failed to retrieve users');
+  }
+}
+
+async getFinancialOverview() {
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    
+    const [
+      totalRevenue,
+      monthlyRevenue,
+      yearlyRevenue,
+      subscriptionRevenue,
+      oneTimePurchases,
+      topEarningArticles,
+      revenueByMonth,
+      userSpendingStats,
+    ] = await Promise.all([
+      // Total revenue
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: { type: 'DEBIT' }
+      }),
+      
+      // Monthly revenue
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: { 
+          type: 'DEBIT',
+          createdAt: { gte: monthStart }
+        }
+      }),
+      
+      // Yearly revenue
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: { 
+          type: 'DEBIT',
+          createdAt: { gte: yearStart }
+        }
+      }),
+      
+      // Subscription revenue (active subscriptions)
+      this.prisma.userSubscription.aggregate({
+        _sum: { amount: true },
+        where: { 
+          status: 'ACTIVE',
+          currentPeriodEnd: { gt: new Date() }
+        }
+      }),
+      
+      // One-time purchases
+      this.prisma.premiumAccess.aggregate({
+        _sum: { amountPaid: true },
+        where: {
+          createdAt: { gte: monthStart }
+        }
+      }),
+      
+      // Top earning articles
+      this.prisma.premiumAccess.groupBy({
+        by: ['articleId'],
+        _sum: { amountPaid: true },
+        _count: { userId: true },
+        orderBy: { _sum: { amountPaid: 'desc' } },
+        take: 10,
+      }),
+      
+      // Revenue by month (last 6 months)
+      this.getRevenueByMonth(6),
+      
+      // User spending statistics
+      this.getUserSpendingStats(),
+    ]);
+
+    // Get article details for top earners
+    const topEarningArticlesWithDetails = await Promise.all(
+      topEarningArticles.map(async (item) => {
+        const article = await this.prisma.article.findUnique({
+          where: { id: item.articleId },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+          },
+        });
+        
+        return {
+          article,
+          totalRevenue: item._sum.amountPaid || 0,
+          totalPurchases: item._count.userId || 0,
+          averageRevenuePerUser: item._count.userId > 0 
+            ? (item._sum.amountPaid || 0) / item._count.userId 
+            : 0,
+        };
+      })
+    );
+
+    return {
+      summary: {
+        totalRevenue: totalRevenue._sum.amount || 0,
+        monthlyRevenue: monthlyRevenue._sum.amount || 0,
+        yearlyRevenue: yearlyRevenue._sum.amount || 0,
+        subscriptionRevenue: subscriptionRevenue._sum.amount || 0,
+        oneTimePurchases: oneTimePurchases._sum.amountPaid || 0,
+        averageMonthlyGrowth: await this.calculateRevenueGrowth(),
+      },
+      
+      breakdown: {
+        byMonth: revenueByMonth,
+        bySource: {
+          subscriptions: subscriptionRevenue._sum.amount || 0,
+          articlePurchases: oneTimePurchases._sum.amountPaid || 0,
+          other: 0, // Add other sources if you have them
+        },
+      },
+      
+      topPerformers: {
+        articles: topEarningArticlesWithDetails,
+        authors: await this.getTopEarningAuthors(5),
+      },
+      
+      userInsights: {
+        averageSpend: userSpendingStats.averageSpend,
+        topSpenders: userSpendingStats.topSpenders,
+        conversionRate: await this.calculateConversionRate(),
+      },
+      
+      forecasts: {
+        nextMonthRevenue: await this.forecastNextMonthRevenue(),
+        expectedGrowth: await this.calculateExpectedGrowth(),
+      },
+    };
+  } catch (error) {
+    this.logger.error('Error getting financial overview:', error);
+    throw new BadRequestException('Failed to retrieve financial overview');
+  }
+}
+
+async getAuditLogs(
+  page: number = 1, 
+  limit: number = 50,
+  filters?: {
+    userId?: string;
+    action?: string;
+    resourceType?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    severity?: string;
+  }
+) {
+  try {
+    const skip = (page - 1) * limit;
+    
+    // Build where clause
+    const where: any = {};
+    
+    if (filters) {
+      if (filters.userId) {
+        where.userId = filters.userId;
+      }
+      
+      if (filters.action) {
+        where.action = filters.action;
+      }
+      
+      if (filters.resourceType) {
+        where.resourceType = filters.resourceType;
+      }
+      
+      if (filters.severity) {
+        where.severity = filters.severity;
+      }
+      
+      if (filters.dateFrom || filters.dateTo) {
+        where.createdAt = {};
+        if (filters.dateFrom) {
+          where.createdAt.gte = filters.dateFrom;
+        }
+        if (filters.dateTo) {
+          where.createdAt.lte = filters.dateTo;
+        }
+      }
+    }
+    
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+              role: true,
+              picture: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    // Group logs by action type for summary
+    const actionSummary = await this.prisma.auditLog.groupBy({
+      by: ['action'],
+      where,
+      _count: { id: true },
+    });
+
+    // Get severity distribution
+    const severityDistribution = await this.prisma.auditLog.groupBy({
+      by: ['severity'],
+      where,
+      _count: { id: true },
+    });
+
+    return {
+      logs: logs.map((log: any) => ({
+        ...log,
+        details: log.details ? JSON.parse(log.details) : null,
+      })),
+      summary: {
+        total,
+        actionSummary,
+        severityDistribution,
+        timeRange: {
+          oldest: logs[logs.length - 1]?.createdAt,
+          newest: logs[0]?.createdAt,
+        },
+      },
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: total > skip + limit,
+        filters,
+      },
+    };
+  } catch (error) {
+    this.logger.error('Error getting audit logs:', error);
+    throw new BadRequestException('Failed to retrieve audit logs');
+  }
+}
+
+// ========== HELPER METHODS FOR SUPER_ADMIN ==========
+
+private async checkSystemHealth() {
+  try {
+    // Check database connection
+    await this.prisma.$queryRaw`SELECT 1`;
+    
+    // Check all critical tables
+    const tableChecks = await Promise.all([
+      this.prisma.user.count().then(count => ({ table: 'users', count, status: count >= 0 ? 'OK' : 'ERROR' })),
+      this.prisma.article.count().then(count => ({ table: 'articles', count, status: count >= 0 ? 'OK' : 'ERROR' })),
+      this.prisma.articleCategory.count().then(count => ({ table: 'categories', count, status: count >= 0 ? 'OK' : 'ERROR' })),
+      this.prisma.walletTransaction.count().then(count => ({ table: 'transactions', count, status: count >= 0 ? 'OK' : 'ERROR' })),
+    ]);
+    
+    // Check for any pending migrations
+    const migrationStatus = 'UP_TO_DATE'; // You would check your migration system here
+    
+    // Check disk space (simplified - in production use system calls)
+    const diskStatus = {
+      free: '> 1GB', // Placeholder
+      total: '10GB', // Placeholder
+      usage: '60%', // Placeholder
+      status: 'HEALTHY',
+    };
+    
+    return {
+      status: 'HEALTHY',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'CONNECTED',
+        tables: tableChecks,
+        migrationStatus,
+      },
+      storage: diskStatus,
+      api: {
+        status: 'RUNNING',
+        responseTime: '~50ms', // You would measure this
+        uptime: process.uptime(),
+      },
+      warnings: await this.getSystemWarnings(),
+    };
+  } catch (error) {
+    return {
+      status: 'UNHEALTHY',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'DISCONNECTED',
+        error: error.message,
+      },
+      storage: {
+        status: 'UNKNOWN',
+        error: 'Cannot check storage',
+      },
+      api: {
+        status: 'ERROR',
+        error: error.message,
+      },
+    };
+  }
+}
+
+private async getStorageStatistics() {
+  try {
+    // Estimate storage usage (this is simplified)
+    const articleCount = await this.prisma.article.count();
+    const translationCount = await this.prisma.articleTranslation.count();
+    const userCount = await this.prisma.user.count();
+    
+    // Rough estimates (in MB)
+    const articleStorage = articleCount * 0.05; // 50KB per article
+    const translationStorage = translationCount * 0.03; // 30KB per translation
+    const userStorage = userCount * 0.01; // 10KB per user
+    const imageStorage = articleCount * 0.5; // 500KB per article image
+    
+    const totalStorage = articleStorage + translationStorage + userStorage + imageStorage;
+    
+    return {
+      total: totalStorage,
+      breakdown: {
+        articles: articleStorage,
+        translations: translationStorage,
+        users: userStorage,
+        images: imageStorage,
+      },
+      unit: 'MB',
+      estimatedCost: totalStorage * 0.023, // $0.023 per GB-month (example)
+    };
+  } catch (error) {
+    this.logger.error('Error calculating storage stats:', error);
+    return {
+      total: 0,
+      breakdown: {},
+      unit: 'MB',
+      estimatedCost: 0,
+      error: 'Failed to calculate storage',
+    };
+  }
+}
+
+private async getPerformanceMetrics() {
+  try {
+    // Get recent response times (you would collect these over time)
+    const recentRequests = await this.prisma.auditLog.findMany({
+      where: {
+        resourceType: 'API_REQUEST',
+        createdAt: {
+          gte: new Date(Date.now() - 60 * 60 * 1000), // Last hour
+        },
+      },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    // Calculate average response time (simplified)
+    const responseTimes = recentRequests
+      .map((log: any) => {
+        const details = log.details ? JSON.parse(log.details) : {};
+        return details.responseTime || 0;
+      })
+      .filter((time: any) => time > 0);
+    
+    const avgResponseTime = responseTimes.length > 0
+      ? responseTimes.reduce((a: any, b: any) => a + b, 0) / responseTimes.length
+      : 0;
+    
+    // Get error rate
+    const errorLogs = await this.prisma.auditLog.count({
+      where: {
+        severity: 'ERROR',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+        },
+      },
+    });
+    
+    const totalLogs = await this.prisma.auditLog.count({
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        },
+      },
+    });
+    
+    const errorRate = totalLogs > 0 ? (errorLogs / totalLogs) * 100 : 0;
+    
+    return {
+      responseTime: {
+        average: avgResponseTime,
+        p95: 0, // You would calculate percentiles
+        p99: 0,
+        unit: 'ms',
+      },
+      errors: {
+        rate: errorRate,
+        count: errorLogs,
+        unit: '%',
+      },
+      throughput: {
+        requestsPerMinute: recentRequests.length / 60,
+        activeUsers: await this.prisma.userEngagement.groupBy({
+          by: ['userId'],
+          where: {
+            createdAt: {
+              gte: new Date(Date.now() - 5 * 60 * 1000), // Last 5 minutes
+            },
+          },
+        }).then(groups => groups.length),
+      },
+      database: {
+        connectionPool: 'HEALTHY', // You would check your connection pool
+        queryPerformance: 'GOOD',
+      },
+    };
+  } catch (error) {
+    this.logger.error('Error getting performance metrics:', error);
+    return {
+      responseTime: { average: 0, p95: 0, p99: 0, unit: 'ms' },
+      errors: { rate: 0, count: 0, unit: '%' },
+      throughput: { requestsPerMinute: 0, activeUsers: 0 },
+      database: { connectionPool: 'UNKNOWN', queryPerformance: 'UNKNOWN' },
+    };
+  }
+}
+
+private async calculateUserGrowthRate(): Promise<number> {
+  try {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    
+    const [currentMonthUsers, lastMonthUsers] = await Promise.all([
+      this.prisma.user.count({
+        where: { createdAt: { gte: lastMonth } }
+      }),
+      this.prisma.user.count({
+        where: { 
+          createdAt: { 
+            gte: twoMonthsAgo,
+            lt: lastMonth 
+          }
+        }
+      }),
+    ]);
+    
+    if (lastMonthUsers === 0) return currentMonthUsers > 0 ? 100 : 0;
+    
+    return ((currentMonthUsers - lastMonthUsers) / lastMonthUsers) * 100;
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async calculateMRR(): Promise<number> {
+  try {
+    const activeSubscriptions = await this.prisma.userSubscription.findMany({
+      where: { 
+        status: 'ACTIVE',
+        currentPeriodEnd: { gt: new Date() }
+      },
+      select: { amount: true }
+    });
+    
+    return activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async calculateATV(): Promise<number> {
+  try {
+    const transactions = await this.prisma.walletTransaction.findMany({
+      where: { 
+        type: 'DEBIT',
+        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      },
+      select: { amount: true }
+    });
+    
+    if (transactions.length === 0) return 0;
+    
+    const total = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+    return total / transactions.length;
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async getTopEarningArticles(limit: number = 10) {
+  try {
+    const topArticles = await this.prisma.premiumAccess.groupBy({
+      by: ['articleId'],
+      _sum: { amountPaid: true },
+      _count: { userId: true },
+      orderBy: { _sum: { amountPaid: 'desc' } },
+      take: limit,
+    });
+    
+    return await Promise.all(
+      topArticles.map(async (item) => {
+        const article = await this.prisma.article.findUnique({
+          where: { id: item.articleId },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+          },
+        });
+        
+        return {
+          article,
+          revenue: item._sum.amountPaid || 0,
+          purchases: item._count.userId || 0,
+        };
+      })
+    );
+  } catch (error) {
+    this.logger.error('Error getting top earning articles:', error);
+    return [];
+  }
+}
+
+private async calculateAverageEngagementRate(): Promise<number> {
+  try {
+    const articles = await this.prisma.article.findMany({
+      where: { status: ArticleStatus.PUBLISHED },
+      select: { id: true, viewCount: true, likeCount: true, commentCount: true },
+      take: 100,
+    });
+    
+    if (articles.length === 0) return 0;
+    
+    const totalEngagement = articles.reduce((sum, article) => {
+      const views = article.viewCount || 0;
+      const engagement = (article.likeCount || 0) + (article.commentCount || 0);
+      return views > 0 ? sum + (engagement / views) * 100 : sum;
+    }, 0);
+    
+    return totalEngagement / articles.length;
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async getRecentUsers(limit: number = 5) {
+  try {
+    return await this.prisma.user.findMany({
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+private async getSystemAlerts() {
+  try {
+    // Check for potential issues
+    const alerts = [];
+    
+    // Check for failed translations
+    const failedTranslations = await this.prisma.articleTranslation.count({
+      where: { status: 'FAILED' }
+    });
+    
+    if (failedTranslations > 10) {
+      alerts.push({
+        type: 'TRANSLATION_ERROR',
+        message: `${failedTranslations} translations have failed`,
+        severity: 'WARNING',
+        action: 'Review translation failures',
+      });
+    }
+    
+    // Check for articles without categories
+    const uncategorizedArticles = await this.prisma.article.count({
+      where: { 
+        OR: [
+          { categoryId: "" }
+        ]
+      }
+    });
+    
+    if (uncategorizedArticles > 0) {
+      alerts.push({
+        type: 'CONTENT_QUALITY',
+        message: `${uncategorizedArticles} articles are uncategorized`,
+        severity: 'INFO',
+        action: 'Assign categories to articles',
+      });
+    }
+    
+    // Check for users with many failed logins
+    const failedLogins = await this.prisma.auditLog.count({
+      where: {
+        action: 'LOGIN_FAILED',
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
+    });
+    
+    if (failedLogins > 10) {
+      alerts.push({
+        type: 'SECURITY',
+        message: `${failedLogins} failed login attempts in last 24 hours`,
+        severity: 'WARNING',
+        action: 'Review security logs',
+      });
+    }
+    
+    return alerts;
+  } catch (error) {
+    return [];
+  }
+}
+
+private async getRevenueByMonth(months: number = 6) {
+  try {
+    const results = [];
+    const now = new Date();
+    
+    for (let i = 0; i < months; i++) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      
+      const revenue = await this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: 'DEBIT',
+          createdAt: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      });
+      
+      results.unshift({
+        month: monthStart.toLocaleString('default', { month: 'short', year: 'numeric' }),
+        revenue: revenue._sum.amount || 0,
+        startDate: monthStart,
+        endDate: monthEnd,
+      });
+    }
+    
+    return results;
+  } catch (error) {
+    this.logger.error('Error getting revenue by month:', error);
+    return [];
+  }
+}
+
+private async getUserSpendingStats() {
+  try {
+    // Get top spenders
+    const topSpenders = await this.prisma.walletTransaction.groupBy({
+      by: ['userId'],
+      _sum: { amount: true },
+      where: { type: 'DEBIT' },
+      orderBy: { _sum: { amount: 'desc' } },
+      take: 10,
+    });
+    
+    // Calculate average spend
+    const allSpending = await this.prisma.walletTransaction.aggregate({
+      _sum: { amount: true },
+      _avg: { amount: true },
+      _count: { id: true },
+      where: { type: 'DEBIT' },
+    });
+    
+    // Get user details for top spenders
+    const topSpendersWithDetails = await Promise.all(
+      topSpenders.map(async (spender) => {
+        const user = await this.prisma.user.findUnique({
+          where: { id: spender.userId || '' },
+          // ... rest of code
+        });
+      })
+    );
+    
+    return {
+      averageSpend: allSpending._avg.amount || 0,
+      totalSpent: allSpending._sum.amount || 0,
+      totalTransactions: allSpending._count.id || 0,
+      topSpenders: topSpendersWithDetails,
+    };
+  } catch (error) {
+    this.logger.error('Error getting user spending stats:', error);
+    return {
+      averageSpend: 0,
+      totalSpent: 0,
+      totalTransactions: 0,
+      topSpenders: [],
+    };
+  }
+}
+
+private async getTopEarningAuthors(limit: number = 5) {
+  try {
+    // Get authors whose articles have earned revenue
+    const authorRevenue = await this.prisma.premiumAccess.groupBy({
+      by: ['articleId'],
+      _sum: { amountPaid: true },
+    });
+    
+    // Get article authors
+    const articleAuthors = await Promise.all(
+      authorRevenue.map(async (item) => {
+        const article = await this.prisma.article.findUnique({
+          where: { id: item.articleId },
+          select: {
+            authorId: true,
+            title: true,
+          },
+        });
+        
+        return {
+          authorId: article?.authorId,
+          articleTitle: article?.title,
+          revenue: item._sum.amountPaid || 0,
+        };
+      })
+    );
+    
+    // Group by author
+    const authorMap = new Map<string, { revenue: number; articles: number }>();
+    
+    articleAuthors.forEach((item) => {
+      if (item.authorId) {
+        const current = authorMap.get(item.authorId) || { revenue: 0, articles: 0 };
+        authorMap.set(item.authorId, {
+          revenue: current.revenue + item.revenue,
+          articles: current.articles + 1,
+        });
+      }
+    });
+    
+    // Convert to array and sort
+    const sortedAuthors = Array.from(authorMap.entries())
+      .map(([authorId, stats]) => ({ authorId, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit);
+    
+    // Get author details
+    return await Promise.all(
+      sortedAuthors.map(async (item) => {
+        const author = await this.prisma.user.findUnique({
+          where: { id: item.authorId },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            picture: true,
+          },
+        });
+        
+        return {
+          author,
+          totalRevenue: item.revenue,
+          articleCount: item.articles,
+          averagePerArticle: item.revenue / item.articles,
+        };
+      })
+    );
+  } catch (error) {
+    this.logger.error('Error getting top earning authors:', error);
+    return [];
+  }
+}
+
+private async calculateRevenueGrowth(): Promise<number> {
+  try {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    
+    const [currentMonth, lastMonth] = await Promise.all([
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: 'DEBIT',
+          createdAt: { gte: currentMonthStart }
+        }
+      }),
+      this.prisma.walletTransaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: 'DEBIT',
+          createdAt: { 
+            gte: lastMonthStart,
+            lt: currentMonthStart
+          }
+        }
+      }),
+    ]);
+    
+    const currentRevenue = currentMonth._sum.amount || 0;
+    const previousRevenue = lastMonth._sum.amount || 0;
+    
+    if (previousRevenue === 0) return currentRevenue > 0 ? 100 : 0;
+    
+    return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+  } catch (error) {
+    return 0;
+  }
+}
+
+
+private async calculateConversionRate(): Promise<number> {
+  try {
+    const totalUsers = await this.prisma.user.count();
+    
+    // Get unique users with wallet transactions
+    const payingUsersGroups = await this.prisma.walletTransaction.groupBy({
+      by: ['userId'],
+      where: { type: 'DEBIT' }
+    });
+    
+    const payingUsers = payingUsersGroups.length;
+    
+    if (totalUsers === 0) return 0;
+    
+    return (payingUsers / totalUsers) * 100;
+  } catch (error) {
+    this.logger.error('Error calculating conversion rate:', error);
+    return 0;
+  }
+}
+
+private async forecastNextMonthRevenue(): Promise<number> {
+  try {
+    // Simple forecast based on last 3 months average
+    const now = new Date();
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    
+    const revenue = await this.prisma.walletTransaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        type: 'DEBIT',
+        createdAt: { gte: threeMonthsAgo }
+      }
+    });
+    
+    const totalRevenue = revenue._sum.amount || 0;
+    const monthlyAverage = totalRevenue / 3;
+    
+    // Apply growth factor (conservative estimate)
+    const growthFactor = 1.05; // 5% growth
+    return monthlyAverage * growthFactor;
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async calculateExpectedGrowth(): Promise<number> {
+  try {
+    const growthRate = await this.calculateRevenueGrowth();
+    
+    // Apply seasonal factors (simplified)
+    const month = new Date().getMonth();
+    let seasonalFactor = 1.0;
+    
+    // Adjust based on month (example)
+    if (month >= 11 || month <= 1) seasonalFactor = 1.15; // Holiday season
+    if (month >= 6 && month <= 8) seasonalFactor = 0.9; // Summer slowdown
+    
+    return growthRate * seasonalFactor;
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async calculateUserActivityScore(userId: string): Promise<number> {
+  try {
+    const [
+      articleCount,
+      commentCount,
+      likeCount,
+      saveCount,
+      lastActivity,
+    ] = await Promise.all([
+      this.prisma.article.count({ where: { authorId: userId, status: ArticleStatus.PUBLISHED } }),
+      this.prisma.articleComment.count({ where: { userId, status: 'ACTIVE' } }),
+      this.prisma.articleLike.count({ where: { userId } }),
+      this.prisma.articleSave.count({ where: { userId } }),
+      this.prisma.userEngagement.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+    
+    // Calculate score based on various factors
+    let score = 0;
+    
+    // Articles published
+    score += Math.min(articleCount * 10, 50);
+    
+    // Comments made
+    score += Math.min(commentCount * 2, 20);
+    
+    // Engagement (likes + saves)
+    score += Math.min((likeCount + saveCount) * 1, 20);
+    
+    // Recent activity (within last week)
+    if (lastActivity && lastActivity.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) {
+      score += 10;
+    }
+    
+    return Math.min(score, 100);
+  } catch (error) {
+    return 0;
+  }
+}
+
+private async getSystemWarnings(): Promise<string[]> {
+  const warnings = [];
+  
+  // Check database connection health
+  try {
+    await this.prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    warnings.push('Database connection unstable');
+  }
+  
+  // Check for outdated articles
+  const outdatedArticles = await this.prisma.article.count({
+    where: {
+      status: ArticleStatus.PUBLISHED,
+      updatedAt: {
+        lt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Older than 1 year
+      }
+    }
+  });
+  
+  if (outdatedArticles > 0) {
+    warnings.push(`${outdatedArticles} articles haven't been updated in over a year`);
+  }
+  
+  // Check for articles without translations but with target languages
+  const untranslatedArticles = await this.prisma.article.count({
+    where: {
+      autoTranslate: true,
+      targetLanguages: { isEmpty: false },
+      translations: { none: {} }
+    }
+  });
+  
+  if (untranslatedArticles > 0) {
+    warnings.push(`${untranslatedArticles} articles have pending translations`);
+  }
+  
+  return warnings;
+}
+
 }

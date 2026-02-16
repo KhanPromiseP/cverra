@@ -55,6 +55,14 @@ const defaultLocale = "en-US";
 const root = ReactDOM.createRoot(document.querySelector("#root")!);
 
 async function bootstrap() {
+   // Auto-resume after payment return
+  if (window.location.search.includes('payment_success=true')) {
+    const previousUrl = localStorage.getItem('pre_payment_url') || '/dashboard';
+    window.location.href = previousUrl;
+  }
+
+  
+
   const locale = localStorage.getItem("locale") || defaultLocale;
 
   // Activate the initial locale
@@ -64,6 +72,7 @@ async function bootstrap() {
   // ["en-US", "fr-FR"].forEach((l) => {
   //   if (l !== locale) dynamicActivate(l);
   // });
+  
 
   root.render(
     <StrictMode>

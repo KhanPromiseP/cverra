@@ -7,6 +7,7 @@ import { lastValueFrom } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 
+
 export interface AIBuilderResult {
   success: boolean;
   resumeData: any;
@@ -21,6 +22,25 @@ export interface AIBuilderResult {
     education: boolean;
     skills: boolean;
     projects: boolean;
+    languages: boolean;
+    certifications: boolean;
+    awards: boolean;
+    volunteer: boolean;
+    publications: boolean;
+    interests: boolean;
+    references: boolean;
+    profiles: boolean;
+    customSections: number;
+  };
+  analysis?: {
+    summaryQuality: string;
+    sectionsFound: string[];
+    missingInformation: string[];
+    suggestions: string[];
+    targetRoles: string[];
+    strengths: string[];
+    areasForImprovement: string[];
+    recommendedTemplate: string;
   };
 }
 
@@ -47,12 +67,16 @@ export class AIResumeBuilderService implements OnModuleInit {
   private readonly groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
   private readonly openaiApiUrl = 'https://api.openai.com/v1/chat/completions';
   
+
+  // default avatar - using a data URL with a simple SVG
+  private readonly DEFAULT_AVATAR = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'128\' height=\'128\' viewBox=\'0 0 128 128\'%3E%3Crect width=\'128\' height=\'128\' fill=\'%233b82f6\'/%3E%3Ccircle cx=\'64\' cy=\'48\' r=\'24\' fill=\'%23ffffff\'/%3E%3Ccircle cx=\'48\' cy=\'42\' r=\'4\' fill=\'%23333\'/%3E%3Ccircle cx=\'80\' cy=\'42\' r=\'4\' fill=\'%23333\'/%3E%3Cpath d=\'M48 64 Q64 80 80 64\' stroke=\'%23ffffff\' stroke-width=\'4\' fill=\'none\'/%3E%3C/svg%3E';
+
   // Cost configuration
   private readonly COSTS = {
-    TEXT_EXTRACTION: 10,
+    TEXT_EXTRACTION: 0,
     AI_BUILDING: 30,
-    PDF_PROCESSING: 10,
-    DOC_PROCESSING: 10,
+    PDF_PROCESSING: 0,
+    DOC_PROCESSING: 0,
     // ENHANCEMENT: 0,
     // SUGGESTIONS: 0,
   };
@@ -204,6 +228,9 @@ export class AIResumeBuilderService implements OnModuleInit {
     }
   }
 
+
+
+   
   /**
    * Build resume using AI with intelligent extraction
    */
@@ -332,61 +359,430 @@ private validateStructure(data: any, requestId: string): void {
   });
 }
 
+ // Language detection patterns
+  private readonly languagePatterns = {
+    'French': {
+      words: ['le', 'la', 'les', 'de', 'du', 'des', 'un', 'une', 'est', 'et', 'à', 'au', 'aux', 'dans', 'pour', 'que', 'qui', 'ce', 'cette', 'il', 'elle', 'nous', 'vous', 'ils', 'elles', 'avec', 'son', 'sa', 'ses'],
+      threshold: 0.08,
+      commonPhrases: ['expérience professionnelle', 'compétences', 'formation', 'langues', 'projets', 'références']
+    },
+    'English': {
+      words: ['the', 'and', 'to', 'of', 'a', 'in', 'is', 'it', 'you', 'that', 'for', 'on', 'with', 'as', 'be', 'this', 'by', 'from', 'at', 'or', 'an', 'but', 'not', 'are', 'was', 'we', 'they', 'have', 'has'],
+      threshold: 0.08,
+      commonPhrases: ['professional experience', 'skills', 'education', 'languages', 'projects', 'references']
+    },
+    'Spanish': {
+      words: ['el', 'la', 'los', 'las', 'de', 'y', 'en', 'que', 'por', 'con', 'para', 'como', 'pero', 'más', 'todo', 'este', 'esta', 'eso', 'esa', 'un', 'una', 'unos', 'unas', 'lo', 'le', 'se', 'me', 'te'],
+      threshold: 0.08,
+      commonPhrases: ['experiencia profesional', 'habilidades', 'educación', 'idiomas', 'proyectos', 'referencias']
+    },
+    'German': {
+      words: ['der', 'die', 'das', 'und', 'oder', 'zu', 'von', 'mit', 'auf', 'für', 'ist', 'sind', 'nicht', 'ein', 'eine', 'auch', 'als', 'wie', 'im', 'am', 'um', 'aus', 'bei', 'nach', 'über'],
+      threshold: 0.08,
+      commonPhrases: ['berufserfahrung', 'fähigkeiten', 'bildung', 'sprachen', 'projekte', 'referenzen']
+    },
+    'Italian': {
+      words: ['il', 'la', 'lo', 'i', 'gli', 'le', 'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'è', 'sono', 'che', 'non', 'si', 'una', 'uno', 'del', 'della', 'dei', 'delle'],
+      threshold: 0.08,
+      commonPhrases: ['esperienza professionale', 'competenze', 'istruzione', 'lingue', 'progetti', 'referenze']
+    },
+    'Portuguese': {
+      words: ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'em', 'no', 'na', 'por', 'para', 'com', 'como', 'que', 'se', 'não', 'mais', 'um', 'uma', 'uns', 'umas', 'este', 'esta', 'isso'],
+      threshold: 0.08,
+      commonPhrases: ['experiência profissional', 'habilidades', 'educação', 'idiomas', 'projetos', 'referências']
+    }
+  };
+
+  private detectPrimaryLanguage(text: string): string {
+    if (!text || text.trim().length < 50) {
+      return 'English'; // Default for very short texts
+    }
+
+    // Prepare text for analysis
+    const cleanText = text.toLowerCase()
+      .replace(/[^\p{L}\s]/gu, ' ') // Remove punctuation
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .trim();
+    
+    const words = cleanText.split(/\s+/).filter(word => word.length > 1);
+    
+    if (words.length < 20) {
+      return 'English'; // Not enough content for reliable detection
+    }
+
+    const scores: Record<string, { wordScore: number, phraseScore: number, total: number }> = {};
+
+    // Calculate scores for each language
+    for (const [language, patterns] of Object.entries(this.languagePatterns)) {
+      let wordMatches = 0;
+      let phraseMatches = 0;
+      
+      // Count word matches
+      for (const word of patterns.words) {
+        if (words.includes(word)) {
+          wordMatches++;
+        }
+      }
+      
+      // Count phrase matches (strong indicator)
+      for (const phrase of patterns.commonPhrases) {
+        if (cleanText.includes(phrase)) {
+          phraseMatches++;
+        }
+      }
+      
+      const wordScore = wordMatches / patterns.words.length;
+      const phraseScore = phraseMatches / patterns.commonPhrases.length;
+      const totalScore = (wordScore * 0.7) + (phraseScore * 0.3); // Weighted score
+      
+      scores[language] = {
+        wordScore,
+        phraseScore,
+        total: totalScore
+      };
+    }
+
+    // Find best match
+    let bestLanguage = 'English';
+    let highestScore = 0;
+    
+  for (const [language, score] of Object.entries(scores)) {
+    if (score.total > highestScore && score.total > this.languagePatterns[language as keyof typeof this.languagePatterns].threshold) {
+      highestScore = score.total;
+      bestLanguage = language;
+    }
+  }
+
+    // Log detection for debugging
+    console.log(`Language detection results:`, Object.entries(scores)
+      .map(([lang, score]) => `${lang}: ${(score.total * 100).toFixed(1)}%`)
+      .join(', '));
+    
+    console.log(`Selected language: ${bestLanguage} (confidence: ${(highestScore * 100).toFixed(1)}%)`);
+    
+    return bestLanguage;
+  }
+
   /**
    * Intelligent extraction prompt for AI
    */
- private buildIntelligentExtractionPrompt(
-  text: string,
-  options: AIBuilderOptions,
-  format: string,
-): string {
-  return `You are a professional resume analyst. Extract information from this text and return a VALID JSON object.
+  private buildIntelligentExtractionPrompt(
+    text: string,
+    options: AIBuilderOptions,
+    format: string,
+  ): string {
+    const detectedLanguage = this.detectPrimaryLanguage(text);
+    
+    // Get language-specific section names
+    const sectionNames = this.getLocalizedSectionNames(detectedLanguage);
+    
+    
+ 
+  
+  return `You are a world-class professional resume analyst with 20+ years of experience. 
+  Analyze this text and extract ALL relevant information to create the BEST possible resume.
 
-CRITICAL: Return ONLY a JSON object with this EXACT structure:
-{
-  "extractedData": {
-    "personal": {
-      "name": "string or empty",
-      "email": "string or empty", 
-      "phone": "string or empty",
-      "location": "string or empty",
-      "headline": "string or empty",
-      "summary": "string or empty"
+
+     
+  CRITICAL LANGUAGE REQUIREMENT:
+  1. The entire output MUST be in ${detectedLanguage} language only.
+  2. Do NOT mix languages, translate words, or use any other language.
+  3. All field names, labels, summaries, and content MUST be in ${detectedLanguage}.
+  4. If the input text has mixed languages, use ONLY ${detectedLanguage} for output.
+  5. Maintain professional terminology appropriate for ${detectedLanguage} resumes.
+  
+  LOCALIZED SECTION NAMES (use these in output):
+  ${Object.entries(sectionNames).map(([key, name]) => `- ${key}: ${name}`).join('\n    ')}
+  
+  SOURCE-AWARE EXTRACTION RULES
+  1. The input text may be narrative, paragraph-based, or unstructured.
+  2. Extract information ONLY when it is clearly and explicitly stated.
+  3. Do NOT promote descriptive sentences into achievements.
+  4. If information cannot be cleanly mapped to a field, leave it empty.
+  5. Preserve meaning and intent in ${detectedLanguage}.
+
+
+  SOURCE-AWARE EXTRACTION RULES
+
+1. The input text may be narrative, paragraph-based, or unstructured (e.g., pasted PDFs, biographies).
+2. Extract information ONLY when it is clearly and explicitly stated, even if embedded in paragraphs.
+3. Do NOT require headings, bullet points, or labels to recognize valid information.
+4. Do NOT promote descriptive sentences into achievements unless they are explicite enough.
+5. If information cannot be cleanly mapped to a field, do NOT force it — leave the field empty.
+6. Preserve meaning and intent; do not rewrite to sound more professional.
+7. Treat descriptive paragraphs as CONTEXT, not FACTS, unless explicitly factual.
+
+  STRUCTURING & CUSTOM SECTION CONTROL
+
+1. Attempt to map extracted information to standard sections FIRST.
+2. Create a custom section ONLY when:
+   a) The text explicitly names a section, OR
+   b) Multiple related items exist that clearly do not fit any standard section.
+3. Do NOT create custom sections from general descriptions or interests.
+4. Use EXACT wording from the source text for section names.
+5. Each custom section must include:
+   - sourceText that triggered it
+   - a confidence score based on clarity
+6. If the section intent is broad or philosophical, do NOT create a section.
+
+  CRITICAL: Return ONLY a JSON object with this EXACT structure:
+  {
+    "extractedData": {
+      "personal": {
+        "name": "string or empty - ONLY if explicitly stated",
+        "email": "string or empty - ONLY if explicitly stated", 
+        "phone": "string or empty - ONLY if explicitly stated",
+        "location": "string or empty - ONLY if explicitly stated",
+        "headline": "string or empty - ONLY if explicitly stated",
+        "summary": "string or empty - ONLY if explicitly stated",
+        "website": "string or empty - ONLY if explicitly stated",
+        "linkedin": "string or empty - ONLY if explicitly stated",
+        "github": "string or empty - ONLY if explicitly stated"
+      },
+      "experience": [
+        {
+          "company": "string - ONLY if explicitly stated",
+          "position": "string - ONLY if explicitly stated",
+          "startDate": "string or empty - ONLY if explicitly stated",
+          "endDate": "string or empty - ONLY if explicitly stated",
+          "location": "string or empty - ONLY if explicitly stated",
+          "description": "string or empty - ONLY if explicitly stated",
+          "achievements": ["string"] - ONLY achievements explicitly listed as bullet points
+        }
+      ],
+      "education": [
+        {
+          "institution": "string - ONLY if explicitly stated", 
+          "degree": "string or empty - ONLY if explicitly stated",
+          "fieldOfStudy": "string or empty - ONLY if explicitly stated",
+          "startDate": "string or empty - ONLY if explicitly stated",
+          "endDate": "string or empty - ONLY if explicitly stated",
+          "location": "string or empty - ONLY if explicitly stated",
+          "gpa": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "skills": ["string"] - ONLY skills explicitly mentioned
+      "projects": [
+        {
+          "name": "string - ONLY if explicitly stated",
+          "description": "string or empty - ONLY if explicitly stated",
+          "technologies": ["string"] - ONLY technologies explicitly mentioned
+        }
+      ],
+      "languages": [
+        {
+          "name": "string - ONLY if explicitly stated",
+          "level": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "certifications": [
+        {
+          "name": "string - ONLY if explicitly stated",
+          "issuer": "string or empty - ONLY if explicitly stated",
+          "date": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "awards": [
+        {
+          "name": "string - ONLY if explicitly stated",
+          "issuer": "string or empty - ONLY if explicitly stated",
+          "date": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "volunteer": [
+        {
+          "organization": "string - ONLY if explicitly stated",
+          "position": "string or empty - ONLY if explicitly stated",
+          "description": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "publications": [
+        {
+          "title": "string - ONLY if explicitly stated",
+          "publisher": "string or empty - ONLY if explicitly stated",
+          "date": "string or empty - ONLY if explicitly stated"
+        }
+      ],
+      "interests": ["string"] - ONLY interests explicitly mentioned
+      "profiles": [
+        {
+          "network": "string - ONLY if explicitly stated",
+          "username": "string - ONLY if explicitly stated",
+          "url": "string - ONLY if explicitly stated and must start with https:// and if not present, make sure to include it"
+        }
+      ],
+      "customSections": [
+        {
+          "sectionName": "string - EXACT wording found in text",
+          "confidence": "number between 0 and 1 indicating clarity of section",
+          "sourceText": "string - exact snippet that triggered this section",
+          "items": [
+            {
+              "title": "string",
+              "description": "string or empty",
+              "date": "string or empty",
+              "details": ["string"]
+            }
+          ]
+        }
+      ]
     },
-    "experience": [
-      {
-        "company": "string",
-        "position": "string",
-        "startDate": "string",
-        "endDate": "string",
-        "description": "string"
+    "analysis": {
+        "summaryQuality": "string in ${detectedLanguage}",
+        "sectionsFound": ["string in ${detectedLanguage}"],
+        "missingInformation": ["string in ${detectedLanguage}"],
+        "suggestions": ["string in ${detectedLanguage}"],
+        "confidence": "number",
+        "recommendedTemplate": "string",
+        "targetRoles": ["string in ${detectedLanguage}"],
+        "strengths": ["string in ${detectedLanguage}"],
+        "areasForImprovement": ["string in ${detectedLanguage}"],
+        "detectedLanguage": "${detectedLanguage}"
       }
-    ],
-    "education": [
-      {
-        "institution": "string", 
-        "degree": "string",
-        "fieldOfStudy": "string",
-        "startDate": "string",
-        "endDate": "string"
+    }
+
+  LINGUISTIC CONSISTENCY ENFORCEMENT:
+  1. ALL field values, section names, and analysis content MUST be in ${detectedLanguage}.
+  2. Do NOT translate any content to another language.
+  3. Preserve the original terminology and phrasing style of the input text.
+  4. If generating summaries or descriptions, use ${detectedLanguage} professional terminology.
+  5. Section names like "Experience", "Education", etc. should be in ${detectedLanguage} equivalents.
+
+  TEXT TO ANALYZE:
+  ${text.substring(0, 6000)} ${text.length > 6000 ? '...[text truncated]' : ''}
+
+  ANALYSIS & SUMMARY SYNTHESIS RULES
+
+  1. analysis may reason ONLY over extractedData and high-confidence narrative patterns.
+  2. analysis must NEVER add, modify, or backfill extractedData fields.
+  3. Synthesis is allowed: combine related extracted facts to form higher-level insights.
+  4. Do NOT invent roles, companies, dates, achievements, or metrics.
+  5. Experience duration may be estimated ONLY when explicit dates exist.
+  6. Career direction and target roles must be phrased as suggestions, not factual claims.
+  7. A professional summary MAY be generated even if none exists in the source text.
+  8. The generated summary must:
+     a) Be fully grounded in extractedData
+     b) Avoid exaggeration or seniority inflation
+     c) Reflect the user's dominant skills, interests, and working style
+     d) Use professional, ATS-friendly language in ${detectedLanguage}
+     e) Be medium-length (not short, not verbose)
+  9. The summary must be clearly marked as AI-generated.
+  10. Confidence reflects data completeness and clarity, not writing quality alone.
+
+  ATS & PROFESSIONAL QUALITY RULES
+
+  1. Output must be ATS-safe, clear, and professionally neutral.
+  2. Never exaggerate seniority, scope, or ownership.
+  3. Never convert learning, interest, or exposure into expertise.
+  4. Prefer omission over assumption.
+  5. Avoid buzzwords unless they appear in the source text.
+  6. Language must reflect credibility, not marketing.
+  7. Resume must look believable in real hiring pipelines.
+
+  Date Rule: If only a single date or year is provided, display it exactly as given and never convert it into a date range or add words like “to”, “from”, “–”, or “present”.
+
+
+  IMPORTANT: Return ONLY the JSON object. No explanations, no markdown, no extra text.`;
+}
+
+
+  private getLocalizedSectionNames(language: string): Record<string, string> {
+    const localizations: Record<string, Record<string, string>> = {
+      'French': {
+        'summary': 'Résumé',
+        'experience': 'Expérience Professionnelle',
+        'education': 'Éducation',
+        'skills': 'Compétences',
+        'projects': 'Projets',
+        'languages': 'Langues',
+        'certifications': 'Certifications',
+        'awards': 'Récompenses',
+        'volunteer': 'Bénévolat',
+        'publications': 'Publications',
+        'interests': 'Centres d\'intérêt',
+        'references': 'Références',
+        'profiles': 'Profils'
+      },
+      'English': {
+        'summary': 'Summary',
+        'experience': 'Professional Experience',
+        'education': 'Education',
+        'skills': 'Skills',
+        'projects': 'Projects',
+        'languages': 'Languages',
+        'certifications': 'Certifications',
+        'awards': 'Awards',
+        'volunteer': 'Volunteering',
+        'publications': 'Publications',
+        'interests': 'Interests',
+        'references': 'References',
+        'profiles': 'Profiles'
+      },
+      'Spanish': {
+        'summary': 'Resumen',
+        'experience': 'Experiencia Profesional',
+        'education': 'Educación',
+        'skills': 'Habilidades',
+        'projects': 'Proyectos',
+        'languages': 'Idiomas',
+        'certifications': 'Certificaciones',
+        'awards': 'Premios',
+        'volunteer': 'Voluntariado',
+        'publications': 'Publicaciones',
+        'interests': 'Intereses',
+        'references': 'Referencias',
+        'profiles': 'Perfiles'
+      },
+      'German': {
+        'summary': 'Zusammenfassung',
+        'experience': 'Berufserfahrung',
+        'education': 'Bildung',
+        'skills': 'Fähigkeiten',
+        'projects': 'Projekte',
+        'languages': 'Sprachen',
+        'certifications': 'Zertifizierungen',
+        'awards': 'Auszeichnungen',
+        'volunteer': 'Ehrenamt',
+        'publications': 'Veröffentlichungen',
+        'interests': 'Interessen',
+        'references': 'Referenzen',
+        'profiles': 'Profile'
+      },
+      'Italian': {
+        'summary': 'Riepilogo',
+        'experience': 'Esperienza Professionale',
+        'education': 'Istruzione',
+        'skills': 'Competenze',
+        'projects': 'Progetti',
+        'languages': 'Lingue',
+        'certifications': 'Certificazioni',
+        'awards': 'Premi',
+        'volunteer': 'Volontariato',
+        'publications': 'Pubblicazioni',
+        'interests': 'Interessi',
+        'references': 'Referenze',
+        'profiles': 'Profili'
+      },
+      'Portuguese': {
+        'summary': 'Resumo',
+        'experience': 'Experiência Profissional',
+        'education': 'Educação',
+        'skills': 'Habilidades',
+        'projects': 'Projetos',
+        'languages': 'Idiomas',
+        'certifications': 'Certificações',
+        'awards': 'Prêmios',
+        'volunteer': 'Voluntariado',
+        'publications': 'Publicações',
+        'interests': 'Interesses',
+        'references': 'Referências',
+        'profiles': 'Perfis'
       }
-    ],
-    "skills": ["string"],
-    "projects": [
-      {
-        "name": "string",
-        "description": "string",
-        "technologies": ["string"]
-      }
-    ]
+    };
+
+    return localizations[language] || localizations['English'];
   }
-}
 
-TEXT TO ANALYZE:
-${text.substring(0, 5000)} ${text.length > 5000 ? '...[text truncated]' : ''}
-
-IMPORTANT: Return ONLY the JSON object. No explanations, no markdown, no extra text.`;
-}
 
   /**
    * Get sample resume schema (matching your exact structure)
@@ -405,7 +801,7 @@ IMPORTANT: Return ONLY the JSON object. No explanations, no markdown, no extra t
       },
       customFields: [],
       picture: {
-        url: "",
+        url: this.DEFAULT_AVATAR,
         size: 128,
         aspectRatio: 1,
         borderRadius: 0,
@@ -524,7 +920,7 @@ IMPORTANT: Return ONLY the JSON object. No explanations, no markdown, no extra t
       custom: {}
     },
     metadata: {
-      template: "regal",
+      template: "meridian",
       layout: [
         [
           ["summary", "experience", "education", "references"],
@@ -651,7 +1047,7 @@ private createCompatibleResumeStructure(aiResponse: any, options: AIBuilderOptio
     basics: {},
     sections: {},
     metadata: {
-      template: "regal",
+      template: "meridian",
       aiGenerated: true,
       aiGeneratedAt: new Date().toISOString(),
       needsReview: true,
@@ -669,7 +1065,7 @@ private createCompatibleResumeStructure(aiResponse: any, options: AIBuilderOptio
       phone: personal.phone || "",
       location: personal.location || "",
       url: { label: "", href: personal.website || "" },
-      picture: { url: "", size: 128, aspectRatio: 1, borderRadius: 0 },
+      picture: { url: this.DEFAULT_AVATAR, size: 128, aspectRatio: 1, borderRadius: 0 },
     };
   }
 
@@ -739,47 +1135,179 @@ private createCompatibleResumeStructure(aiResponse: any, options: AIBuilderOptio
 }
 
 
-  private createExactSchemaFromExtractedData(aiResponse: any, options: AIBuilderOptions): any {
-  console.log('🔄 Building exact schema from AI response');
+   private createExactSchemaFromExtractedData(aiResponse: any, options: AIBuilderOptions): any {
+    console.log('🔄 Building resume from AI response');
+    
+    const analysis = aiResponse.analysis || {};
+    const detectedLanguage = analysis.detectedLanguage || 'English';
+    const localizedNames = this.getLocalizedSectionNames(detectedLanguage);
+    
+    console.log(`Using language: ${detectedLanguage}`);
+    
+    // Start with EXACT sample schema
+    const resumeData = this.getSampleResumeSchema();
+    
+    // Apply localized section names
+    Object.entries(localizedNames).forEach(([key, name]) => {
+      if (resumeData.sections[key]) {
+        resumeData.sections[key].name = name;
+      }
+    });
   
-  // Start with EXACT sample schema
-  const resumeData = this.getSampleResumeSchema();
   
   const extractedData = aiResponse.extractedData || {};
+ 
   
-  console.log('Extracted data:', {
-    hasPersonal: !!extractedData.personal,
-    hasExperience: extractedData.experience?.length || 0,
-    hasEducation: extractedData.education?.length || 0,
-    hasSkills: extractedData.skills?.length || 0
+  console.log('Intelligent Analysis:', {
+    sectionsFound: analysis.sectionsFound || [],
+    recommendedTemplate: analysis.recommendedTemplate,
+    confidence: analysis.confidence,
+    targetRoles: analysis.targetRoles || []
   });
   
-  // 1. Populate basics from extracted data
-  if (extractedData.personal && typeof extractedData.personal === 'object') {
+  // 1. Intelligent Basics Population
+  if (extractedData.personal) {
     const personal = extractedData.personal;
     
-    // SAFE property access with type checking
-    if (typeof personal.name === 'string') resumeData.basics.name = personal.name;
-    if (typeof personal.headline === 'string') resumeData.basics.headline = personal.headline;
-    if (typeof personal.email === 'string') resumeData.basics.email = personal.email;
-    if (typeof personal.phone === 'string') resumeData.basics.phone = personal.phone;
-    if (typeof personal.location === 'string') resumeData.basics.location = personal.location;
-    
-    // Summary goes to summary section
-    if (typeof personal.summary === 'string' && personal.summary.trim()) {
-      resumeData.sections.summary.content = `<p>${personal.summary}</p>`;
+    // Extract name intelligently
+    if (personal.name) {
+      const nameParts = personal.name.trim().split(' ');
+      if (nameParts.length >= 2) {
+        resumeData.basics.name = personal.name;
+      } else {
+        // Try to infer full name from other context
+        resumeData.basics.name = personal.name || "Professional Candidate";
+      }
     }
     
-    // Website
-    if (typeof personal.website === 'string') {
-      resumeData.basics.url.href = personal.website;
+    // Intelligent headline generation
+    if (personal.headline) {
+      resumeData.basics.headline = personal.headline;
+    } else if (extractedData.experience?.length > 0) {
+      // Generate headline from most recent role
+      const latestExp = extractedData.experience[0];
+      const totalExp = this.calculateTotalExperience(extractedData.experience);
+      const primaryRole = this.getPrimaryRole(extractedData.experience);
+      resumeData.basics.headline = `${totalExp}+ Years ${primaryRole} | ${latestExp.position || "Professional"}`;
+    }
+    
+    // Contact information
+    resumeData.basics.email = personal.email || "";
+    resumeData.basics.phone = personal.phone || "";
+    resumeData.basics.location = personal.location || "";
+    
+    // Intelligent URL handling
+    const urls = [];
+    if (personal.website) urls.push({ label: "Portfolio", href: personal.website });
+    if (personal.linkedin) urls.push({ label: "LinkedIn", href: personal.linkedin });
+    if (personal.github) urls.push({ label: "GitHub", href: personal.github });
+    
+    if (urls.length > 0) {
+      // Use first URL as primary
+      resumeData.basics.url = urls[0];
+      // Add others to profiles section
+      extractedData.profiles = extractedData.profiles || [];
+      urls.slice(1).forEach(url => {
+        extractedData.profiles.push({
+          network: url.label,
+          username: url.label,
+          url: url.href
+        });
+      });
+    }
+    
+    // Generate professional summary if not provided
+    if (personal.summary) {
+      resumeData.sections.summary.content = `<p>${personal.summary}</p>`;
+    } else {
+      resumeData.sections.summary.content = `<p>${this.generateIntelligentSummary(extractedData, analysis)}</p>`;
     }
   }
   
-  // 2. Populate education (CRITICAL: Must match exact structure)
+  // 2. Intelligent Experience Population with Achievements
+  if (extractedData.experience && Array.isArray(extractedData.experience)) {
+    resumeData.sections.experience.items = extractedData.experience.map((exp: any, index: number) => {
+      // Extract achievements and metrics
+      const achievements = exp.achievements || [];
+      const responsibilities = exp.responsibilities || [];
+      const technologies = exp.technologies || [];
+      
+      let summary = "";
+      
+      // Prioritize achievements over responsibilities
+      if (achievements.length > 0) {
+        summary += "<ul>";
+        achievements.slice(0, 4).forEach((achievement: string) => {
+          if (achievement.trim()) {
+            // Enhance achievement with metrics detection
+            const enhancedAchievement = this.enhanceAchievement(achievement, technologies);
+            summary += `<li><p>${enhancedAchievement}</p></li>`;
+          }
+        });
+        summary += "</ul>";
+      } else if (responsibilities.length > 0) {
+        summary += "<ul>";
+        responsibilities.slice(0, 3).forEach((responsibility: string) => {
+          if (responsibility.trim()) {
+            summary += `<li><p>${responsibility}</p></li>`;
+          }
+        });
+        summary += "</ul>";
+      } else if (exp.description) {
+        summary += `<p>${exp.description}</p>`;
+      }
+      
+      // Add technologies if mentioned
+      if (technologies.length > 0) {
+        summary += `<p><strong>Technologies:</strong> ${technologies.slice(0, 5).join(', ')}</p>`;
+      }
+      
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        company: this.safeString(exp.company || exp.employer || `Company ${index + 1}`),
+        position: this.safeString(exp.position || exp.title || `Role ${index + 1}`),
+        location: this.safeString(exp.location || exp.area || ""),
+        date: this.formatDateRange(exp.startDate, exp.endDate),
+        summary: summary,
+        url: {
+          label: "",
+          href: this.safeString(exp.website || exp.url || "")
+        }
+      };
+    });
+    
+    // Sort by date (most recent first)
+    resumeData.sections.experience.items.sort((a: any, b: any) => {
+      const dateA = this.parseDateForSorting(a.date);
+      const dateB = this.parseDateForSorting(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    resumeData.sections.experience.visible = resumeData.sections.experience.items.length > 0;
+  }
+  
+  // 3. Intelligent Education Population
   if (extractedData.education && Array.isArray(extractedData.education)) {
     resumeData.sections.education.items = extractedData.education.map((edu: any, index: number) => {
-      // Create EXACT item structure
+      let summary = "";
+      
+      if (edu.honors && edu.honors.length > 0) {
+        summary += `<p><strong>Honors:</strong> ${edu.honors.join(', ')}</p>`;
+      }
+      
+      if (edu.gpa) {
+        summary += `<p><strong>GPA:</strong> ${edu.gpa}</p>`;
+      }
+      
+      if (edu.courses && edu.courses.length > 0) {
+        summary += `<p><strong>Relevant Courses:</strong> ${edu.courses.slice(0, 5).join(', ')}</p>`;
+      }
+      
+      if (edu.description) {
+        summary += `<p>${edu.description}</p>`;
+      }
+      
       return {
         id: this.generateCuid2(),
         visible: true,
@@ -788,76 +1316,220 @@ private createCompatibleResumeStructure(aiResponse: any, options: AIBuilderOptio
         area: this.safeString(edu.area || edu.location || edu.fieldOfStudy || ""),
         score: this.safeString(edu.score || edu.gpa || ""),
         date: this.formatDateRange(edu.startDate, edu.endDate),
-        summary: this.safeString(edu.summary || edu.description || ""),
+        summary: summary,
         url: {
           label: "",
           href: this.safeString(edu.website || edu.url || "")
         }
       };
     });
+    
+    // Sort by date (most recent first)
+    resumeData.sections.education.items.sort((a: any, b: any) => {
+      const dateA = this.parseDateForSorting(a.date);
+      const dateB = this.parseDateForSorting(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
     resumeData.sections.education.visible = resumeData.sections.education.items.length > 0;
   }
   
-  // 3. Populate experience (CRITICAL: Must match exact structure)
-  if (extractedData.experience && Array.isArray(extractedData.experience)) {
-    resumeData.sections.experience.items = extractedData.experience.map((exp: any, index: number) => {
-      // Create EXACT item structure
-      return {
-        id: this.generateCuid2(),
-        visible: true,
-        company: this.safeString(exp.company || exp.employer || `Company ${index + 1}`),
-        position: this.safeString(exp.position || exp.title || `Role ${index + 1}`),
-        location: this.safeString(exp.location || exp.area || ""),
-        date: this.formatDateRange(exp.startDate, exp.endDate),
-        summary: this.formatExperienceSummary(exp),
-        url: {
-          label: "",
-          href: this.safeString(exp.website || exp.url || "")
-        }
-      };
-    });
-    resumeData.sections.experience.visible = resumeData.sections.experience.items.length > 0;
-  }
-  
-  // 4. Populate skills (CRITICAL: Must match exact structure)
+  // 4. SUPER Intelligent Skills Categorization
   if (extractedData.skills && Array.isArray(extractedData.skills)) {
-    // Group skills by category
-    const groupedSkills = this.groupSkillsByCategory(extractedData.skills);
+    const categorizedSkills = this.categorizeSkillsIntelligently(extractedData.skills);
     
-    resumeData.sections.skills.items = groupedSkills.map((group: any, index: number) => {
+    resumeData.sections.skills.items = categorizedSkills.map((category: any, index: number) => {
+      // Determine proficiency level based on context
+      let proficiency = "Intermediate";
+      if (category.keywords.some((kw: string) => kw.toLowerCase().includes('expert') || kw.toLowerCase().includes('advanced'))) {
+        proficiency = "Advanced";
+      } else if (category.keywords.some((kw: string) => kw.toLowerCase().includes('beginner') || kw.toLowerCase().includes('basic'))) {
+        proficiency = "Beginner";
+      }
+      
       return {
         id: this.generateCuid2(),
         visible: true,
-        name: this.safeString(group.category || `Skills ${index + 1}`),
-        description: this.safeString(group.description || this.getSkillLevelDescription(group.skills)),
-        level: 0, // Fixed at 0 as per sample
-        keywords: group.keywords.slice(0, 10) // Limit to 10 keywords
+        name: this.safeString(category.category || `Skills ${index + 1}`),
+        description: this.safeString(category.description || `${proficiency} proficiency in ${category.category.toLowerCase()}`),
+        level: this.skillCategoryToLevel(category.category, proficiency),
+        keywords: category.keywords.slice(0, 12) // Limit to 12 per category
       };
     });
+    
     resumeData.sections.skills.visible = resumeData.sections.skills.items.length > 0;
   }
   
-  // 5. Populate projects
+  // 5. Intelligent Projects with Impact
   if (extractedData.projects && Array.isArray(extractedData.projects)) {
     resumeData.sections.projects.items = extractedData.projects.map((project: any, index: number) => {
+      let summary = `<p>${project.description || ""}</p>`;
+      
+      if (project.achievements && project.achievements.length > 0) {
+        summary += "<ul>";
+        project.achievements.slice(0, 3).forEach((achievement: string) => {
+          if (achievement.trim()) {
+            summary += `<li><p>${achievement}</p></li>`;
+          }
+        });
+        summary += "</ul>";
+      }
+      
+      if (project.technologies && project.technologies.length > 0) {
+        summary += `<p><strong>Technologies:</strong> ${project.technologies.slice(0, 8).join(', ')}</p>`;
+      }
+      
       return {
         id: this.generateCuid2(),
         visible: true,
         name: this.safeString(project.name || project.title || `Project ${index + 1}`),
         description: this.safeString(project.role || project.position || ""),
-        date: this.safeString(project.date || project.duration || ""),
-        summary: `<p>${this.safeString(project.summary || project.description || "")}</p>`,
-        keywords: Array.isArray(project.technologies) ? project.technologies : [],
+        date: this.safeString(project.date || project.duration || this.formatDateRange(project.startDate, project.endDate)),
+        summary: summary,
+        keywords: Array.isArray(project.technologies) ? project.technologies.slice(0, 10) : [],
         url: {
           label: "",
           href: this.safeString(project.website || project.url || project.link || "")
         }
       };
     });
+    
     resumeData.sections.projects.visible = resumeData.sections.projects.items.length > 0;
   }
   
-  // 6. Populate profiles
+  // 6. Languages with intelligent level detection
+  if (extractedData.languages && Array.isArray(extractedData.languages)) {
+    resumeData.sections.languages.items = extractedData.languages.map((lang: any, index: number) => {
+      const level = this.detectLanguageLevelIntelligently(lang);
+      
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        name: this.safeString(lang.name || lang.language || `Language ${index + 1}`),
+        description: this.safeString(lang.proficiency || level),
+        level: this.getLanguageLevel(level),
+        keywords: []
+      };
+    });
+    
+    // Show languages section only if relevant (2+ languages or multilingual role)
+    const hasMultipleLanguages = resumeData.sections.languages.items.length >= 2;
+    const hasLanguageSkills = extractedData.skills?.some((skill: any) => 
+      typeof skill === 'string' ? skill.toLowerCase().includes('language') : 
+      skill.name?.toLowerCase().includes('language')
+    );
+    
+    resumeData.sections.languages.visible = hasMultipleLanguages || hasLanguageSkills;
+  }
+  
+  // 7. Certifications with validation
+  if (extractedData.certifications && Array.isArray(extractedData.certifications)) {
+    resumeData.sections.certifications.items = extractedData.certifications.map((cert: any, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        name: this.safeString(cert.name || `Certification ${index + 1}`),
+        issuer: this.safeString(cert.issuer || ""),
+        date: this.safeString(cert.date || ""),
+        summary: this.safeString(cert.description || ""),
+        url: {
+          label: "",
+          href: this.safeString(cert.url || "")
+        }
+      };
+    });
+    
+    // Show certifications if any exist
+    resumeData.sections.certifications.visible = resumeData.sections.certifications.items.length > 0;
+  }
+  
+  // 8. Awards with importance ranking
+  if (extractedData.awards && Array.isArray(extractedData.awards)) {
+    resumeData.sections.awards.items = extractedData.awards.map((award: any, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        title: this.safeString(award.name || `Award ${index + 1}`),
+        awarder: this.safeString(award.issuer || ""),
+        date: this.safeString(award.date || ""),
+        summary: this.safeString(award.description || ""),
+        url: {
+          label: "",
+          href: ""
+        }
+      };
+    });
+    
+    // Show awards only if prestigious or relevant
+    const hasPrestigiousAwards = extractedData.awards.some((award: any) => 
+      award.name?.toLowerCase().includes('award') || 
+      award.name?.toLowerCase().includes('recognition') ||
+      award.name?.toLowerCase().includes('honor')
+    );
+    
+    resumeData.sections.awards.visible = hasPrestigiousAwards || resumeData.sections.awards.items.length > 0;
+  }
+  
+  // 9. Volunteer experience
+  if (extractedData.volunteer && Array.isArray(extractedData.volunteer)) {
+    resumeData.sections.volunteer.items = extractedData.volunteer.map((vol: any, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        organization: this.safeString(vol.organization || `Volunteer ${index + 1}`),
+        position: this.safeString(vol.position || ""),
+        date: this.formatDateRange(vol.startDate, vol.endDate),
+        summary: this.safeString(vol.description || ""),
+        url: {
+          label: "",
+          href: ""
+        }
+      };
+    });
+    
+    resumeData.sections.volunteer.visible = resumeData.sections.volunteer.items.length > 0;
+  }
+  
+  // 10. Publications
+  if (extractedData.publications && Array.isArray(extractedData.publications)) {
+    resumeData.sections.publications.items = extractedData.publications.map((pub: any, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        name: this.safeString(pub.title || `Publication ${index + 1}`),
+        publisher: this.safeString(pub.publisher || ""),
+        date: this.safeString(pub.date || ""),
+        summary: "",
+        url: {
+          label: "",
+          href: this.safeString(pub.url || "")
+        }
+      };
+    });
+    
+    resumeData.sections.publications.visible = resumeData.sections.publications.items.length > 0;
+  }
+  
+  // 11. Interests (curated, not just listed)
+  if (extractedData.interests && Array.isArray(extractedData.interests)) {
+    // Filter and curate interests
+    const curatedInterests = this.curateInterests(extractedData.interests, extractedData.skills);
+    
+    resumeData.sections.interests.items = curatedInterests.map((interest: string, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        name: interest,
+        keywords: []
+      };
+    });
+    
+    // Show interests only if they add value (professional or unique)
+    resumeData.sections.interests.visible = resumeData.sections.interests.items.length > 0 && 
+      resumeData.sections.interests.items.length <= 8; // Don't show if too many
+  }
+  
+  // 12. Profiles (social media)
   if (extractedData.profiles && Array.isArray(extractedData.profiles)) {
     resumeData.sections.profiles.items = extractedData.profiles.map((profile: any) => {
       return {
@@ -871,46 +1543,527 @@ private createCompatibleResumeStructure(aiResponse: any, options: AIBuilderOptio
           href: this.safeString(profile.url || profile.link || "")
         }
       };
-    }).filter((p: any) => p.network); // Filter out empty profiles
+    }).filter((p: any) => p.network && p.network.trim());
+    
     resumeData.sections.profiles.visible = resumeData.sections.profiles.items.length > 0;
   }
   
-  // 7. Set AI metadata
+  // 13. References (handle carefully)
+  if (extractedData.references && Array.isArray(extractedData.references)) {
+    resumeData.sections.references.items = extractedData.references.map((ref: any, index: number) => {
+      return {
+        id: this.generateCuid2(),
+        visible: true,
+        name: this.safeString(ref.name || `Reference ${index + 1}`),
+        position: this.safeString(ref.position || ""),
+        company: this.safeString(ref.company || ""),
+        summary: this.safeString(ref.contact || "Available upon request"),
+        url: {
+          label: "",
+          href: ""
+        }
+      };
+    });
+    
+    // Typically hide references or show only if explicitly provided
+    resumeData.sections.references.visible = false; // Usually hidden by default
+  }
+  
+  // 14. INTELLIGENT CUSTOM SECTIONS
+  if (extractedData.customSections && Array.isArray(extractedData.customSections)) {
+  // Initialize custom sections object
+  resumeData.sections.custom = {};
+  
+  extractedData.customSections.forEach((customSection: any) => {
+    if (customSection.sectionName && customSection.items && Array.isArray(customSection.items)) {
+      const sectionKey = customSection.sectionName.toLowerCase()
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+      
+      if (!sectionKey || sectionKey === 'custom') return; // Skip invalid keys
+      
+      // Create the custom section structure
+      resumeData.sections.custom[sectionKey] = {
+        name: customSection.sectionName,
+        columns: 1,
+        separateLinks: true,
+        visible: true,
+        id: sectionKey,
+        items: customSection.items.map((item: any, idx: number) => ({
+          id: this.generateCuid2(),
+          visible: true,
+          name: this.safeString(item.title || `${customSection.sectionName} Item ${idx + 1}`),
+          description: "",
+          date: this.safeString(item.date || ""),
+          summary: this.formatCustomItemSummary(item),
+          keywords: Array.isArray(item.details) ? item.details.slice(0, 5) : [],
+          url: { label: "", href: "" }
+        }))
+      };
+      
+      console.log(`✅ Created custom section: ${customSection.sectionName} with ${customSection.items.length} items`);
+    }
+  });
+  
+  // If no valid custom sections, ensure custom is an empty object
+  if (Object.keys(resumeData.sections.custom).length === 0) {
+    resumeData.sections.custom = {};
+  }
+}
+  
+  // 15. INTELLIGENT METADATA based on analysis
   resumeData.metadata.aiGenerated = true;
   resumeData.metadata.aiGeneratedAt = new Date().toISOString();
   resumeData.metadata.needsReview = aiResponse.needsReview !== false;
-  resumeData.metadata.confidence = Math.min(Math.max(aiResponse.confidence || 0.85, 0), 1);
+  resumeData.metadata.confidence = Math.min(Math.max(aiResponse.confidence || analysis.confidence || 0.85, 0), 1);
   
-  // CRITICAL: Ensure all sections are proper objects before returning
-  console.log('🔧 Final structure validation and fixing...');
-  // const finalResumeData = this.ensureSectionObjectStructure(resumeData);
-
+  // Set template based on analysis
+  if (analysis.recommendedTemplate) {
+    resumeData.metadata.template = analysis.recommendedTemplate;
+  } else {
+    // Choose template based on content
+    const hasManyProjects = resumeData.sections.projects.items.length >= 3;
+    const hasPublications = resumeData.sections.publications.items.length > 0;
+    const isAcademic = resumeData.sections.education.items.length >= 2 || hasPublications;
+    
+    if (isAcademic) {
+      resumeData.metadata.template = "academic";
+    } else if (hasManyProjects) {
+      resumeData.metadata.template = "portfolio";
+    } else {
+      resumeData.metadata.template = "modern";
+    }
+  }
+  
+  // Adjust layout based on content
+  resumeData.metadata.layout = this.generateIntelligentLayout(resumeData);
+  
+  // CRITICAL: Ensure all sections are proper objects
   console.log('🔧 Applying comprehensive structure fix...');
   const finalResumeData = this.validateAndFixResumeStructureCompletely(resumeData);
   
-  
-  // Validate structure
-  console.log('✅ Final resume structure validation:');
-  this.validateFinalStructure(finalResumeData);
-  
-  console.log('✅ Final resume structure built:', {
-    sections: Object.keys(finalResumeData.sections),
-    sectionTypes: Object.entries(finalResumeData.sections).map(([key, value]) => ({
-      key,
-      type: Array.isArray(value) ? 'ARRAY' : typeof value
-    })),
+  console.log('✅ SUPER intelligent resume built:', {
+    totalSections: Object.keys(finalResumeData.sections).length,
+    customSections: Object.keys(finalResumeData.sections.custom || {}),
     itemsCount: {
-      education: finalResumeData.sections.education.items.length,
       experience: finalResumeData.sections.experience.items.length,
+      education: finalResumeData.sections.education.items.length,
       skills: finalResumeData.sections.skills.items.length,
-      projects: finalResumeData.sections.projects.items.length
-    }
+      projects: finalResumeData.sections.projects.items.length,
+      languages: finalResumeData.sections.languages.items.length,
+      certifications: finalResumeData.sections.certifications.items.length
+    },
+    template: finalResumeData.metadata.template,
+    confidence: finalResumeData.metadata.confidence
   });
-
-
-  
   
   return finalResumeData;
+}
+
+
+private formatCustomItemSummary(item: any): string {
+  let summary = "";
+  
+  // Add description if provided
+  if (item.description && item.description.trim()) {
+    summary += `<p>${this.escapeHtml(item.description)}</p>`;
+  }
+  
+  // Add details as bullet points if provided
+  if (item.details && Array.isArray(item.details) && item.details.length > 0) {
+    if (summary) summary += "<br/>";
+    summary += "<ul>";
+    item.details.slice(0, 3).forEach((detail: string) => {
+      if (detail && detail.trim()) {
+        summary += `<li><p>${this.escapeHtml(detail)}</p></li>`;
+      }
+    });
+    summary += "</ul>";
+  }
+  
+  // If no content, return minimal placeholder
+  if (!summary.trim()) {
+    summary = "<p>Details available upon request.</p>";
+  }
+  
+  return summary;
+}
+
+private escapeHtml(text: string): string {
+  if (!text) return "";
+  
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/\n/g, '<br/>');
+}
+
+
+// Add these new intelligent helper methods to your class:
+
+private generateIntelligentSummary(extractedData: any, analysis: any): string {
+  const personal = extractedData.personal || {};
+  const experience = extractedData.experience || [];
+  const skills = extractedData.skills || [];
+  const education = extractedData.education || [];
+  
+  let summary = "";
+  
+  // Years of experience
+  const totalExp = this.calculateTotalExperience(experience);
+  if (totalExp !== "0") {
+    summary += `Results-driven professional with ${totalExp}+ years of experience `;
+  } else {
+    summary += `Motivated professional `;
+  }
+  
+  // Primary role/industry
+  const primaryRole = this.getPrimaryRole(experience);
+  const industry = this.detectIndustry(experience, skills);
+  
+  if (primaryRole && industry) {
+    summary += `in ${industry} as a ${primaryRole}. `;
+  } else if (primaryRole) {
+    summary += `specializing in ${primaryRole}. `;
+  } else if (industry) {
+    summary += `in ${industry}. `;
+  } else {
+    summary += `seeking new opportunities. `;
+  }
+  
+  // Key achievements/strengths
+  const topAchievements = this.extractTopAchievements(experience, 2);
+  if (topAchievements.length > 0) {
+    summary += `Proven track record of ${topAchievements.join(' and ').toLowerCase()}. `;
+  }
+  
+  // Key skills
+  const keySkills = this.getTopSkills(skills, 3);
+  if (keySkills.length > 0) {
+    summary += `Expertise in ${keySkills.join(', ')}. `;
+  }
+  
+  // Education highlight
+  if (education.length > 0) {
+    const highestDegree = education.reduce((highest: any, current: any) => {
+      const currentLevel = this.getEducationLevel(current.degree);
+      const highestLevel = this.getEducationLevel(highest.degree);
+      return currentLevel > highestLevel ? current : highest;
+    });
+    
+    if (highestDegree && highestDegree.institution) {
+      summary += `Holds a ${highestDegree.degree || 'degree'} from ${highestDegree.institution}. `;
+    }
+  }
+  
+  // Closing statement
+  summary += `Committed to delivering exceptional results and driving organizational success.`;
+  
+  return summary;
+}
+
+private categorizeSkillsIntelligently(skills: any[]): any[] {
+  if (!Array.isArray(skills) || skills.length === 0) {
+    return [{
+      category: "Core Competencies",
+      description: "Professional skills and expertise",
+      keywords: ["Problem Solving", "Communication", "Teamwork"]
+    }];
+  }
+  
+  // Advanced categorization based on skill type
+  const categories: Record<string, { description: string, keywords: string[] }> = {
+    "Technical Expertise": { description: "Core technical skills and programming languages", keywords: [] },
+    "Tools & Technologies": { description: "Frameworks, libraries, and development tools", keywords: [] },
+    "Cloud & Infrastructure": { description: "Cloud platforms and infrastructure management", keywords: [] },
+    "Methodologies & Practices": { description: "Development methodologies and best practices", keywords: [] },
+    "Leadership & Management": { description: "Team leadership and project management", keywords: [] },
+    "Communication & Collaboration": { description: "Interpersonal and communication skills", keywords: [] },
+    "Analytical & Problem Solving": { description: "Analytical thinking and problem-solving abilities", keywords: [] },
+    "Industry-Specific": { description: "Domain-specific knowledge and expertise", keywords: [] }
+  };
+  
+  // Process each skill
+  skills.forEach(skill => {
+    if (!skill) return;
+    
+    const skillName = this.extractSkillName(skill);
+    if (!skillName) return;
+    
+    const lowerName = skillName.toLowerCase();
+    
+    // Intelligent categorization
+    if (lowerName.includes('javascript') || lowerName.includes('python') || lowerName.includes('java') || 
+        lowerName.includes('c++') || lowerName.includes('c#') || lowerName.includes('go') || 
+        lowerName.includes('rust') || lowerName.includes('swift') || lowerName.includes('kotlin')) {
+      categories["Technical Expertise"].keywords.push(skillName);
+    } else if (lowerName.includes('react') || lowerName.includes('angular') || lowerName.includes('vue') || 
+               lowerName.includes('node') || lowerName.includes('express') || lowerName.includes('django') || 
+               lowerName.includes('spring') || lowerName.includes('.net')) {
+      categories["Tools & Technologies"].keywords.push(skillName);
+    } else if (lowerName.includes('aws') || lowerName.includes('azure') || lowerName.includes('gcp') || 
+               lowerName.includes('docker') || lowerName.includes('kubernetes') || lowerName.includes('terraform') || 
+               lowerName.includes('jenkins') || lowerName.includes('ci/cd')) {
+      categories["Cloud & Infrastructure"].keywords.push(skillName);
+    } else if (lowerName.includes('agile') || lowerName.includes('scrum') || lowerName.includes('devops') || 
+               lowerName.includes('tdd') || lowerName.includes('bdd') || lowerName.includes('clean code')) {
+      categories["Methodologies & Practices"].keywords.push(skillName);
+    } else if (lowerName.includes('leadership') || lowerName.includes('management') || lowerName.includes('mentoring') || 
+               lowerName.includes('project') || lowerName.includes('team') || lowerName.includes('strategic')) {
+      categories["Leadership & Management"].keywords.push(skillName);
+    } else if (lowerName.includes('communication') || lowerName.includes('collaboration') || lowerName.includes('presentation') || 
+               lowerName.includes('writing') || lowerName.includes('stakeholder')) {
+      categories["Communication & Collaboration"].keywords.push(skillName);
+    } else if (lowerName.includes('analytical') || lowerName.includes('problem') || lowerName.includes('critical') || 
+               lowerName.includes('research') || lowerName.includes('data analysis')) {
+      categories["Analytical & Problem Solving"].keywords.push(skillName);
+    } else if (lowerName.includes('finance') || lowerName.includes('healthcare') || lowerName.includes('education') || 
+               lowerName.includes('retail') || lowerName.includes('manufacturing') || lowerName.includes('ecommerce')) {
+      categories["Industry-Specific"].keywords.push(skillName);
+    } else {
+      // Default to Technical Expertise
+      categories["Technical Expertise"].keywords.push(skillName);
+    }
+  });
+  
+  // Convert to array, filter empty, and limit keywords
+  return Object.entries(categories)
+    .filter(([_, data]) => data.keywords.length > 0)
+    .map(([category, data]) => ({
+      category,
+      description: data.description,
+      keywords: [...new Set(data.keywords)].slice(0, 10) // Remove duplicates, limit to 10
+    }));
+}
+
+private detectLanguageLevelIntelligently(lang: any): string {
+  if (!lang || !lang.level) return "Intermediate";
+  
+  const level = lang.level.toLowerCase();
+  
+  if (level.includes('native') || level.includes('fluent') || level === '5') {
+    return "Native/Fluent";
+  } else if (level.includes('advanced') || level.includes('professional') || level === '4') {
+    return "Advanced";
+  } else if (level.includes('intermediate') || level.includes('conversational') || level === '3') {
+    return "Intermediate";
+  } else if (level.includes('basic') || level.includes('beginner') || level.includes('elementary') || level === '2' || level === '1') {
+    return "Basic";
+  }
+  
+  return "Intermediate";
+}
+
+private curateInterests(interests: string[], skills: any[]): string[] {
+  if (!Array.isArray(interests) || interests.length === 0) {
+    return [];
+  }
+  
+  const curated: string[] = [];
+  const seen = new Set<string>();
+  
+  // Professional interests first
+  const professionalKeywords = ['technology', 'coding', 'development', 'design', 'research', 'innovation', 'startup', 'entrepreneur'];
+  
+  interests.forEach(interest => {
+    if (!interest || typeof interest !== 'string') return;
+    
+    const lowerInterest = interest.toLowerCase().trim();
+    
+    // Skip generic interests
+    if (lowerInterest.length < 3 || 
+        lowerInterest === 'reading' || 
+        lowerInterest === 'music' || 
+        lowerInterest === 'movies' ||
+        lowerInterest === 'travel') {
+      return;
+    }
+    
+    // Capitalize first letter
+    const formatted = interest.charAt(0).toUpperCase() + interest.slice(1).toLowerCase();
+    
+    if (!seen.has(formatted)) {
+      seen.add(formatted);
+      curated.push(formatted);
+    }
+  });
+  
+  // Limit to 6 interests max
+  return curated.slice(0, 6);
+}
+
+private generateIntelligentLayout(resumeData: any): string[][][] {
+  const hasExperience = resumeData.sections.experience.items.length > 0;
+  const hasEducation = resumeData.sections.education.items.length > 0;
+  const hasSkills = resumeData.sections.skills.items.length > 0;
+  const hasProjects = resumeData.sections.projects.items.length > 0;
+  const hasCertifications = resumeData.sections.certifications.items.length > 0;
+  const hasLanguages = resumeData.sections.languages.items.length > 0;
+  const hasAwards = resumeData.sections.awards.items.length > 0;
+  
+  // Default layout
+  let leftColumn = ["summary"];
+  let rightColumn = ["profiles"];
+  
+  if (hasExperience) leftColumn.push("experience");
+  if (hasEducation) leftColumn.push("education");
+  
+  if (hasSkills) rightColumn.push("skills");
+  if (hasProjects) leftColumn.push("projects");
+  if (hasCertifications) rightColumn.push("certifications");
+  if (hasLanguages) rightColumn.push("languages");
+  if (hasAwards) rightColumn.push("awards");
+  
+  // Add volunteer if significant
+  if (resumeData.sections.volunteer.items.length >= 2) {
+    rightColumn.push("volunteer");
+  }
+  
+  // Add interests if curated
+  if (resumeData.sections.interests.items.length > 0 && resumeData.sections.interests.items.length <= 5) {
+    rightColumn.push("interests");
+  }
+  
+  // Always include references (usually hidden)
+  rightColumn.push("references");
+  
+  return [[leftColumn, rightColumn]];
+}
+
+private enhanceAchievement(achievement: string, technologies: string[]): string {
+  let enhanced = achievement.trim();
+  
+  // Add metrics emphasis
+  const metricRegex = /(\d+%)|(\$\d+)|(\d+\+)/g;
+  const metrics = achievement.match(metricRegex);
+  
+  if (metrics && metrics.length > 0) {
+    // Already has metrics, ensure they're emphasized
+    enhanced = enhanced.replace(metricRegex, '<strong>$&</strong>');
+  }
+  
+  // Add technology context
+  if (technologies && technologies.length > 0) {
+    // Check if technologies are mentioned
+    const mentionedTech = technologies.filter(tech => 
+      achievement.toLowerCase().includes(tech.toLowerCase())
+    );
+    
+    if (mentionedTech.length === 0 && technologies.length > 0) {
+      // Add primary technology if not mentioned
+      enhanced += ` using ${technologies[0]}`;
+    }
+  }
+  
+  return enhanced;
+}
+
+private detectIndustry(experience: any[], skills: any[]): string {
+  // Simple industry detection based on keywords
+  const allText = [
+    ...experience.map(exp => `${exp.company} ${exp.position} ${exp.description}`).join(' '),
+    ...skills.map(skill => typeof skill === 'string' ? skill : skill.name).join(' ')
+  ].join(' ').toLowerCase();
+  
+  if (allText.includes('software') || allText.includes('developer') || allText.includes('engineer')) {
+    return "Software Development";
+  } else if (allText.includes('data') || allText.includes('analyst') || allText.includes('science')) {
+    return "Data Science & Analytics";
+  } else if (allText.includes('design') || allText.includes('ux') || allText.includes('ui')) {
+    return "Design & User Experience";
+  } else if (allText.includes('cloud') || allText.includes('devops') || allText.includes('infrastructure')) {
+    return "Cloud & DevOps";
+  } else if (allText.includes('product') || allText.includes('manager') || allText.includes('pm')) {
+    return "Product Management";
+  } else if (allText.includes('finance') || allText.includes('bank') || allText.includes('investment')) {
+    return "Finance & Banking";
+  } else if (allText.includes('health') || allText.includes('medical') || allText.includes('care')) {
+    return "Healthcare";
+  } else if (allText.includes('education') || allText.includes('university') || allText.includes('school')) {
+    return "Education";
+  }
+  
+  return "Technology";
+}
+
+private extractTopAchievements(experience: any[], limit: number = 2): string[] {
+  const achievements: string[] = [];
+  
+  experience.forEach(exp => {
+    if (exp.achievements && Array.isArray(exp.achievements)) {
+      exp.achievements.forEach((achievement: string) => {
+        if (achievement && typeof achievement === 'string') {
+          // Look for quantifiable achievements
+          if (achievement.match(/(\d+%)|(\$\d+)|(\d+\+)|(increase)|(reduce)|(improve)|(save)/i)) {
+            achievements.push(achievement);
+          }
+        }
+      });
+    }
+  });
+  
+  // Return top achievements by length (assuming longer = more detailed)
+  return achievements
+    .sort((a, b) => b.length - a.length)
+    .slice(0, limit)
+    .map(ach => {
+      // Clean up the achievement
+      return ach.replace(/^[\s\-•*]+/, '').trim();
+    });
+}
+
+private parseDateForSorting(dateString: string): Date {
+  if (!dateString) return new Date(0); // Very old date
+  
+  // Try to parse various date formats
+  const now = new Date();
+  const yearMatch = dateString.match(/\b(19|20)\d{2}\b/);
+  
+  if (yearMatch) {
+    const year = parseInt(yearMatch[0]);
+    return new Date(year, 0, 1);
+  }
+  
+  return now; // Default to current date
+}
+
+private getEducationLevel(degree: string): number {
+  if (!degree) return 0;
+  
+  const lowerDegree = degree.toLowerCase();
+  
+  if (lowerDegree.includes('phd') || lowerDegree.includes('doctor')) return 5;
+  if (lowerDegree.includes('master')) return 4;
+  if (lowerDegree.includes('bachelor') || lowerDegree.includes('bs') || lowerDegree.includes('ba')) return 3;
+  if (lowerDegree.includes('associate') || lowerDegree.includes('diploma')) return 2;
+  if (lowerDegree.includes('certificate') || lowerDegree.includes('certification')) return 1;
+  
+  return 0;
+}
+
+private skillCategoryToLevel(category: string, proficiency: string): number {
+  const proficiencyMap: Record<string, number> = {
+    'Advanced': 4,
+    'Intermediate': 3,
+    'Beginner': 2,
+    'Basic': 1
+  };
+  
+  // Certain categories get higher default levels
+  const categoryBoost: Record<string, number> = {
+    'Technical Expertise': 1,
+    'Leadership & Management': 1,
+    'Industry-Specific': 1
+  };
+  
+  const baseLevel = proficiencyMap[proficiency] || 3;
+  const boost = categoryBoost[category] || 0;
+  
+  return Math.min(4, baseLevel + boost);
 }
 
 // Add this validation method
@@ -1742,7 +2895,7 @@ private validateAndFixResumeStructureCompletely(data: any): any {
   requiredBasics.forEach(prop => {
     if (fixed.basics[prop] === undefined) {
       if (prop === 'url') fixed.basics.url = { label: "", href: "" };
-      else if (prop === 'picture') fixed.basics.picture = { url: "", size: 128, aspectRatio: 1, borderRadius: 0, effects: { hidden: false, border: false, grayscale: false } };
+      else if (prop === 'picture') fixed.basics.picture = { uurl: this.DEFAULT_AVATAR, size: 128, aspectRatio: 1, borderRadius: 0, effects: { hidden: false, border: false, grayscale: false } };
       else if (prop === 'customFields') fixed.basics.customFields = [];
       else fixed.basics[prop] = "";
     }
@@ -1815,7 +2968,7 @@ private validateAndFixResumeStructureCompletely(data: any): any {
   
   // Required metadata properties
   fixed.metadata = {
-    template: fixed.metadata.template || "regal",
+    template: fixed.metadata.template || "meridian",
     layout: fixed.metadata.layout || [
       [
         ["summary", "experience", "education", "references"],

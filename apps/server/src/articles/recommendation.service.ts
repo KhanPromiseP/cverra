@@ -9,7 +9,17 @@ import {
   FeedbackType
 } from './dto/recommendation.dto';
 import { EngagementService } from './engagement.service';
-import { ArticleStatus } from '@prisma/client';
+
+export enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
 
 interface Recommendation {
   article: any;

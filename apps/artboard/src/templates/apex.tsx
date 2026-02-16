@@ -51,7 +51,7 @@ const Header = () => {
       </div>
 
       {/* Name and Title Section with curved transition */}
-      <div className="relative col-span-2 flex flex-col justify-center space-y-3 bg-white p-10">
+      <div className="relative col-span-2 flex flex-col justify-start pt-3 bg-white px-6">
               {/* Curved edge decoration */}
             <div className="absolute -left-8 top-0 h-full w-19">
         <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -65,8 +65,8 @@ const Header = () => {
 
         
         <div className="relative z-10">
-          <div className="text-5xl font-black uppercase tracking-tight text-gray-900">{basics.name}</div>
-          <div className="mt-2 text-xl font-light uppercase tracking-widest text-primary">{basics.headline}</div>
+          <div className="text-2xl font-black uppercase tracking-tight text-gray-900">{basics.name}</div>
+          <div className="mt-1 text-lg font-light tracking-widest text-primary">{basics.headline}</div>
           
           {/* Decorative line */}
           <div className="mt-4 flex items-center gap-2">
@@ -91,13 +91,13 @@ const Summary = () => {
       <div className="absolute -right-32 -top-32 h-64 w-64 rounded-xl bg-white/10 blur-3xl"></div>
       <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
         
-        <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
+        <i className="ph ph-bold ph-user-circle text-xl text-primary" />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
-        <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
+      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-1 group-[.main]:flex">
+        <i className="ph ph-bold ph-user-circle text-xl text-primary" />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
 
@@ -203,24 +203,26 @@ const Section = <T,>({
   sidebarIcon = "list",
   mainIcon = "list",
 }: SectionProps<T>) => {
+ 
+  
   if (!section.visible || section.items.length === 0) return null;
 
   return (
     <section id={section.id} className="grid">
       {/* Sidebar Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+      <div className="mb-3 mt-2 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
         <i className={cn(`ph ph-bold ph-${sidebarIcon}`, "text-2xl text-primary")} />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
-        <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-2xl text-primary")} />
+      <div className="mb-1 hidden items-center gap-x-3 rounded-xl border-2 border-primary bg-white px-6 py-1 group-[.main]:flex">
+        <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-xl text-primary")} />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
 
       <div
-        className="grid gap-x-6 gap-y-4"
+        className="grid gap-x-6 gap-y-2"
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
@@ -306,7 +308,7 @@ const Profiles = () => {
             <BrandIcon slug={item.icon} />
           </div>
           {isUrl(item.url.href) ? (
-            <a href={item.url.href} className="text-sm hover:text-primary" target="_blank" rel="noreferrer">
+            <a href={item.url.href} className="text-sm text-foreground hover:text-primary group-[.sidebar]:text-white" target="_blank" rel="noreferrer">
               {item.username}
             </a>
           ) : (
@@ -378,6 +380,7 @@ const ContactInfo = () => {
 
 const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary" mainIcon="briefcase" sidebarIcon="briefcase">
@@ -397,17 +400,34 @@ const Experience = () => {
                   "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
                 )}
               />
-              <div className={cn(
-                "text-sm font-semibold",
-                "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
-              )}>{item.position}</div>
-              {item.location && (
+              
+              {/* Position + Location on same line */}
+              <div className="flex items-center gap-x-2 flex-wrap">
                 <div className={cn(
-                  "text-sm text-gray-600",
-                  "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
-                )}>{item.location}</div>
-              )}
+                  "text-sm font-semibold",
+                  "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
+                )}>
+                  {item.position}
+                </div>
+                
+                {item.location && (
+                  <>
+                    <span className="text-gray-400 group-[.sidebar]:text-gray-500">•</span>
+                    <i 
+                        className="ph ph-map-pin text-[10px] group-[.sidebar]:text-xs" 
+                        style={{ color: primaryColor }}
+                      />
+                    <div className={cn(
+                      "text-sm text-gray-600",
+                      "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
+                    )}>
+                      {item.location}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
+            
             <div className={cn(
               "text-sm font-bold text-primary whitespace-nowrap",
               "group-[.sidebar]:text-xs"
@@ -423,42 +443,31 @@ const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
 
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary" mainIcon="graduation-cap" sidebarIcon="graduation-cap">
-      {(item) => (
-        <div className="space-y-1">
-          <LinkedEntity
-            name={item.institution}
-            url={item.url}
-            separateLinks={section.separateLinks}
-            className={cn(
-              "text-base font-bold",
-              "group-[.sidebar]:text-sm group-[.sidebar]:text-white"
-            )}
-          />
-          <div className={cn(
-            "text-sm",
-            "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
-          )}>{item.area}</div>
-          {item.studyType && (
-            <div className={cn(
-              "text-sm uppercase text-gray-600",
-              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
-            )}>{item.studyType}</div>
-          )}
-          {item.score && (
-            <div className={cn(
-              "text-sm text-gray-600",
-              "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
-            )}>{item.score}</div>
-          )}
-          <div className={cn(
-            "text-sm font-bold text-primary",
-            "group-[.sidebar]:text-xs"
-          )}>{item.date}</div>
-        </div>
-      )}
-    </Section>
-  );
+      <Section<Education> section={section} urlKey="url" summaryKey="summary">
+        {(item) => (
+          <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
+            <div className="text-left">
+              <LinkedEntity
+                name={item.institution}
+                url={item.url}
+                separateLinks={section.separateLinks}
+                className="font-bold"
+              />
+              <div>{item.area}</div>
+              <div>{item.score}</div>
+            </div>
+  
+            <div className="shrink-0 text-right">
+              <div className={cn(
+              "text-sm font-bold text-primary whitespace-nowrap",
+              "group-[.sidebar]:text-xs"
+            )}>{item.date}</div>
+              <div>{item.studyType}</div>
+            </div>
+          </div>
+        )}
+      </Section>
+    );
 };
 
 const Awards = () => {
@@ -806,30 +815,79 @@ const mapSectionToComponent = (section: SectionKey) => {
 
 export const Apex = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
+  const basics = useArtboardStore((state) => state.resume.basics);
 
   return (
-    <div className="space-y-0">
-      {isFirstPage && <Header />}
+    <div className="grid grid-cols-3 min-h-[inherit]"> {/* ✅ Add min-h-[inherit] to parent */}
+      
+      {/* ================= SIDEBAR COLUMN (DARK) ================= */}
+      <div className="sidebar group space-y-6 bg-gray-800 min-h-full"> {/* ✅ Add min-h-full */}
+        
+        {/* SIDEBAR HEADER - PICTURE ONLY (TALL) */}
+        {isFirstPage && (
+          <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/80 flex items-center justify-center py-2">
+            
+            {/* Decorative shapes */}
+            <div className="absolute -right-32 -top-32 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
+            <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-white/5 blur-2xl"></div>
+            <div className="absolute right-1/4 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-white/5 blur-xl"></div>
 
-      <div className="grid grid-cols-3 gap-x-0">
-        {/* Sidebar - Dark Background */}
-        <div className="sidebar group space-y-6 bg-gray-800 p-6">
+            {/* Profile Picture */}
+            <div className="relative z-10 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-48 w-48 rounded-full bg-gradient-to-br from-white/20 to-white/5 blur-xl"></div>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-40 w-40 rounded-full bg-white/10"></div>
+              </div>
+              <div className="relative rounded-full border-4 border-white p-1 shadow-2xl">
+                <Picture size={200} className="rounded-full" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sidebar Content */}
+        <div className="p-6 pt-0">
           <ContactInfo />
           {sidebar.map((section) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}
         </div>
-
-        {/* Main Content - White Background */}
-        <div className={cn(
-          "main group space-y-6 bg-white p-6",
-          sidebar.length > 0 ? "col-span-2" : "col-span-3"
-        )}>
-          {main.map((section) => (
-            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-          ))}
-        </div>
       </div>
+
+      {/* ================= MAIN COLUMN (WHITE) ================= */}
+      <div className={cn(
+        "main group space-y-4 bg-white px-6",
+        sidebar.length > 0 ? "col-span-2" : "col-span-3"
+      )}>
+        
+        {/* MAIN HEADER - NAME & TAGLINE ONLY (SHORT) */}
+        {isFirstPage && (
+          <div className="relative pt-4">
+            <div className="relative z-10">
+              <div className="text-2xl font-black uppercase tracking-tight text-gray-900">
+                {basics.name}
+              </div>
+              <div className="mt-1 text-lg font-light tracking-widest text-primary">
+                {basics.headline}
+              </div>
+              
+              {/* Decorative line */}
+              <div className="mt-3 flex items-center gap-1">
+                <div className="h-1 w-20 bg-gradient-to-r from-primary via-primary/70 to-transparent rounded-full"></div>
+                <div className="h-1 w-8 bg-gradient-to-r from-primary/40 to-transparent rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        {main.map((section) => (
+          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+        ))}
+      </div>
+
     </div>
   );
 };

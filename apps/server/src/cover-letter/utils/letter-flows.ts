@@ -67,7 +67,7 @@ export const FORMAL_LETTER_FLOW: LetterFlow = {
     
     CLOSING_PARAGRAPH: `Express appreciation, reiterate interest, and include call to action. Professional and polite. It should not be too long.`,
     
-    SIGNATURE_BLOCK: `Formal closing: "Sincerely," or "Respectfully," followed by printed name, and optionally title.`
+    SIGNATURE_BLOCK: `Formal closing: "Sincerely," or "Respectfully," followed by printed name, and title.`
   },
   formattingRules: [
     'Use professional, formal language or anylanguage that the user used for inputting requirements throughout',

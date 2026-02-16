@@ -11,6 +11,7 @@ interface UserData {
   skills?: string[];
   experience?: string[];
   [key: string]: any;
+  
 }
 
 interface JobData {
@@ -224,39 +225,85 @@ ${userInfo}`;
       : '';
   }
 
-  private static buildRecipientContext(category: string, jobData: JobData): string {
-    const contextBuilders: Record<string, () => string> = {
-      'Job Application': () => `POSITION CONTEXT:
+ private static buildRecipientContext(category: string, jobData: JobData): string {
+  const contextBuilders: Record<string, () => string> = {
+    'Job Application': () => `POSITION CONTEXT:
 - Position: ${jobData.position || 'Not specified'}
 - Company: ${jobData.company || 'Not specified'}
 - Hiring Manager: ${jobData.hiringManager || 'Not specified'}
 - Job Description: ${this.truncateText(jobData.jobDescription, 200) || 'Not provided'}`,
 
-      'Internship Application': () => `INTERNSHIP CONTEXT:
+    'Internship Application': () => `INTERNSHIP CONTEXT:
 - Position: ${jobData.position || 'Internship'}
 - Company: ${jobData.company || 'Not specified'}
 - Department: ${jobData.department || 'Not specified'}`,
 
-      'Business Partnership Proposal': () => `PARTNERSHIP CONTEXT:
+    'Scholarship/Academic Request': () => `ACADEMIC CONTEXT:
+- Program: ${jobData.programName || 'Not specified'}
+- Institution: ${jobData.institution || 'Not specified'}
+- Field of Study: ${jobData.fieldOfStudy || 'Not specified'}`,
+
+    'Business Partnership Proposal': () => `PARTNERSHIP CONTEXT:
+- Your Company: ${jobData.company || 'Not specified'}
+- Partnership Type: ${jobData.partnershipType || 'Strategic partnership'}
+- Collaboration Details: ${this.truncateText(jobData.collaborationDetails, 200) || 'Not specified'}
+- Recipient Company: ${jobData.recipientCompany || 'Not specified'}
+- Recipient Position: ${jobData.recipientPosition || 'Not specified'}
+- Proposal Purpose: ${this.truncateText(jobData.proposalPurpose, 200) || 'Not specified'}
+- Proposed Benefits: ${this.truncateText(jobData.proposedBenefits, 200) || 'Not specified'}
+- Partnership Scope: ${this.truncateText(jobData.partnershipScope, 200) || 'Not specified'}
+- Proposed Timeline: ${this.truncateText(jobData.proposedTimeline, 200) || 'Not specified'}
+- Financial Terms: ${this.truncateText(jobData.financialTerms, 200) || 'Not specified'}`,
+
+    'Contract / Offer Negotiation': () => `NEGOTIATION CONTEXT:
+- Position: ${jobData.position || 'Not specified'}
 - Company: ${jobData.company || 'Not specified'}
-- Collaboration Type: ${jobData.partnershipType || 'Strategic partnership'}
-- Proposed Details: ${jobData.collaborationDetails || 'Not specified'}`,
+- Current Offer: ${this.truncateText(jobData.currentOffer, 200) || 'Not specified'}
+- Negotiation Points: ${jobData.negotiationPoints || 'Not specified'}`,
 
-      'Letter to Parent/Relative': () => `RELATIONSHIP CONTEXT:
+    'Recommendation Request': () => `RECOMMENDATION CONTEXT:
+- Purpose: ${jobData.purpose || 'Not specified'}
+- Key Points: ${jobData.keyPoints || 'Not specified'}`,
+
+    'Apology Letter': () => `APOLOGY CONTEXT:
+- Situation: ${this.truncateText(jobData.situation, 200) || 'Not specified'}
+- Impact: ${this.truncateText(jobData.impact, 200) || 'Not specified'}
+- Resolution: ${this.truncateText(jobData.resolution, 200) || 'Not specified'}`,
+
+    'Appreciation Letter': () => `APPRECIATION CONTEXT:
+- Recipient: ${jobData.recipient || 'Not specified'}
+- Reason: ${this.truncateText(jobData.reason, 200) || 'Not specified'}
+- Impact: ${this.truncateText(jobData.impact, 200) || 'Not specified'}`,
+
+    'Letter to Parent/Relative': () => `PERSONAL LETTER CONTEXT:
 - Relationship: ${jobData.relationship || 'Family'}
-- Personal Context: ${jobData.personalContext || 'General update'}
-- Emotional Tone: ${jobData.emotionalTone || 'Warm and caring'}`,
+- Personal Context: ${this.truncateText(jobData.personalContext, 200) || 'General update'}
+- Emotional Tone: ${jobData.emotionalTone || 'Warm and caring'}
+- Family Updates: ${this.truncateText(jobData.familyUpdates, 200) || 'Not specified'}
+- Personal News: ${this.truncateText(jobData.personalNews, 200) || 'Not specified'}`,
 
-      'Visa Request / Embassy Letter': () => `TRAVEL CONTEXT:
+    'Visa Request / Embassy Letter': () => `TRAVEL CONTEXT:
 - Purpose: ${jobData.travelPurpose || 'Not specified'}
 - Destination: ${jobData.destination || 'Not specified'}
-- Duration: ${jobData.duration || 'Not specified'}`
-    };
+- Duration: ${jobData.duration || 'Not specified'}
+- Accommodation: ${jobData.accommodation || 'Not specified'}
+- Financial Support: ${jobData.financialSupport || 'Not specified'}
+- Return Plans: ${jobData.returnPlans || 'Not specified'}`,
 
-    const contextBuilder = contextBuilders[category];
-    return contextBuilder ? contextBuilder() : 'RECIPIENT CONTEXT: Professional correspondence';
-  }
+    'Complaint Letter': () => `COMPLAINT CONTEXT:
+- Issue: ${this.truncateText(jobData.issue, 200) || 'Not specified'}
+- Product/Service: ${jobData.productService || 'Not specified'}
+- Desired Resolution: ${this.truncateText(jobData.desiredResolution, 200) || 'Not specified'}`,
 
+    'General Official Correspondence': () => `CORRESPONDENCE CONTEXT:
+- Purpose: ${jobData.purpose || 'Not specified'}
+- Recipient: ${jobData.recipient || 'Not specified'}
+- Key Information: ${this.truncateText(jobData.keyInformation, 200) || 'Not specified'}`
+  };
+
+  const contextBuilder = contextBuilders[category];
+  return contextBuilder ? contextBuilder() : 'RECIPIENT CONTEXT: Professional correspondence';
+}
   private static buildStyleAndRequirements(category: string, style: string, flow: LetterFlow): string {
     const baseTone = this.STYLE_TONES[style] || 'Professional and appropriate';
     const flowTone = flow.type === LetterFlowType.FORMAL 
@@ -280,27 +327,27 @@ ${this.CATEGORY_REQUIREMENTS[category] || 'Professional and appropriate for the 
   }
 
 private static buildFooter(category: string, flowType: LetterFlowType): string {
-  return `🚨 ABSOLUTE OUTPUT RULES:
+  return `ABSOLUTE OUTPUT RULES:
 • OUTPUT ONLY THE LETTER - NO explanations, thoughts, or commentary
 • NO "✓ Editing • Ctrl+Enter to save • Esc to revert" or similar tool text
 • NO reasoning about template decisions
 • NO "According to..." or "However..." explanations
 • NO "I have placed..." or "Should be placed..." commentary
 
-🎯 REQUIRED OUTPUT:
+REQUIRED OUTPUT:
 - Clean letter with section markers only
 - Professional tone appropriate for ${category}
 - All sections in consistent language
 - Follow ${flowType} structure exactly
 
-🚫 STRICTLY PROHIBITED:
+STRICTLY PROHIBITED:
 - Any text explaining your decisions
 - Any commentary on the template
 - Any tool interface text
 - Any markdown or formatting instructions
 - Any text that isn't part of the actual letter
 
-📝 GENERATE THE LETTER NOW (section markers only):`;
+GENERATE THE LETTER NOW (section markers only):`;
 }
 
   private static truncateText(text: string | undefined, maxLength: number): string {

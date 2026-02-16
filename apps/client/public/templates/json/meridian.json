@@ -271,7 +271,7 @@
     "custom": {}
   },
   "metadata": {
-    "template": "glalie",
+    "template": "meridian",
     "layout": [
       [
         ["summary", "experience", "education", "projects", "references"],

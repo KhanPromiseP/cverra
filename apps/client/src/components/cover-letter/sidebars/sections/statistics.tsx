@@ -130,10 +130,10 @@ export const StatisticsSection = ({ disabled = false }: StatisticsSectionProps) 
     };
 
     const getReadability = (score: number): WritingMetrics['readability'] => {
-      if (score >= 80) return t`Excellent`;
-      if (score >= 65) return t`Good`;
-      if (score >= 50) return t`Fair`;
-      return t`Poor`;
+      if (score >= 80) return 'Excellent';
+      if (score >= 65) return 'Good';
+      if (score >= 50) return 'Fair';
+      return 'Poor';
     };
 
     // Generate suggestions

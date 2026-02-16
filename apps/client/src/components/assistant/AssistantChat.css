@@ -1,0 +1,310 @@
+/* components/assistant/AssistantChat.css */
+
+/* ==================== BASE MARKDOWN STYLES ==================== */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-content h1 { font-size: 1.5em; }
+.markdown-content h2 { font-size: 1.25em; }
+.markdown-content h3 { font-size: 1.125em; }
+
+.markdown-content p {
+  margin-bottom: 1em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+}
+
+.markdown-content li {
+  margin-bottom: 0.5em;
+}
+
+.markdown-content blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 4px solid #e5e7eb;
+  color: #6b7280;
+}
+
+.dark .markdown-content blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+
+.markdown-content code {
+  font-family: 'Courier New', monospace;
+  padding: 0.2em 0.4em;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.dark .markdown-content code {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.markdown-content pre {
+  margin: 1em 0;
+  padding: 1em;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.dark .markdown-content pre {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* ==================== ARTICLE LINK STYLES ==================== */
+/* Base article link styling */
+.markdown-content a.article-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+  padding-bottom: 1px;
+  display: inline-block;
+  position: relative;
+}
+
+.markdown-content a.article-link:hover {
+  color: #1d4ed8;
+  border-bottom: 1px solid #1d4ed8;
+  transform: translateY(-1px);
+  background-color: rgba(37, 99, 235, 0.05);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+/* Dark mode article links */
+.dark .markdown-content a.article-link {
+  color: #60a5fa;
+  border-bottom-color: rgba(96, 165, 250, 0.3);
+}
+
+.dark .markdown-content a.article-link:hover {
+  color: #93c5fd;
+  border-bottom-color: #93c5fd;
+  background-color: rgba(96, 165, 250, 0.1);
+}
+
+/* Link indicator emoji */
+.markdown-content a.article-link::after {
+  content: " 🔗";
+  font-size: 0.75em;
+  opacity: 0.7;
+  margin-left: 2px;
+  transition: opacity 0.2s ease;
+}
+
+.markdown-content a.article-link:hover::after {
+  opacity: 1;
+}
+
+.dark .markdown-content a.article-link::after {
+  opacity: 0.8;
+}
+
+/* User message links (blue background) */
+.bg-gradient-to-r\.from-blue-500\.to-indigo-600 .markdown-content a.article-link,
+[class*="from-blue-500"][class*="to-indigo-600"] .markdown-content a.article-link {
+  color: #dbeafe !important;
+  border-bottom-color: rgba(219, 234, 254, 0.5) !important;
+}
+
+.bg-gradient-to-r\.from-blue-500\.to-indigo-600 .markdown-content a.article-link:hover,
+[class*="from-blue-500"][class*="to-indigo-600"] .markdown-content a.article-link:hover {
+  color: #ffffff !important;
+  border-bottom-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hide non-article links (raw URLs) */
+.markdown-content a[href^="http"]:not(.article-link) {
+  display: none;
+}
+
+/* Style for paragraphs containing article links */
+.markdown-content p.article-paragraph {
+  margin-bottom: 1.5em;
+  line-height: 1.7;
+}
+
+/* ==================== RATE LIMIT MESSAGE ==================== */
+.rate-limit-message {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 1px solid #ffd166;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 10px 0;
+  max-width: 85%;
+}
+
+.dark .rate-limit-message {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.3) 0%, rgba(146, 64, 14, 0.3) 100%);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.rate-limit-message h3 {
+  color: #856404;
+  margin-top: 0;
+}
+
+.dark .rate-limit-message h3 {
+  color: #fdba74;
+}
+
+.rate-limit-message p {
+  color: #856404;
+  margin: 8px 0;
+}
+
+.dark .rate-limit-message p {
+  color: #fed7aa;
+}
+
+.rate-limit-message a {
+  color: #007bff;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.dark .rate-limit-message a {
+  color: #60a5fa;
+}
+
+.rate-limit-message .markdown-content {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.rate-limit-message .markdown-content p {
+  margin-bottom: 0.5rem;
+}
+
+.rate-limit-message .markdown-content strong {
+  font-weight: 600;
+  color: #7c2d12;
+}
+
+.dark .rate-limit-message .markdown-content strong {
+  color: #fdba74;
+}
+
+/* Responsive rate limit message */
+@media (min-width: 768px) {
+  .rate-limit-message {
+    max-width: 75%;
+  }
+}
+
+@media (min-width: 1280px) {
+  .rate-limit-message {
+    max-width: 65%;
+  }
+}
+
+/* ==================== UPGRADE BUTTON ==================== */
+.upgrade-button {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+}
+
+.upgrade-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.upgrade-button:active {
+  transform: translateY(0);
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+/* Hide raw URLs that might appear after article links */
+.markdown-content p:has(a.article-link) {
+  position: relative;
+}
+
+/* Animation for rate limit indicator */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.animate-pulse {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* ==================== DARK MODE OVERRIDES ==================== */
+@media (prefers-color-scheme: dark) {
+  .dark .markdown-content {
+    color: #e5e7eb;
+  }
+  
+  .dark .markdown-content blockquote {
+    border-left-color: #4b5563;
+    color: #9ca3af;
+  }
+}

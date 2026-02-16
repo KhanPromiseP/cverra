@@ -13,8 +13,8 @@ export class MailTemplatesService {
     private readonly configService: ConfigService<Config>,
   ) {
     this.appUrl = (this.configService.get("APP_URL") as string) || "http://localhost:3000";
-    this.appName = (this.configService.get("APP_NAME") as string) || "Cverra";
-    this.supportEmail = (this.configService.get("SUPPORT_EMAIL") as string) || "support@cverra.com";
+    this.appName = (this.configService.get("APP_NAME") as string) || "Inlirah";
+    this.supportEmail = (this.configService.get("SUPPORT_EMAIL") as string) || "support@inlirah.com";
     
     Logger.log(`MailTemplatesService initialized with APP_URL: ${this.appUrl}`, 'MailTemplatesService');
   }

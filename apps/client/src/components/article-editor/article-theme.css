@@ -1,0 +1,578 @@
+/* ============================================
+   CSS Variables & Theme Configuration
+   ============================================ */
+
+:root {
+    /* Light theme colors */
+    --bg-main: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-aside: #f8f9fa;
+    
+    --text-main: #1a1a1a;
+    --text-secondary: #4a5568;
+    --text-muted: #6b7280;
+    --text-aside: #1a1a1a;
+    
+    --border-light: #e5e7eb;
+    --border-medium: #d1d5db;
+    --border-strong: #9ca3af;
+    
+    --accent-primary: #3b82f6;
+    --accent-primary-hover: #2563eb;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-error: #ef4444;
+    --accent-info: #06b6d4;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    
+    /* Content widths */
+    --content-width-full: 100%;
+    --content-width-wide: 90rem;
+    --content-width-regular: 45rem;
+    --content-width-narrow: 35rem;
+}
+
+[data-theme="dark"] {
+    /* Dark theme colors */
+    --bg-main: #111827;
+    --bg-secondary: #1f2937;
+    --bg-card: #1f2937;
+    --bg-aside: #374151;
+    
+    --text-main: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --text-aside: #f9fafb;
+    
+    --border-light: #374151;
+    --border-medium: #4b5563;
+    --border-strong: #6b7280;
+    
+    --accent-primary: #60a5fa;
+    --accent-primary-hover: #93c5fd;
+    --accent-success: #34d399;
+    --accent-warning: #fbbf24;
+    --accent-error: #f87171;
+    --accent-info: #22d3ee;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   Base Styles & Reset
+   ============================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    color: var(--text-main);
+    background-color: var(--bg-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================
+   Article Wrapper & Layouts
+   ============================================ */
+
+.article-content-wrapper {
+    min-height: 100vh;
+    padding: var(--space-xl) var(--space-md);
+}
+
+.article-content {
+    margin: 0 auto;
+    max-width: var(--content-width-regular);
+}
+
+.article-content.layout-default {
+    max-width: var(--content-width-regular);
+}
+
+.article-content.layout-wide {
+    max-width: var(--content-width-wide);
+}
+
+.article-content.layout-narrow {
+    max-width: var(--content-width-narrow);
+}
+
+.article-blocks-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+}
+
+/* ============================================
+   Block Base Styles
+   ============================================ */
+
+.article-block {
+    width: 100%;
+}
+
+/* ============================================
+   Typography Blocks
+   ============================================ */
+
+/* Paragraph Block */
+.block-paragraph__content {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    color: var(--text-main);
+    margin-bottom: 0;
+}
+
+/* Heading Block */
+.block-heading__title {
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.3;
+    margin-bottom: 0;
+}
+
+.block-heading__title--h2 {
+    font-size: 2rem;
+    margin-top: var(--space-2xl);
+    margin-bottom: var(--space-lg);
+}
+
+.block-heading__title--h3 {
+    font-size: 1.5rem;
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-md);
+}
+
+/* ============================================
+   Special Content Blocks
+   ============================================ */
+
+/* Tip, Warning, Note Blocks */
+.block-tip,
+.block-warning,
+.block-note {
+    padding: var(--space-lg);
+    border-radius: 0.5rem;
+    margin: var(--space-lg) 0;
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.block-tip {
+    background-color: var(--bg-aside);
+    border-left: 4px solid var(--accent-success);
+}
+
+.block-warning {
+    background-color: var(--bg-aside);
+    border-left: 4px solid var(--accent-warning);
+}
+
+.block-note {
+    background-color: var(--bg-aside);
+    border-left: 4px solid var(--accent-info);
+}
+
+.block-tip__icon,
+.block-warning__icon,
+.block-note__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.block-tip__content,
+.block-warning__content,
+.block-note__content {
+    flex: 1;
+}
+
+.block-tip__title,
+.block-warning__title,
+.block-note__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+    color: var(--text-aside);
+}
+
+.block-tip__text,
+.block-warning__text,
+.block-note__text {
+    color: var(--text-aside);
+    margin-bottom: 0;
+}
+
+/* Quote Block */
+.block-quote {
+    padding: var(--space-xl) var(--space-2xl);
+    margin: var(--space-xl) 0;
+    position: relative;
+}
+
+.block-quote__content {
+    font-size: 1.25rem;
+    font-style: italic;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.block-quote__text {
+    margin-bottom: 0;
+}
+
+.block-quote__caption {
+    font-size: 1rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+
+.block-quote__source {
+    font-style: italic;
+}
+
+/* Code Block */
+.block-code {
+    margin: var(--space-lg) 0;
+}
+
+.block-code__container {
+    background-color: var(--bg-secondary);
+    border-radius: 0.5rem;
+    padding: var(--space-lg);
+    overflow-x: auto;
+    border: 1px solid var(--border-light);
+}
+
+.block-code__content {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-main);
+    white-space: pre;
+    tab-size: 2;
+}
+
+.block-code__caption {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-top: var(--space-sm);
+    text-align: right;
+}
+
+/* List Block */
+.block-list__container {
+    padding-left: var(--space-xl);
+    margin: var(--space-md) 0;
+}
+
+.block-list__item {
+    margin-bottom: var(--space-sm);
+}
+
+.block-list__content {
+    color: var(--text-main);
+    font-size: 1.125rem;
+    line-height: 1.6;
+}
+
+.block-list__container--ordered {
+    list-style-type: decimal;
+}
+
+.block-list__container--unordered {
+    list-style-type: disc;
+}
+
+/* ============================================
+   Media Blocks
+   ============================================ */
+
+/* Image Block */
+.block-image__container {
+    margin: var(--space-lg) 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.block-image__content {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-width: 100%;
+}
+
+.block-image__caption {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: var(--space-sm);
+    font-style: italic;
+}
+
+/* Image + Text Block */
+.block-image-text__container {
+    display: flex;
+    gap: var(--space-xl);
+    align-items: flex-start;
+    margin: var(--space-xl) 0;
+}
+
+.block-image-text__image-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.block-image-text__image {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-light);
+}
+
+.block-image-text__content-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.block-image-text__content {
+    color: var(--text-main);
+}
+
+.block-image-text__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--space-md);
+    color: var(--text-main);
+}
+
+.block-image-text__text {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+/* Video Block */
+.block-video__container {
+    margin: var(--space-lg) 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    background-color: var(--bg-secondary);
+}
+
+.block-video__embed {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    height: 0;
+}
+
+.block-video__placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-card);
+}
+
+.block-video__caption {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: var(--space-sm);
+    font-style: italic;
+}
+
+/* Divider Block */
+.block-divider {
+    border: none;
+    height: 1px;
+    background-color: var(--border-light);
+    margin: var(--space-2xl) 0;
+    width: 100%;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+    .article-content {
+        max-width: 90%;
+    }
+    
+    .block-heading__title--h2 {
+        font-size: 1.75rem;
+    }
+    
+    .block-heading__title--h3 {
+        font-size: 1.25rem;
+    }
+    
+    .block-image-text__container {
+        gap: var(--space-lg);
+    }
+}
+
+/* Mobile (up to 767px) */
+@media (max-width: 767px) {
+    html {
+        font-size: 15px;
+    }
+    
+    .article-content-wrapper {
+        padding: var(--space-lg) var(--space-sm);
+    }
+    
+    .article-content {
+        max-width: 100%;
+    }
+    
+    .block-heading__title--h2 {
+        font-size: 1.5rem;
+        margin-top: var(--space-xl);
+    }
+    
+    .block-heading__title--h3 {
+        font-size: 1.25rem;
+        margin-top: var(--space-lg);
+    }
+    
+    .block-paragraph__content {
+        font-size: 1rem;
+    }
+    
+    .block-tip,
+    .block-warning,
+    .block-note {
+        flex-direction: column;
+        gap: var(--space-sm);
+        padding: var(--space-md);
+    }
+    
+    .block-quote {
+        padding: var(--space-lg);
+    }
+    
+    /* Stack image + text blocks on mobile */
+    .block-image-text__container {
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+    
+    .block-image-text--right .block-image-text__container {
+        flex-direction: column;
+    }
+    
+    /* Ensure images don't overflow */
+    .block-image__content,
+    .block-image-text__image {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* Improve code block readability on small screens */
+    .block-code__container {
+        padding: var(--space-md);
+        font-size: 0.75rem;
+    }
+}
+
+/* Desktop (1024px and up) */
+@media (min-width: 1024px) {
+    .article-content.layout-default {
+        max-width: var(--content-width-regular);
+    }
+    
+    .block-image-text__container {
+        flex-direction: row;
+    }
+    
+    .block-image-text--right .block-image-text__container {
+        flex-direction: row-reverse;
+    }
+}
+
+/* Large Desktop (1440px and up) */
+@media (min-width: 1440px) {
+    .article-content.layout-wide {
+        max-width: var(--content-width-wide);
+    }
+}
+
+/* ============================================
+   Accessibility & Print Styles
+   ============================================ */
+
+@media print {
+    .article-content {
+        max-width: 100%;
+    }
+    
+    .block-code__container {
+        white-space: pre-wrap;
+        page-break-inside: avoid;
+    }
+    
+    .block-image-text__container {
+        page-break-inside: avoid;
+    }
+    
+    .block-divider {
+        display: none;
+    }
+}
+
+/* Focus styles for accessibility */
+.article-block:focus-within {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+    
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

@@ -239,6 +239,27 @@ export const getRecentArticles = (): Promise<any> =>
 export const getTopArticles = (): Promise<any> => 
   api.get('/articles/admin/articles/top');
 
+export const getSystemStats = async () => {
+  const response = await api.get('/articles/admin/system/stats');
+  return response.data;
+};
+
+export const getAllUsers = async (page: number = 1, limit: number = 20) => {
+  const response = await api.get(`/articles/admin/users/all?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+export const getFinancialOverview = async () => {
+  const response = await api.get('/articles/admin/financial/overview');
+  return response.data;
+};
+
+
+
+export const getAuditLogs = async (page: number = 1, limit: number = 50) => {
+  const response = await api.get(`/articles/admin/audit/logs?page=${page}&limit=${limit}`);
+  return response.data;
+};
 
 
 
@@ -394,6 +415,276 @@ export const uploadImage = (formData: FormData): Promise<any> =>
   });
 
 
+
+
+
+
+// ========== DRAFT MANAGEMENT ENDPOINTS ==========
+
+// Get drafts with filters
+export interface DraftParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  authorId?: string;
+  category?: string;
+}
+
+export interface DraftResponse {
+  drafts: any[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export const getDrafts = async (params: DraftParams = {}): Promise<DraftResponse> => {
+  try {
+    console.log('Fetching drafts with params:', params);
+    
+    // Use type assertion
+    const data = await api.get('/articles/admin/drafts', { params }) as DraftResponse;
+    
+    console.log('Drafts API data:', data);
+    
+    return data;
+    
+  } catch (error: any) {
+    console.error('Error fetching drafts:', error);
+    throw error;
+  }
+};
+
+
+// Submit draft for review
+export const submitDraftForReview = async (draftId: string): Promise<any> => {
+  try {
+    console.log('Submitting draft for review:', draftId);
+    
+    const response = await api.post(`/articles/admin/drafts/${draftId}/submit-for-review`);
+    
+    console.log('Submit for review response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error submitting draft for review:', error);
+    throw error;
+  }
+};
+
+// Update draft status (approve/reject/request revision)
+export interface UpdateDraftStatusData {
+  status: 'APPROVED' | 'REJECTED' | 'NEEDS_REVISION' | 'PUBLISHED';
+  message?: string;
+}
+
+export const updateDraftStatus = async (
+  draftId: string, 
+  data: UpdateDraftStatusData
+): Promise<any> => {
+  try {
+    console.log('Updating draft status:', { draftId, data });
+    
+    const response = await api.put(`/articles/admin/drafts/${draftId}/status`, data);
+    
+    console.log('Update draft status response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating draft status:', error);
+    throw error;
+  }
+};
+
+// Get validation messages for a draft
+export interface ValidationMessage {
+  id: string;
+  message: string;
+  type: 'ERROR' | 'WARNING' | 'SUGGESTION' | 'REJECTION';
+  section?: string;
+  lineNumber?: number;
+  createdBy: {
+    id: string;
+    name: string;
+    role: string;
+    picture?: string;
+  };
+  createdAt: string;
+  resolved: boolean;
+  resolvedAt?: string;
+  resolvedBy?: {
+    id: string;
+    name: string;
+  };
+}
+
+export const getDraftValidationMessages = async (draftId: string): Promise<ValidationMessage[]> => {
+  try {
+    console.log('Fetching validation messages for draft:', draftId);
+    
+    // Add proper typing
+    const response = await api.get<ValidationMessage[]>(`/articles/admin/drafts/${draftId}/validation-messages`);
+    
+    console.log('Validation messages response:', response.data);
+    
+    // Return the data property
+    return response.data || [];
+    
+  } catch (error: any) {
+    console.error('Error fetching validation messages:', error);
+    throw error;
+  }
+};
+
+// Add validation message
+export interface AddValidationMessageData {
+  message: string;
+  type: 'ERROR' | 'WARNING' | 'SUGGESTION' | 'REJECTION';
+  section?: string;
+  lineNumber?: number;
+}
+
+export const addValidationMessage = async (
+  draftId: string,
+  data: AddValidationMessageData
+): Promise<any> => {
+  try {
+    console.log('Adding validation message:', { draftId, data });
+    
+    const response = await api.post(`/articles/admin/drafts/${draftId}/validation-messages`, data);
+    
+    console.log('Add validation message response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error adding validation message:', error);
+    throw error;
+  }
+};
+
+// Mark validation message as resolved
+export const markValidationMessageResolved = async (messageId: string): Promise<any> => {
+  try {
+    console.log('Marking validation message as resolved:', messageId);
+    
+    const response = await api.put(`/articles/admin/validation-messages/${messageId}/resolve`);
+    
+    console.log('Mark message resolved response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error marking validation message as resolved:', error);
+    throw error;
+  }
+};
+
+// Delete draft
+export const deleteDraft = async (draftId: string): Promise<any> => {
+  try {
+    console.log('Deleting draft:', draftId);
+    
+    const response = await api.delete(`/articles/admin/drafts/${draftId}`);
+    
+    console.log('Delete draft response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error deleting draft:', error);
+    throw error;
+  }
+};
+
+// Additional draft management functions
+
+// Get draft statistics (optional - if you have this endpoint)
+export const getDraftStats = async (): Promise<any> => {
+  try {
+    const response = await api.get('/articles/admin/drafts/stats');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching draft stats:', error);
+    throw error;
+  }
+};
+
+// Get my drafts (for regular admins)
+export const getMyDrafts = async (params?: DraftParams): Promise<DraftResponse> => {
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    throw new Error('User ID not found in localStorage');
+  }
+  
+  return getDrafts({
+    ...params,
+    authorId: userId,
+  });
+};
+
+// Get drafts for review (for super admins)
+export const getDraftsForReview = async (params?: Omit<DraftParams, 'status'>): Promise<DraftResponse> => {
+  return getDrafts({
+    ...params,
+    status: 'UNDER_REVIEW',
+  });
+};
+
+// Get approved drafts
+export const getApprovedDrafts = async (params?: Omit<DraftParams, 'status'>): Promise<DraftResponse> => {
+  return getDrafts({
+    ...params,
+    status: 'APPROVED',
+  });
+};
+
+// Get rejected drafts
+export const getRejectedDrafts = async (params?: Omit<DraftParams, 'status'>): Promise<DraftResponse> => {
+  return getDrafts({
+    ...params,
+    status: 'REJECTED',
+  });
+};
+
+// Get drafts needing revision
+export const getDraftsNeedingRevision = async (params?: Omit<DraftParams, 'status'>): Promise<DraftResponse> => {
+  return getDrafts({
+    ...params,
+    status: 'NEEDS_REVISION',
+  });
+};
+
+// Bulk update draft status (if you have this endpoint)
+export const bulkUpdateDraftStatus = async (draftIds: string[], status: string): Promise<any> => {
+  try {
+    const response = await api.post('/articles/admin/drafts/bulk-status', {
+      draftIds,
+      status,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error bulk updating draft status:', error);
+    throw error;
+  }
+};
+
+// Add comment to draft (if you have this endpoint)
+export const addDraftComment = async (draftId: string, comment: string): Promise<any> => {
+  try {
+    const response = await api.post(`/articles/admin/drafts/${draftId}/comments`, {
+      comment,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error adding draft comment:', error);
+    throw error;
+  }
+};
+
+// Get draft activity log (if you have this endpoint)
+export const getDraftActivityLog = async (draftId: string): Promise<any> => {
+  try {
+    const response = await api.get(`/articles/admin/drafts/${draftId}/activity`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching draft activity:', error);
+    throw error;
+  }
+};
 
 
 

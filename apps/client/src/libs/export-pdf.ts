@@ -196,32 +196,54 @@ export const exportToPDF = async (coverLetter: CoverLetter): Promise<void> => {
         windowHeight: targetElement.scrollHeight,
         // IMPORTANT: Disable auto-sizing
         onclone: (_:any, clonedElement:any) => {
-          // Add critical CSS
-          const style = document.createElement('style');
-          style.textContent = `
-            /* CRITICAL: Force single page */
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              height: auto !important;
-              max-height: 1123px !important; /* A4 height */
-            }
-            
-            * {
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-              page-break-before: avoid !important;
-              page-break-after: avoid !important;
-            }
-            
-            /* Make sure our container doesn't overflow */
-            [data-cover-letter-grid] {
-              max-height: 1123px !important;
-              overflow: hidden !important;
-            }
-          `;
-          clonedElement.appendChild(style);
-        }
+  // Add critical CSS with !important for underline
+  const style = document.createElement('style');
+  style.textContent = `
+    /* CRITICAL: Force underlines for all underlined elements */
+    [data-block-type="subject_line"],
+    [data-block-type="subject_line"] *,
+    [style*="underline"],
+    .subject-line,
+    u, ins {
+      text-decoration: underline !important;
+      -webkit-text-decoration: underline !important;
+      text-decoration-line: underline !important;
+      text-decoration-style: solid !important;
+      text-decoration-color: currentColor !important;
+      text-decoration-thickness: auto !important;
+    }
+    
+    /* Force underlines in print */
+    @media print {
+      [data-block-type="subject_line"],
+      [data-block-type="subject_line"] *,
+      [style*="underline"],
+      .subject-line {
+        text-decoration: underline !important;
+        -webkit-text-decoration: underline !important;
+      }
+    }
+    
+    /* CRITICAL: Force single page */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      height: auto !important;
+      max-height: 1123px !important;
+    }
+    
+    * {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    [data-cover-letter-grid] {
+      max-height: 1123px !important;
+      overflow: hidden !important;
+    }
+  `;
+  clonedElement.appendChild(style);
+}
       },
       jsPDF: { 
         unit: 'mm' as const, 

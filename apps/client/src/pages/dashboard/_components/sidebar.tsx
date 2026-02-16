@@ -221,6 +221,21 @@ const FEATURE_AUTH_DATA = {
     ],
     ctaText: t`Create letters that stand out with no formatting stress in seconds`
   },
+
+   assistant: {
+    icon: <Sparkle size={24} className="text-emerald-600 dark:text-emerald-400" />,
+    description: t`Access a powerful personal AI assistant that guides, remembers, and grows with you`,
+    benefits: [
+      t`Personal AI tutor for career, learning, and life guidance`,
+      t`Remembers your past conversations, goals, and decisions`,
+      t`Guided learning with step-by-step explanations and follow-ups`,
+      t`Smart advice based on your activities and interests on Inlirah`,
+      t`Interactive conversations, stories, and motivation when you need it`
+    ],
+    ctaText: t`Unlock your personal AI assistant and grow smarter every day with Inlirah`
+  },
+
+
   profile: {
     icon: <UserCircle size={24} className="text-purple-600 dark:text-purple-400" />,
     description: t`Build a professional profile from Inlirah knowledge-hub`,
@@ -283,6 +298,7 @@ type SidebarItem = {
   icon: React.ReactNode;
   matchPattern?: string;
   adminOnly?: boolean;
+  superAdminOnly?: boolean;
   requiresLogin?: boolean;
   description?: string;
   featureKey?: keyof typeof FEATURE_AUTH_DATA;
@@ -293,6 +309,8 @@ type SidebarItemProps = SidebarItem & {
   collapsed: boolean;
   disabled?: boolean;
   onDisabledClick?: (featureKey?: keyof typeof FEATURE_AUTH_DATA) => void;
+  adminOnly?: boolean; 
+  superAdminOnly?: boolean; 
 };
 
 const SidebarItem = ({ 
@@ -305,7 +323,9 @@ const SidebarItem = ({
   disabled = false,
   onDisabledClick,
   description,
-  featureKey
+  featureKey,
+  adminOnly = false,
+  superAdminOnly = false
 }: SidebarItemProps) => {
   const location = useLocation();
   
@@ -320,6 +340,22 @@ const SidebarItem = ({
       isActive = location.pathname === path || location.pathname.startsWith(path + '/');
     }
   }
+
+  const { user } = useUser();
+  const isAdmin = user?.role === "ADMIN";
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  
+  // Check if item should be shown based on user role
+  const shouldShowItem = () => {
+    if (superAdminOnly && !isSuperAdmin) return false;
+    if (adminOnly && !isAdmin && !isSuperAdmin) return false;
+    return true;
+  };
+  
+  const showItem = shouldShowItem();
+  
+  if (!showItem) return null; // Don't render if user doesn't have permission
+
 
   // Create the link content
   const linkContent = (
@@ -527,8 +563,10 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
     setCollapsed(!collapsed);
   };
 
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const isLoggedIn = !!user;
+
 
   const handleDisabledClick = (featureKey?: keyof typeof FEATURE_AUTH_DATA) => {
     if (featureKey) {
@@ -574,6 +612,17 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
       description: t`Read and explore articles`,
       requiresLogin: false, // Articles are public
     },
+
+     {
+      path: "/dashboard/assistant", 
+      name: t`Assistant`,
+      icon: <Sparkle weight="fill" size={24} />, 
+      matchPattern: "^/dashboard/assistant",
+      description: t`Access your personal assistant`,
+      requiresLogin: true,
+      featureKey: 'assistant'
+    },
+
     {
       path: "/docs",
       name: t`Help & Support`,
@@ -630,35 +679,35 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
       path: "/dashboard/admin/dashboard",
       name: t`Admin Dashboard`,
       icon: <ChartBar weight="fill" size={24} />,
-      adminOnly: true,
+      superAdminOnly: true,
       requiresLogin: true,
     },
     {
       path: "/dashboard/admin/analytics",
       name: t`Analytics`,
       icon: <ChartLine weight="fill" size={24} />,
-      adminOnly: true,
+      superAdminOnly: true,
       requiresLogin: true,
     },
     {
       path: "/dashboard/admin/users",
       name: t`User Management`,
       icon: <Users weight="fill" size={24} />,
-      adminOnly: true,
+      superAdminOnly: true,
       requiresLogin: true,
     },
     {
       path: "/dashboard/admin/subscription-plans",
       name: t`Subscription Plans`,
       icon: <Crown weight="fill" size={24} />,
-      adminOnly: true,
+      superAdminOnly: true,
       requiresLogin: true,
     },
     {
       path: "/dashboard/admin/settings",
       name: t`Admin Settings`,
       icon: <Gear weight="fill" size={24} />,
-      adminOnly: true,
+      superAdminOnly: true,
       requiresLogin: true,
     },
     {
@@ -672,6 +721,14 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
 
   // Get current feature data
   const featureData = FEATURE_AUTH_DATA[activeFeature];
+
+
+  // Then when rendering admin items, filter based on permissions
+  const visibleAdminItems = adminItems.filter(item => {
+    if (item.superAdminOnly && !isSuperAdmin) return false;
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   // For mobile, use a simple div without animations
   if (forceExpanded) {
@@ -698,19 +755,19 @@ export const Sidebar = ({ setOpen, onCollapseChange, forceExpanded = false }: Si
                 })}
 
                 {/* Admin Section with Header (only for logged-in admins) */}
-                {isLoggedIn && isAdmin && (
-                  <>
-                    <AdminSectionHeader collapsed={false} />
-                    {adminItems.map((item) => (
-                      <SidebarItem 
-                        {...item} 
-                        key={item.path} 
-                        onClick={() => setOpen?.(false)} 
-                        collapsed={false}
-                      />
-                    ))}
-                  </>
-                )}
+                {isLoggedIn && visibleAdminItems.length > 0 && (
+  <>
+    <AdminSectionHeader collapsed={isCollapsed} />
+    {visibleAdminItems.map((item) => (
+      <SidebarItem 
+        {...item} 
+        key={item.path} 
+        onClick={() => setOpen?.(false)} 
+        collapsed={isCollapsed}
+      />
+    ))}
+  </>
+)}
               </div>
             </div>
 

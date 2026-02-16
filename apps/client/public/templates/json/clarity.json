@@ -271,7 +271,7 @@
     "custom": {}
   },
   "metadata": {
-    "template": "leafish",
+    "template": "clarity",
     "layout": [
       [
         ["summary", "experience", "education", "references"],

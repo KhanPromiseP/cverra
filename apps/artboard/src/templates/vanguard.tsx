@@ -197,6 +197,13 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+   // 🛡️ GUARD CLAUSE - Prevent crash
+  if (!section || !section.items || !Array.isArray(section.items)) {
+    console.warn(`Section "${section?.name || 'Unknown'}" has no items array`);
+    return null;
+  }
+  
   if (!section.visible || section.items.length === 0) return null;
 
   return (
@@ -593,6 +600,7 @@ const mapSectionToComponent = (section: SectionKey) => {
 
 export const Vanguard = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   return (
     <div>
@@ -605,8 +613,19 @@ export const Vanguard = ({ columns, isFirstPage = false }: TemplateProps) => {
 
       <div className="grid grid-cols-3">
         <div className="sidebar p-custom group space-y-4">
-          {sidebar.map((section) => (
-            <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+          {sidebar.map((section, index) => (
+            <Fragment key={section}>
+              {mapSectionToComponent(section)}
+              {/* Add divider after each section except the last one */}
+              {index < sidebar.length - 1 && (
+                <div 
+                  className="w-full h-px my-4"
+                  style={{ 
+                    background: `linear-gradient(to right, transparent, ${primaryColor}, transparent)` 
+                  }}
+                />
+              )}
+            </Fragment>
           ))}
         </div>
 

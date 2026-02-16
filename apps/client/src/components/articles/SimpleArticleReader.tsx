@@ -148,8 +148,15 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const currentLocale = i18n.locale; // e.g., 'fr', 'en', etc.
 
   const [lastManualLanguageChange, setLastManualLanguageChange] = useState<number | null>(null);
+  // Add this state to track when to check for auto-sync
+  const [checkAutoSync, setCheckAutoSync] = useState(0);
 
+  const [uiLanguage, setUiLanguage] = useState<string>('en');
+  const [articleLanguage, setArticleLanguage] = useState<string>('en');
+  const [userManuallyChangedArticleLanguage, setUserManuallyChangedArticleLanguage] = useState<boolean>(false);
+  const [articleLanguageFromStorage, setArticleLanguageFromStorage] = useState<string | null>(null);
 
+  const displayLanguage = article?.language || articleLanguage || uiLanguage;
 
 
     
@@ -266,32 +273,104 @@ console.log('👤 useUser result:', { user, loading: userLoading });
 // }, [i18n.locale, article]); // Watch for language changes
 
 
-useEffect(() => {
-  // Only run when UI language changes, not when article changes
-  if (article && i18n.locale !== currentLanguage) {
-    console.log('🌐 UI language changed:', {
-      uiLocale: i18n.locale,
-      currentArticleLang: currentLanguage
-    });
+// useEffect(() => {
+//   // Only run when UI language changes, not when article changes
+//   if (article && i18n.locale !== currentLanguage) {
+//     console.log('🌐 UI language changed:', {
+//       uiLocale: i18n.locale,
+//       currentArticleLang: currentLanguage
+//     });
     
+//     const uiLanguageCode = i18n.locale.split('-')[0];
+//     const currentLanguageCode = currentLanguage.split('-')[0];
+    
+//     // Check if this is likely a manual change by user
+//     // (if article language was recently changed manually)
+//     const timeSinceArticleLoad = article?.updatedAt ? 
+//       Date.now() - new Date(article.updatedAt).getTime() : Infinity;
+    
+//     // Only auto-sync if article hasn't been recently updated
+//     // (meaning user hasn't just manually changed language)
+//     if (uiLanguageCode !== currentLanguageCode && timeSinceArticleLoad > 5000) {
+//       console.log('🔄 Auto-syncing article to UI language');
+//       handleLanguageChange(uiLanguageCode);
+//     } else {
+//       console.log('🔄 Skipping auto-sync - article recently updated');
+//     }
+//   }
+// }, [i18n.locale]); // REMOVE article from dependencies! Only watch i18n.locale
+
+
+useEffect(() => {
+  // Update UI language when i18n.locale changes
+  const uiLanguageCode = i18n.locale.split('-')[0];
+  
+  if (uiLanguage !== uiLanguageCode) {
+    console.log('🌐 UI language changed:', uiLanguageCode);
+    setUiLanguage(uiLanguageCode);
+    
+    // Only auto-switch article language if:
+    // 1. User hasn't manually changed article language (or saved preference)
+    // 2. Current article language differs from new UI language  
+    // 3. Article is available in the UI language
+    // 4. No saved preference from localStorage
+    if (!userManuallyChangedArticleLanguage && 
+        !articleLanguageFromStorage &&
+        articleLanguage !== uiLanguageCode &&
+        availableLanguages.includes(uiLanguageCode)) {
+      console.log('🔄 Auto-switching article to UI language');
+      handleArticleLanguageChange(uiLanguageCode, false); // false = not manual
+    } else if (article?.id) {
+      // Even if we don't switch article language, reload related articles
+      // to show them in the new UI language for display
+      console.log('🔄 UI language changed, reloading related articles for display');
+      setTimeout(() => {
+        loadRelatedArticles(article.id, true);
+      }, 300);
+    }
+  }
+}, [i18n.locale]);
+
+
+useEffect(() => {
+  // Just log when UI language is different from article language
+  if (article && i18n.locale.split('-')[0] !== currentLanguage.split('-')[0]) {
+    console.log('🌐 UI language differs from article language:', {
+      ui: i18n.locale,
+      article: currentLanguage
+    });
+    // Don't auto-sync - let user decide
+  }
+}, [i18n.locale, article?.id, currentLanguage]);
+
+
+
+
+useEffect(() => {
+  console.log('🔍 🔍🔍🔍🔍🔍🔍🔍Auto-sync debug - Article state:', {
+    hasArticle: !!article,
+    articleId: article?.id,
+    articleLanguage: article?.language,
+    currentLanguage,
+    uiLanguage: i18n.locale,
+    languagesDifferent: article && i18n.locale !== currentLanguage
+  });
+  
+  if (article && i18n.locale !== currentLanguage) {
     const uiLanguageCode = i18n.locale.split('-')[0];
     const currentLanguageCode = currentLanguage.split('-')[0];
     
-    // Check if this is likely a manual change by user
-    // (if article language was recently changed manually)
-    const timeSinceArticleLoad = article?.updatedAt ? 
-      Date.now() - new Date(article.updatedAt).getTime() : Infinity;
+    console.log('🔍 Language codes:', { uiLanguageCode, currentLanguageCode });
     
-    // Only auto-sync if article hasn't been recently updated
-    // (meaning user hasn't just manually changed language)
-    if (uiLanguageCode !== currentLanguageCode && timeSinceArticleLoad > 5000) {
-      console.log('🔄 Auto-syncing article to UI language');
+    if (uiLanguageCode !== currentLanguageCode) {
+      console.log('🔄 TRIGGERING auto-sync');
       handleLanguageChange(uiLanguageCode);
-    } else {
-      console.log('🔄 Skipping auto-sync - article recently updated');
     }
   }
-}, [i18n.locale]); // REMOVE article from dependencies! Only watch i18n.locale
+}, [i18n.locale]);
+
+
+
 
 useEffect(() => {
   if (article?.id && !languageSwitching) {
@@ -364,6 +443,276 @@ useEffect(() => {
 //   }
 // };
 
+
+const handleArticleLanguageChange = async (language: string, isManualChange: boolean = true) => {
+  if (!article || language === articleLanguage || isTranslating || languageSwitching) return;
+  
+  console.log('🔄 Article language change:', {
+    language,
+    isManualChange,
+    currentArticleLanguage: articleLanguage,
+    uiLanguage
+  });
+  
+  // Track if this is a manual change by user
+  if (isManualChange) {
+    setUserManuallyChangedArticleLanguage(true);
+    
+    // Save to localStorage for persistence
+    if (article.id) {
+      saveArticleLanguagePreference(article.id, language);
+    }
+  }
+  
+  setLanguageSwitching(true);
+  
+  try {
+    notification.info({
+      message: t`Loading ${getLanguageName(language)} version...`,
+      duration: 2,
+      key: 'language-switch',
+    });
+    
+    // Update article language state
+    console.log('🔄 Setting articleLanguage to:', language);
+    setArticleLanguage(language);
+    
+    // Set a new content key to force re-render
+    const newKey = `lang-${language}-${Date.now()}`;
+    setContentKey(newKey);
+    
+    // Re-fetch the article with new language
+    const params = language !== 'en' ? { language } : undefined;
+    console.log('🔄 Re-fetching article with params:', params, 'slug:', slug);
+    
+    const response = await articleApi.getArticle(slug, params);
+    
+    console.log('🔄 Article API response:', {
+      responseData: response?.data,
+      success: response?.success,
+      hasData: !!response?.data
+    });
+    
+    if (response?.data) {
+      let articleData;
+      
+      // Handle different response formats
+      if (typeof response.data === 'object') {
+        // Check for success wrapper pattern
+        if ('success' in response.data && response.data.success) {
+          articleData = response.data.data;
+          console.log('✅ Success wrapper found, data:', articleData);
+        } 
+        // Check for direct data pattern
+        else if ('id' in response.data || 'slug' in response.data) {
+          articleData = response.data;
+          console.log('✅ Direct data found');
+        }
+        // Check for API response pattern
+        else if ('data' in response.data && response.data.data) {
+          articleData = response.data.data;
+          console.log('✅ Nested data found');
+        }
+      }
+      
+      if (articleData) {
+        console.log('✅ Processing article data:', {
+          id: articleData.id,
+          title: articleData.title,
+          language: articleData.language
+        });
+        
+        // Helper function to fix image URLs
+        const fixImageUrl = (url: string): string => {
+          if (!url || url.trim() === '') return '';
+          
+          // Don't use Unsplash URLs
+          if (url.includes('images.unsplash.com')) {
+            return '';
+          }
+          
+          // If it's already a full URL with localhost, keep it
+          if (url.includes('localhost:3000')) {
+            return url;
+          }
+          
+          // If it's already a full URL (not localhost), it might be wrong
+          if (url.startsWith('http://') || url.startsWith('https://')) {
+            // Extract just the filename from the URL
+            const filename = url.split('/').pop();
+            if (filename) {
+              return `http://localhost:3000/articles/${filename}`;
+            }
+            return '';
+          }
+          
+          // If it's just a filename, prepend the correct path
+          const baseUrl = 'http://localhost:3000';
+          
+          // Remove any leading slashes or uploads/ prefix
+          let cleanUrl = url;
+          if (cleanUrl.startsWith('/')) cleanUrl = cleanUrl.substring(1);
+          if (cleanUrl.startsWith('uploads/')) cleanUrl = cleanUrl.replace('uploads/', '');
+          if (cleanUrl.startsWith('articles/')) cleanUrl = cleanUrl.replace('articles/', '');
+          
+          // Add cache-busting parameter
+          return `${baseUrl}/articles/${cleanUrl}?t=${Date.now()}`;
+        };
+
+        // Helper function to fix images in content
+        const fixImagesInContent = (content: any): any => {
+          if (!content) return content;
+          
+          if (typeof content === 'string') {
+            // Fix image URLs in HTML string content
+            return content.replace(
+              /src="([^"]*\/uploads\/[^"]*)"/g, 
+              (match, url) => `src="${fixImageUrl(url)}"`
+            );
+          }
+          
+          if (typeof content === 'object' && content.type === 'doc') {
+            // Deep clone and fix TipTap JSON content
+            const fixedContent = JSON.parse(JSON.stringify(content));
+            
+            const fixNodeImages = (node: any) => {
+              if (node.type === 'image' && node.attrs?.src) {
+                node.attrs.src = fixImageUrl(node.attrs.src);
+              }
+              
+              if (node.content && Array.isArray(node.content)) {
+                node.content.forEach(fixNodeImages);
+              }
+              
+              return node;
+            };
+            
+            if (fixedContent.content) {
+              fixedContent.content.forEach(fixNodeImages);
+            }
+            
+            return fixedContent;
+          }
+          
+          return content;
+        };
+        
+        // Map the article data
+        const mappedArticle: Article = {
+          id: articleData.id,
+          slug: articleData.slug,
+          title: articleData.title,
+          excerpt: articleData.excerpt || articleData.metaDescription || '',
+          content: fixImagesInContent(articleData.content),
+          plainText: articleData.plainText || '',
+          coverImage: fixImageUrl(articleData.coverImage || articleData.featuredImage || ''),
+          readingTime: articleData.readingTime || 1,
+          viewCount: articleData.viewCount || 0,
+          likeCount: articleData.likeCount || 0,
+          commentCount: articleData.commentCount || 0,
+          clapCount: articleData.clapCount || 0,
+          shareCount: articleData.shareCount || 0,
+          isFeatured: articleData.isFeatured || false,
+          isTrending: articleData.isTrending || false,
+          isLiked: articleData.isLiked || false,
+          isSaved: articleData.isSaved || false,
+          isPremium: articleData.accessType === 'PREMIUM',
+          isPreview: articleData.isPreview || false,
+          accessType: articleData.accessType || 'FREE',
+          status: articleData.status || 'PUBLISHED',
+          publishedAt: articleData.publishedAt || articleData.createdAt,
+          createdAt: articleData.createdAt,
+          updatedAt: articleData.updatedAt,
+          author: {
+            id: articleData.author?.id || '',
+            name: articleData.author?.name || 'Anonymous',
+            picture: articleData.author?.picture,
+            bio: articleData.author?.bio,
+            isVerified: articleData.author?.isVerified || false,
+            followersCount: articleData.author?.followersCount || 0
+          } as Author,
+          category: {
+            id: articleData.category?.id || '',
+            name: articleData.category?.name || 'Uncategorized',
+            slug: articleData.category?.slug || 'uncategorized',
+            color: articleData.category?.color,
+            description: articleData.category?.description
+          } as Category,
+          tags: articleData.tags || [],
+          availableLanguages: articleData.availableLanguages || availableLanguages,
+          language: articleData.language || language,
+          translationQuality: articleData.translationQuality,
+          recommendationScore: articleData.recommendationScore
+        };
+        
+        console.log('✅ Setting article with language:', mappedArticle.language);
+        setArticle(mappedArticle);
+        
+        // Update available languages if provided
+        if (articleData.availableLanguages) {
+          setAvailableLanguages(articleData.availableLanguages);
+        }
+        
+        // Check premium access if needed
+        if (mappedArticle.accessType === 'PREMIUM' && user) {
+          checkAndSetAccess();
+        } else if (mappedArticle.accessType === 'FREE') {
+          setUserHasAccess(true);
+          setShowPaywall(false);
+        }
+        
+        // Update like and save states
+        setLiked(mappedArticle.isLiked || false);
+        setSaved(mappedArticle.isSaved || false);
+        
+        notification.success({
+          message: t`Switched to ${getLanguageName(language)}`,
+          description: isManualChange 
+            ? t`Article is now in ${getLanguageName(language)}.` 
+            : t`Article auto-switched to match UI language.`,
+          duration: 3,
+        });
+        
+        console.log('✅ Article language switch completed');
+        
+        // Load related articles with the new language
+        setTimeout(() => {
+          loadRelatedArticles(mappedArticle.id, true);
+        }, 300);
+        
+      } else {
+        console.error('❌ No article data found in response');
+        throw new Error(t`Could not load the ${getLanguageName(language)} version`);
+      }
+    } else {
+      console.error('❌ No response data');
+      throw new Error(t`Could not load the ${getLanguageName(language)} version`);
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to switch article language:', error);
+    
+    // Revert to previous language on error
+    if (article) {
+      setArticle(article); // Restore original article
+      setArticleLanguage(article.language || 'en');
+    }
+    
+    // Reset manual change flag if this was a manual change that failed
+    if (isManualChange) {
+      setUserManuallyChangedArticleLanguage(false);
+    }
+    
+    notification.error({
+      message: t`Language Switch Failed`,
+      description: error.response?.data?.message || error.message || t`Could not load the translated version.`,
+      duration: 3,
+    });
+  } finally {
+    setLanguageSwitching(false);
+    setLoading(false);
+  }
+};
+
 const handleLanguageChange = async (language: string) => {
   if (!article || language === currentLanguage || isTranslating || languageSwitching) return;
   
@@ -371,6 +720,9 @@ const handleLanguageChange = async (language: string) => {
     currentArticleId: article.id,
     currentArticleLanguage: article.language
   });
+  
+
+  
   
     // Mark as manual change with timestamp
   setLastManualLanguageChange(Date.now());
@@ -1900,11 +2252,73 @@ useEffect(() => {
 }, [slug]);
 
 
+// Save article language preference
+const saveArticleLanguagePreference = (articleId: string, language: string) => {
+  try {
+    const preferences = JSON.parse(localStorage.getItem('articleLanguagePreferences') || '{}');
+    preferences[articleId] = {
+      language,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('articleLanguagePreferences', JSON.stringify(preferences));
+    console.log('💾 Saved article language preference:', { articleId, language });
+  } catch (error) {
+    console.error('Failed to save article language preference:', error);
+  }
+};
+
+// Load article language preference
+const loadArticleLanguagePreference = (articleId: string): string | null => {
+  try {
+    const preferences = JSON.parse(localStorage.getItem('articleLanguagePreferences') || '{}');
+    const preference = preferences[articleId];
+    
+    // Check if preference is recent (within 30 days)
+    if (preference && preference.timestamp) {
+      const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+      const isRecent = Date.now() - preference.timestamp < thirtyDaysInMs;
+      
+      if (isRecent && preference.language) {
+        console.log('💾 Loaded article language preference:', { articleId, language: preference.language });
+        return preference.language;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load article language preference:', error);
+  }
+  return null;
+};
+
+// Clear old preferences (optional cleanup)
+const cleanupOldPreferences = () => {
+  try {
+    const preferences = JSON.parse(localStorage.getItem('articleLanguagePreferences') || '{}');
+    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    
+    const cleanedPreferences = Object.entries(preferences).reduce((acc, [key, value]: any) => {
+      if (now - value.timestamp < thirtyDaysInMs) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+    
+    localStorage.setItem('articleLanguagePreferences', JSON.stringify(cleanedPreferences));
+  } catch (error) {
+    console.error('Failed to cleanup preferences:', error);
+  }
+};
+
+// Call cleanup on component mount
+useEffect(() => {
+  cleanupOldPreferences();
+}, []);
+
 /// Load article and related data
 useEffect(() => {
   if (!slug) return;
   
-  console.log('📥 Loading article for slug:', slug, 'with language:', currentLanguage);
+  console.log('📥 Loading article for slug:', slug, 'UI language:', i18n.locale);
   
   let isActive = true;
   
@@ -1927,17 +2341,46 @@ useEffect(() => {
     }
   
     try {
-
+      // Get UI language from i18n (system/browser language)
       const uiLanguageCode = i18n.locale.split('-')[0];
       
-      // Set currentLanguage to UI language BEFORE fetching
-      setCurrentLanguage(uiLanguageCode);
+      // ALWAYS set UI language on load
+      console.log('🌐 Setting UI language to:', uiLanguageCode);
+      setUiLanguage(uiLanguageCode);
       
+      // IMPORTANT: Always start with UI language for article on page load/reload
+      // Only use saved preference if user has manually changed language DURING CURRENT SESSION
+      console.log('📥 Article will load in UI language on page load:', uiLanguageCode);
+      
+      // Check for session-based manual change (not localStorage)
+      const sessionManualChange = sessionStorage.getItem(`article_manual_lang_${slug}`);
+      
+      let languageToLoad = uiLanguageCode; // Default to UI language
+      let isManualFromSession = false;
+      
+      if (sessionManualChange) {
+        // User changed language during this session
+        languageToLoad = sessionManualChange;
+        isManualFromSession = true;
+        console.log('🔄 Using session-based manual language change:', languageToLoad);
+      }
+      
+      // Set article language state IMMEDIATELY
+      console.log('📥 Setting articleLanguage to:', languageToLoad);
+      setArticleLanguage(languageToLoad);
+      
+      if (isManualFromSession) {
+        setUserManuallyChangedArticleLanguage(true);
+      } else {
+        setUserManuallyChangedArticleLanguage(false);
+        // Clear any stored preferences for fresh page load
+        setArticleLanguageFromStorage(null);
+      }
 
-      // Load main article WITH language parameter
-      const params = currentLanguage !== 'en' ? { language: currentLanguage } : undefined;
-      console.log('📥 Fetching article with params:', params);
+      console.log('📥 Fetching article for slug:', slug, 'in language:', languageToLoad);
       
+      // Fetch article in the determined language
+      const params = languageToLoad !== 'en' ? { language: languageToLoad } : undefined;
       const response = await articleApi.getArticle(slug, params);
       
       // Check if component is still mounted
@@ -1961,32 +2404,27 @@ useEffect(() => {
       } else {
         throw new Error('No data received from server');
       }
-      
+
       if (articleData && articleData.id) {
-        console.log('✅ Article loaded:', {
+        console.log('✅ Article loaded in language:', languageToLoad, {
           id: articleData.id,
           title: articleData.title,
-          language: articleData.language,
-          currentLanguage
+          availableLanguages: articleData.availableLanguages || ['en']
         });
         
         // Fix image URLs
         const fixImageUrl = (url: string): string => {
           if (!url || url.trim() === '') return '';
           
-          // Don't use Unsplash URLs
           if (url.includes('images.unsplash.com')) {
             return '';
           }
           
-          // If it's already a full URL with localhost, keep it
           if (url.includes('localhost:3000')) {
             return url;
           }
           
-          // If it's already a full URL (not localhost), it might be wrong
           if (url.startsWith('http://') || url.startsWith('https://')) {
-            // Extract just the filename from the URL
             const filename = url.split('/').pop();
             if (filename) {
               return `http://localhost:3000/articles/${filename}`;
@@ -1994,25 +2432,19 @@ useEffect(() => {
             return '';
           }
           
-          // If it's just a filename, prepend the correct path
           const baseUrl = 'http://localhost:3000';
-          
-          // Remove any leading slashes or uploads/ prefix
           let cleanUrl = url;
           if (cleanUrl.startsWith('/')) cleanUrl = cleanUrl.substring(1);
           if (cleanUrl.startsWith('uploads/')) cleanUrl = cleanUrl.replace('uploads/', '');
           if (cleanUrl.startsWith('articles/')) cleanUrl = cleanUrl.replace('articles/', '');
           
-          // Add cache-busting parameter
           return `${baseUrl}/articles/${cleanUrl}?t=${Date.now()}`;
         };
 
-        // Helper function to fix images in content
         const fixImagesInContent = (content: any): any => {
           if (!content) return content;
           
           if (typeof content === 'string') {
-            // Fix image URLs in HTML string content
             return content.replace(
               /src="([^"]*\/uploads\/[^"]*)"/g, 
               (match, url) => `src="${fixImageUrl(url)}"`
@@ -2020,7 +2452,6 @@ useEffect(() => {
           }
           
           if (typeof content === 'object' && content.type === 'doc') {
-            // Deep clone and fix TipTap JSON content
             const fixedContent = JSON.parse(JSON.stringify(content));
             
             const fixNodeImages = (node: any) => {
@@ -2087,32 +2518,31 @@ useEffect(() => {
           } as Category,
           tags: articleData.tags || [],
           availableLanguages: articleData.availableLanguages || ['en'],
-          language: articleData.language || 'en',
+          language: articleData.language || languageToLoad,
           translationQuality: articleData.translationQuality,
           recommendationScore: articleData.recommendationScore
         };
 
-        // Check if still active before setting state
         if (!isActive) return;
 
-        // IMPORTANT: Set current language from the loaded article
-        // if (articleData.language) {
-        //   console.log('📥 Setting currentLanguage to:', articleData.language);
-        //   setCurrentLanguage(articleData.language);
-        // }
-
-        // Set initial available languages
+        // Set available languages
         setAvailableLanguages(mappedArticle.availableLanguages);
         
-        // Set article with initial content key
+        // Set article
         setArticle(mappedArticle);
         
-        // Set initial content key for forcing re-renders
-        const initialKey = `init-${mappedArticle.id}-${mappedArticle.language || 'en'}-${Date.now()}`;
+        // Set initial content key
+        const initialKey = `init-${mappedArticle.id}-${languageToLoad}-${Date.now()}`;
         setContentKey(initialKey);
         
-        console.log('✅ Article state set with content key:', initialKey);
+        console.log('✅ Article state set on page load:', {
+          articleLanguage: languageToLoad,
+          uiLanguage: uiLanguageCode,
+          isManualFromSession,
+          title: mappedArticle.title
+        });
 
+        // Check premium access
         if (mappedArticle.accessType === 'PREMIUM' && user) {
           checkAndSetAccess();
         } else if (mappedArticle.accessType === 'FREE') {
@@ -2138,9 +2568,8 @@ useEffect(() => {
           setUserHasAccess(true);
         }
         
-        // Load related data in parallel
+        // Load related data
         if (isActive) {
-          // Use Promise.allSettled to prevent one failure from breaking everything
           await Promise.allSettled([
             loadComments(mappedArticle.id).catch(err => 
               console.log('Comments load skipped:', err.message)
@@ -2157,16 +2586,14 @@ useEffect(() => {
           ]);
         }
         
-        // Log for debugging
         if (isActive) {
-          console.log('✅ Article fully loaded:', mappedArticle.title);
+          console.log('✅ Article fully loaded in language:', languageToLoad);
         }
         
       } else {
         throw new Error('Invalid article data structure');
       }
     } catch (error: any) {
-      // Only show error if this is the active fetch
       if (isActive) {
         console.error('❌ Failed to load article:', error);
         notification.error({
@@ -2176,7 +2603,6 @@ useEffect(() => {
         });
       }
     } finally {
-      // Only update loading state if this is still active
       if (isActive) {
         fetchInProgressRef.current = false;
         setLoading(false);
@@ -2184,16 +2610,14 @@ useEffect(() => {
     }
   };
   
-  // Execute the load
   loadArticleData();
   
-  // Cleanup function
   return () => {
     console.log('🧹 Cleaning up article fetch for slug:', slug);
     isActive = false;
     fetchInProgressRef.current = false;
   };
-}, [slug, currentLanguage]); // Depend on both slug AND currentLanguage
+}, [slug]); // Only depend on slug
 
 
 const ReadingSettingsModal = React.memo(({ 
@@ -3437,14 +3861,14 @@ const calculateEngagementScore = (article: any): number => {
   } catch (error) {
     console.error('Failed to load categories:', error);
     // Try alternative endpoint
-    try {
-      const fallbackResponse = await apiClient.get('/articles/categories/all');
-      if (fallbackResponse?.data) {
-        setCategories(fallbackResponse.data.slice(0, 8));
-      }
-    } catch (fallbackError) {
-      console.error('Failed to load categories from fallback:', fallbackError);
-    }
+    // try {
+    //   const fallbackResponse = await apiClient.get('/articles/categories/all');
+    //   if (fallbackResponse?.data) {
+    //     setCategories(fallbackResponse.data.slice(0, 8));
+    //   }
+    // } catch (fallbackError) {
+    //   console.error('Failed to load categories from fallback:', fallbackError);
+    // }
   }
 };
 
@@ -4418,69 +4842,80 @@ const renderArticleCard = useCallback((item: RelatedArticle) => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
               <Tooltip title={t`Reading time`}>
                 <Space size={4}>
-                  <ClockCircleOutlined />
+                  <ClockCircleOutlined className="text-amber-500 dark:text-amber-400" />
                   <span>{getReadingTimeText(item.readingTime || 1)}</span>
                 </Space>
               </Tooltip>
             </div>
+
           </div>
 
           {/* Stats & Engagement */}
           <div className="pt-2 space-y-2">
             {/* Stats */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <Tooltip title={t`Views`}>
-                <Space size={4}>
-                  <EyeOutlined />
-                  <span>{formatViewCount(item.viewCount || 0)}</span>
-                </Space>
-              </Tooltip>
-              
-              <Tooltip title={t`Likes`}>
-                <Space size={4}>
-                  <HeartOutlined />
-                  <span>{formatViewCount(item.likeCount || 0)}</span>
-                </Space>
-              </Tooltip>
-              
-              <Tooltip title={t`Comments`}>
-                <Space size={4}>
-                  <CommentOutlined />
-                  <span>{formatViewCount(item.commentCount || 0)}</span>
-                </Space>
-              </Tooltip>
-            </div>
+           <div className="flex items-center justify-between text-xs">
+            <Tooltip title={t`Views`}>
+              <Space size={4} className="text-gray-600 dark:text-gray-300">
+                <EyeOutlined className="text-blue-500 dark:text-blue-400" />
+                <span>{formatViewCount(item.viewCount || 0)}</span>
+              </Space>
+            </Tooltip>
+
+            <Tooltip title={t`Likes`}>
+              <Space size={4} className="text-gray-600 dark:text-gray-300">
+                <HeartOutlined className="text-red-500 dark:text-red-400" />
+                <span>{formatViewCount(item.likeCount || 0)}</span>
+              </Space>
+            </Tooltip>
+
+            <Tooltip title={t`Comments`}>
+              <Space size={4} className="text-gray-600 dark:text-gray-300">
+                <CommentOutlined className="text-green-500 dark:text-green-400" />
+                <span>{formatViewCount(item.commentCount || 0)}</span>
+              </Space>
+            </Tooltip>
+          </div>
+
             
             {(viewCount > 0 || likeCount > 0 || commentCount > 0) && (
               <div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Text className="text-xs text-muted-foreground">{t`Engagement`}</Text>
-                    <Text className="text-xs font-medium" style={{ color: engagementLabel.color }}>
+                    <Text className="text-xs text-gray-600 dark:text-gray-300">
+                      {t`Engagement`}
+                    </Text>
+
+                    <Text
+                      className="text-xs font-medium"
+                      style={{ color: engagementLabel.color }}
+                    >
                       {engagementPercentage}%
                     </Text>
                   </div>
-                  <Progress 
-                    percent={engagementPercentage} 
-                    size="small" 
+
+                  <Progress
+                    percent={engagementPercentage}
+                    size="small"
                     showInfo={false}
                     strokeColor={engagementLabel.color}
-                    trailColor="var(--color-border)"
+                    trailColor="rgba(0,0,0,0.06)"
+                    className="dark:[&_.ant-progress-bg]:opacity-90 dark:[&_.ant-progress-inner]:bg-gray-700"
                   />
                 </div>
-                
+
                 {item.publishedAt && (
                   <div className="text-right pt-2">
-                    <Text type="secondary" className="text-xs">
+                    <Text className="text-xs text-gray-500 dark:text-gray-400">
                       {getTimeAgo(item.publishedAt)}
                     </Text>
                   </div>
                 )}
               </div>
             )}
+
           </div>
         </div>
       </div>
@@ -4988,7 +5423,7 @@ const renderComment = (comment: any, depth = 0) => {
       )}
 
       {/* Header */}
-<div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b shadow-sm">
+<div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 sm:backdrop-blur-sm border-b shadow-sm">
   <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
 
     {/* Back Button */}
@@ -5053,7 +5488,7 @@ const renderComment = (comment: any, depth = 0) => {
         {availableLanguages.length > 0 && (
           <LanguageSwitcher
             availableLanguages={availableLanguages} 
-            currentLanguage={currentLanguage}
+            currentLanguage={displayLanguage}
             onLanguageChange={handleLanguageChange}
              isLoading={isTranslating || languageSwitching}
             articleId={article.id}
@@ -5186,7 +5621,7 @@ const renderComment = (comment: any, depth = 0) => {
 
           {/* Language Section using the new component */}
           <MobileLanguageSelector
-            currentLanguage={currentLanguage}
+            currentLanguage={displayLanguage}
             availableLanguages={availableLanguages}
             isTranslating={isTranslating || languageSwitching} 
             onLanguageChange={handleLanguageChange}
@@ -6397,6 +6832,50 @@ const renderComment = (comment: any, depth = 0) => {
           transform: translateY(0);
         }
       }
+
+        .article-content {
+          font-size: ${fontSize}px !important;
+          line-height: ${lineHeight} !important;
+          font-family: ${fontFamily} !important;
+          color: var(--foreground) !important;
+        }
+        
+        /* Make sure paragraphs have proper dark mode support */
+        .article-content p,
+        .article-content .ant-typography {
+          font-size: ${fontSize}px !important;
+          line-height: ${lineHeight} !important;
+          font-family: ${fontFamily} !important;
+          margin-bottom: 1.75rem !important;
+          color: var(--foreground) !important;
+        }
+        
+        /* Force dark mode text colors */
+        .dark .article-content,
+        [data-theme="dark"] .article-content {
+          color: #f9fafb !important;
+        }
+        
+        .dark .article-content p,
+        .dark .article-content .ant-typography,
+        [data-theme="dark"] .article-content p,
+        [data-theme="dark"] .article-content .ant-typography {
+          color: #f9fafb !important;
+        }
+        
+        /* Make sure text-foreground class works in dark mode */
+        .dark .text-foreground,
+        [data-theme="dark"] .text-foreground {
+          color: #f9fafb !important;
+        }
+        
+        /* Also fix for Tailwind's text color classes */
+        .dark .text-gray-900,
+        .dark .text-gray-800,
+        .dark .text-gray-700 {
+          color: #f9fafb !important;
+        }
+  
       `}</style>
 
       <AuthModal

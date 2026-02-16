@@ -31,12 +31,12 @@ const Header = () => {
     <div className="p-custom space-y-4 bg-primary text-background">
       <Picture className="border-background" />
 
-      <div>
+      <div className="text-center mb-2">
         <h2 className="text-2xl font-bold">{basics.name}</h2>
-        <p>{basics.headline}</p>
+        <p className="mt-1">{basics.headline}</p>
       </div>
 
-      <div className="flex flex-col items-start gap-y-2 text-sm">
+      <div className="flex flex-col items-start gap-y-1.5 rounded border border-white/40 px-3 py-4 text-left text-sm">
         {basics.location && (
           <div className="flex items-center gap-x-1.5">
             <i className="ph ph-bold ph-map-pin" />
@@ -184,6 +184,13 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+   // 🛡️ GUARD CLAUSE - Prevent crash
+  if (!section || !section.items || !Array.isArray(section.items)) {
+    console.warn(`Section "${section?.name || 'Unknown'}" has no items array`);
+    return null;
+  }
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (

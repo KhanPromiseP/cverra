@@ -48,7 +48,9 @@ const Header = () => {
           />
         </div>
 
-        <Picture />
+        <div className="shrink-0">
+          <Picture size={80} className="rounded-full border-2 border-primary/30" />
+        </div>
       </div>
 
       <div className="p-custom space-y-3" style={{ backgroundColor: hexToRgb(primaryColor, 0.4) }}>
@@ -191,6 +193,13 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+   // 🛡️ GUARD CLAUSE - Prevent crash
+  if (!section || !section.items || !Array.isArray(section.items)) {
+    console.warn(`Section "${section?.name || 'Unknown'}" has no items array`);
+    return null;
+  }
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (

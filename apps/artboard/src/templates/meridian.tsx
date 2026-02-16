@@ -192,6 +192,8 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (
@@ -241,7 +243,7 @@ const Section = <T,>({
 
 const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
-
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
@@ -258,7 +260,10 @@ const Experience = () => {
 
           <div className="shrink-0 text-right">
             <div className="font-bold">{item.date}</div>
-            <div>{item.location}</div>
+            <div><i 
+              className="mr-1 ph ph-map-pin text-[10px] group-[.sidebar]:text-xs" 
+              style={{ color: primaryColor }}
+            />{item.location}</div>
           </div>
         </div>
       )}

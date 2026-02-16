@@ -328,7 +328,6 @@ const getBlockAlignment = (blockType: string, structure: any) => {
   return alignments[blockType] || 'left';
 };
 
-// Existing template utility functions (keep these)
 const getTemplateFontFamily = (style: string) => {
   const fontMap: Record<string, string> = {
     'Modern': 'Arial, sans-serif',

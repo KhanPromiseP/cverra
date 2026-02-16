@@ -81,6 +81,7 @@ export interface CreateCoverLetterData {
     desiredResolution?: string;
     keyInformation?: string;
     selectedResumeId?: string;
+    [key: string]: any; // Allow for additional fields
   };
   jobData: {
     position: string;
@@ -116,6 +117,7 @@ export interface CreateCoverLetterData {
     productService?: string;
     desiredResolution?: string;
     keyInformation?: string;
+    [key: string]: any; // Allow for additional fields
   };
   customInstructions?: string;
   category?: string; 
@@ -132,6 +134,7 @@ export interface UpdateCoverLetterData {
   userData?: any;
   jobData?: any;
   updatedAt?: string;
+  [key: string]: any; // Allow for additional fields
 }
 
 export interface RegenerateCompleteLetterData {
@@ -139,6 +142,19 @@ export interface RegenerateCompleteLetterData {
   metadata?: {
     transactionId?: string;
   };
+}
+
+export interface TranslationVersion {
+  id: string;
+  title: string;
+  slug: string;
+  language: string;
+  originalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  content?: any;
+  // Add other fields that might come from your API
+  [key: string]: any;
 }
 
 export interface TranslateLetterData {
@@ -412,9 +428,31 @@ async regenerateCompleteLetter(
 },
 
 
-async getLetterTranslations(id: string): Promise<any[]> {
+async getLetterTranslations(id: string): Promise<TranslationVersion[]> {
   const response = await apiClient.get(`/cover-letter/${id}/translations`);
-  return response.data;
+  
+  // Handle all possible response structures here
+  let translations: TranslationVersion[] = [];
+  
+  if (Array.isArray(response.data)) {
+    translations = response.data;
+  } else if (response.data && typeof response.data === 'object') {
+    if ('data' in response.data && Array.isArray(response.data.data)) {
+      translations = response.data.data;
+    }
+    if ('translations' in response.data && Array.isArray(response.data.translations)) {
+      translations = response.data.translations;
+    }
+    if ('id' in response.data) {
+      translations = [response.data as TranslationVersion];
+    }
+  }
+  
+  // Ensure language is never null by providing a fallback
+  return translations.map(t => ({
+    ...t,
+    language: t.language || 'en' // Provide default if null/undefined
+  }));
 },
 
 async switchToLanguage(coverLetterId: string, languageCode: string): Promise<any> {

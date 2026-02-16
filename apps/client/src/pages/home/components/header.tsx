@@ -160,86 +160,115 @@ export const Header = () => {
               )}
 
               {/* Profile Dropdown for Logged In Users */}
-              {!loading && user && (
-                <Menu as="div" className="relative inline-block text-left">
-                  <Menu.Button className="flex items-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 justify-center text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-transform hover:scale-105">
-                    <UserAvatar
-                      size={32}
-                      className="flex-shrink-0 border-2 border-white/20"
-                    />
-                  </Menu.Button>
+{!loading && user && (
+  <Menu as="div" className="relative inline-block text-left">
+    <Menu.Button className="flex items-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 justify-center text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-transform hover:scale-105">
+      <UserAvatar
+        size={32}
+        className="flex-shrink-0 border-2 border-white/20"
+      />
+    </Menu.Button>
 
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
-                  >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                      <div className="py-1">
-                        <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {user.name || user.email}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {user.email}
-                          </p>
-                        </div>
-                        
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <Link
-                              to="/dashboard/profile"
-                              className={`${
-                                active ? "bg-gray-100 dark:bg-gray-700" : ""
-                              } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
-                            >
-                              <User className="mr-2 w-4 h-4" />
-                              Profile
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <Link
-                              to="/dashboard/settings"
-                              className={`${
-                                active ? "bg-gray-100 dark:bg-gray-700" : ""
-                              } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
-                            >
-                              <svg className="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              Settings
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        
-                        {/* Add divider before logout */}
-                        <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                        
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <button
-                              onClick={confirmLogout}
-                              className={`${
-                                active ? "bg-red-50 dark:bg-red-900/20" : ""
-                              } flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors`}
-                            >
-                              <SignOut className="mr-2 w-4 h-4" />
-                              Logout
-                            </button>
-                          )}
-                        </Menu.Item>
-                      </div>
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
-              )}
+    <Transition
+      as={Fragment}
+      enter="transition ease-out duration-100"
+      enterFrom="transform opacity-0 scale-95"
+      enterTo="transform opacity-100 scale-100"
+      leave="transition ease-in duration-75"
+      leaveFrom="transform opacity-100 scale-100"
+      leaveTo="transform opacity-0 scale-95"
+    >
+      <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+        <div className="py-1">
+          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              {user.name || user.email}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {user.email}
+            </p>
+          </div>
+          
+          {/* Add Assistant button here - First in the list */}
+          <Menu.Item>
+            {({ active }: any) => (
+              <Link
+                to="/dashboard/assistant"
+                className={`${
+                  active ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20" : ""
+                } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 group`}
+              >
+                {/* Bot icon */}
+                <div className="mr-2 w-8 h-8 relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <img 
+                    src="/assets/assistant.jpeg" 
+                    alt="Assistant"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                  </div>
+                  {/* Online indicator */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                </div>
+                <span>My Assistant</span>
+                <span className="ml-auto text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-1.5 py-0.5 rounded-full">
+                  New
+                </span>
+              </Link>
+            )}
+          </Menu.Item>
+          
+          <Menu.Item>
+            {({ active }: any) => (
+              <Link
+                to="/dashboard/profile"
+                className={`${
+                  active ? "bg-gray-100 dark:bg-gray-700" : ""
+                } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
+              >
+                <User className="mr-2 w-4 h-4" />
+                Profile
+              </Link>
+            )}
+          </Menu.Item>
+          <Menu.Item>
+            {({ active }: any) => (
+              <Link
+                to="/dashboard/settings"
+                className={`${
+                  active ? "bg-gray-100 dark:bg-gray-700" : ""
+                } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
+              >
+                <svg className="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Settings
+              </Link>
+            )}
+          </Menu.Item>
+          
+          {/* Add divider before logout */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+          
+          <Menu.Item>
+            {({ active }: any) => (
+              <button
+                onClick={confirmLogout}
+                className={`${
+                  active ? "bg-red-50 dark:bg-red-900/20" : ""
+                } flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors`}
+              >
+                <SignOut className="mr-2 w-4 h-4" />
+                Logout
+              </button>
+            )}
+          </Menu.Item>
+        </div>
+      </Menu.Items>
+    </Transition>
+  </Menu>
+)}
             </div>
           </div>
         </div>

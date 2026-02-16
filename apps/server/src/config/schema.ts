@@ -70,8 +70,8 @@ export const configSchema = z.object({
 
   // Add these new properties:
   APP_URL: z.string().default("http://localhost:3000"),
-  APP_NAME: z.string().default("Cverra"),
-  SUPPORT_EMAIL: z.string().default("support@cverra.com"),
+  APP_NAME: z.string().default("Inlirah"),
+  SUPPORT_EMAIL: z.string().default("support@inlirah.com"),
   // SMTP_URL: z.string().optional(),
   // MAIL_FROM: z.string().optional(),
   

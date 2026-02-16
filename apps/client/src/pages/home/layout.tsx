@@ -76,7 +76,7 @@ export const HomeLayout = () => {
             transition={{ duration: 0.3 }}
             onClick={scrollToTop}
             className={cn(
-              "fixed right-4 sm:right-6 md:right-8 bottom-5", // Adjusted bottom position for mobile
+              "fixed right-4 sm:right-6 md:right-8 bottom-5",
               "z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full",
               "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
               "text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-purple-500/30",

@@ -30,3 +30,22 @@ export const Providers = () => (
     </HelmetProvider>
   </LocaleProvider>
 );
+
+
+// export const Providers = () => (
+//   <LocaleProvider>
+//     <HelmetProvider context={helmetContext}>
+//       <QueryClientProvider client={queryClient}>
+//         {/* Remove AuthRefreshProvider */}
+//         <ThemeProvider>
+//           <TooltipProvider>
+//             <DialogProvider>
+//               <Outlet />
+//               <Toaster />
+//             </DialogProvider>
+//           </TooltipProvider>
+//         </ThemeProvider>
+//       </QueryClientProvider>
+//     </HelmetProvider>
+//   </LocaleProvider>
+// );

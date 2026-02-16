@@ -303,7 +303,7 @@ const CategoriesPage = () => {
                 icon={<CompassOutlined />}
                 onClick={() => navigate('/dashboard/articles/all')}
               >
-                Browse All Articles
+                {t`Browse All Articles`}
               </Button>
             </div>
           </div>

@@ -29,35 +29,15 @@ const Header = () => {
 
   return (
     <div className="relative grid grid-cols-3 gap-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/80">
-      {/* Enhanced geometric shapes with better structure */}
-      <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-white/10 blur-2xl"></div>
-      <div className="absolute -left-16 -bottom-16 h-36 w-36 rounded-full bg-white/5 blur-xl"></div>
-      <div className="absolute right-1/3 top-1/3 h-28 w-28 rounded-full bg-white/8 blur-lg"></div>
       
       {/* Floating geometric elements */}
       <div className="absolute left-1/4 bottom-8 h-6 w-6 rotate-45 bg-white/20"></div>
       <div className="absolute right-32 top-20 h-4 w-4 rounded-full bg-white/15"></div>
       
-      {/* Abstract wave patterns */}
-      <div className="absolute inset-0 opacity-[0.03]">
-        <svg className="h-full w-full" viewBox="0 0 1200 400" preserveAspectRatio="none">
-          <path d="M0,200 C300,100 400,300 600,200 C800,100 900,300 1200,200 L1200,400 L0,400 Z" fill="white"/>
-          <path d="M0,250 C200,150 400,350 800,250 C1000,150 1100,350 1200,250 L1200,400 L0,400 Z" fill="white" opacity="0.5"/>
-        </svg>
-      </div>
-
+     
       {/* Profile Picture Section with enhanced background */}
       <div className="relative z-10 flex items-center justify-center p-6">
-        {/* Multi-layered background effect */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-44 w-44 rounded-full bg-gradient-to-br from-white/25 to-white/5 blur-2xl"></div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-36 w-36 rounded-full bg-white/15 blur-lg"></div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-32 w-32 rounded-full bg-white/10 animate-pulse-slow"></div>
-        </div>
+        
         
         {/* Geometric frame around picture */}
         <div className="relative">
@@ -121,13 +101,13 @@ const Summary = () => {
   return (
     <section id={section.id}>
       {/* Sidebar Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-0 group-[.sidebar]:flex">
         <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-1 group-[.main]:flex">
         <i className="ph ph-bold ph-user-circle text-2xl text-primary" />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
@@ -234,18 +214,19 @@ const Section = <T,>({
   sidebarIcon = "list",
   mainIcon = "list",
 }: SectionProps<T>) => {
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (
     <section id={section.id} className="grid">
       {/* Sidebar Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2 group-[.sidebar]:flex">
+      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-1 group-[.sidebar]:flex">
         <i className={cn(`ph ph-bold ph-${sidebarIcon}`, "text-2xl text-primary")} />
         <h4 className="text-base font-bold uppercase text-white">{section.name}</h4>
       </div>
 
       {/* Main Header Style */}
-      <div className="mb-3 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-2.5 group-[.main]:flex">
+      <div className="mb-1 hidden items-center gap-x-3 rounded-full border-2 border-primary bg-white px-6 py-1 group-[.main]:flex">
         <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-2xl text-primary")} />
         <h4 className="text-lg font-bold uppercase">{section.name}</h4>
       </div>
@@ -319,29 +300,40 @@ const Profiles = () => {
   });
 
   return (
-    <Section<Profile> 
-      section={section} 
-      mainIcon="users" 
-      sidebarIcon="users"
-    >
-      {(item) => (
-        <div className="flex items-center gap-x-3">
-          <div className="text-xl text-primary">
-            <BrandIcon slug={item.icon} />
-          </div>
-          {isUrl(item.url.href) ? (
-            <a href={item.url.href} className="text-sm hover:text-primary hover:underline" target="_blank" rel="noreferrer">
-              {item.username}
-            </a>
-          ) : (
-            <span className="text-sm">{item.username}</span>
-          )}
-        </div>
-      )}
-    </Section>
+    <section className="space-y-4">
+      {/* Header - Matching ContactInfo */}
+      <div className="flex items-center gap-x-3 rounded-full border-2 border-primary bg-gray-700 px-4 py-2">
+        <i className="ph ph-bold ph-users text-2xl text-primary" />
+        <h3 className="text-base font-bold uppercase text-white">{section.name}</h3>
+      </div>
+
+      {/* Profiles Grid - 2 columns */}
+      <div className="grid grid-cols-2 gap-3 pl-2">
+        {section.items
+          .filter((item) => item.visible)
+          .map((item) => (
+            <div key={item.id} className="flex items-center gap-x-3">
+              <div className="text-xl text-primary">
+                <BrandIcon slug={item.icon} />
+              </div>
+              {isUrl(item.url.href) ? (
+                <a 
+                  href={item.url.href} 
+                  className="text-sm text-white break-words hover:text-primary hover:underline" 
+                  target="_blank" 
+                  rel="noreferrer"
+                >
+                  {item.username}
+                </a>
+              ) : (
+                <span className="text-sm text-white">{item.username}</span>
+              )}
+            </div>
+          ))}
+      </div>
+    </section>
   );
 };
-
 const ContactInfo = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
 
@@ -402,7 +394,7 @@ const ContactInfo = () => {
 
 const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
-
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary" mainIcon="briefcase" sidebarIcon="briefcase">
       {(item) => (
@@ -411,6 +403,7 @@ const Experience = () => {
             "flex items-start justify-between gap-x-4",
             "group-[.sidebar]:flex-col group-[.sidebar]:gap-y-2"
           )}>
+            {/* LEFT COLUMN - Company & Position */}
             <div className="flex-1 space-y-1">
               <LinkedEntity
                 name={item.company}
@@ -424,18 +417,34 @@ const Experience = () => {
               <div className={cn(
                 "text-sm font-semibold text-primary",
                 "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-300"
-              )}>{item.position}</div>
+              )}>
+                {item.position}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN - Date + Location */}
+            <div className="shrink-0 text-right group-[.sidebar]:text-left">
+              <div className={cn(
+                "text-sm font-bold text-primary whitespace-nowrap",
+                "group-[.sidebar]:text-xs"
+              )}>
+                {item.date}
+              </div>
+              
+              {/* Location - Under Date */}
               {item.location && (
                 <div className={cn(
-                  "text-sm text-gray-600",
+                  "text-sm text-gray-600 mt-0.5",
                   "group-[.sidebar]:text-xs group-[.sidebar]:text-gray-400"
-                )}>{item.location}</div>
+                )}>
+                <i 
+                  className="mr-1 ph ph-map-pin text-[10px] group-[.sidebar]:text-xs" 
+                  style={{ color: primaryColor }}
+                />
+                  {item.location}
+                </div>
               )}
             </div>
-            <div className={cn(
-              "text-sm font-bold text-primary whitespace-nowrap",
-              "group-[.sidebar]:text-xs"
-            )}>{item.date}</div>
           </div>
         </div>
       )}
@@ -846,7 +855,7 @@ export const Sovereign = ({ columns, isFirstPage = false }: TemplateProps) => {
 
         {/* Main Content - White Background */}
         <div className={cn(
-          "main group space-y-6 bg-white p-6",
+          "main group space-y-2 bg-white px-6",
           sidebar.length > 0 ? "col-span-2" : "col-span-3"
         )}>
           {main.map((section) => (

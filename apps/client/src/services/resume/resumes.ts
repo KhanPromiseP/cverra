@@ -16,10 +16,11 @@ export const useResumes = () => {
     error,
     isPending: loading,
     data: resumes,
+    refetch,
   } = useQuery({
     queryKey: RESUMES_KEY,
     queryFn: fetchResumes,
   });
 
-  return { resumes, loading, error };
+  return { resumes, loading, error, refetch, };
 };

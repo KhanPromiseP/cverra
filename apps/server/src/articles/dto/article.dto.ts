@@ -16,17 +16,37 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
-import { ContentAccess, ArticleStatus as PrismaArticleStatus } from '@prisma/client';
+import { ContentAccess } from '@prisma/client';
 
-// Use Prisma's ArticleStatus directly
-export { PrismaArticleStatus as ArticleStatus };
+export enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
+
 
 // ========== CREATE ARTICLE DTO ==========
 export class CreateArticleDto {
   @IsString()
   @IsNotEmpty()
   title: string;
-
+  
+  @IsEnum(ArticleStatus)
+  @IsOptional()
+  status?: ArticleStatus;
+  
+  @IsDate()
+  @IsOptional()
+  scheduledFor?: Date;
+  
+  @IsDate()
+  @IsOptional()
+  publishedAt?: Date;
   @IsString()
   @IsNotEmpty()
   excerpt: string;
@@ -125,8 +145,8 @@ export class CreateArticleDto {
 // ========== UPDATE ARTICLE DTO ==========
 export class UpdateArticleDto extends PartialType(CreateArticleDto) {
   @IsOptional()
-  @IsEnum(PrismaArticleStatus)
-  status?: PrismaArticleStatus;
+  @IsEnum(ArticleStatus)
+  status?: ArticleStatus;
 
   @IsOptional()
   @IsBoolean()
@@ -290,7 +310,7 @@ export class ArticleResponseDto {
   coverImage?: string | null;
   featuredImage?: string | null;
   readingTime: number;
-  status: PrismaArticleStatus;
+  status: ArticleStatus | string;
   isFeatured: boolean;
   isTrending: boolean;
   isEditorPick?: boolean;
@@ -366,7 +386,7 @@ export class TrackViewDto {
 //   filters?: {
 //     category?: string;
 //     tag?: string;
-//     status?: PrismaArticleStatus;
+//     status?: ArticleStatus;
 //     accessType?: ContentAccess;
 //     featured?: boolean;
 //     trending?: boolean;

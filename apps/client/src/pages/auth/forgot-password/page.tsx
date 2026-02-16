@@ -44,7 +44,7 @@ export const ForgotPasswordPage = () => {
       <div className="container max-w-md mx-auto px-4 py-16">
         <Helmet>
           <title>
-            {t`Check your email`} - {t`Cverra`}
+            {t`Check your email`} - {t`Inlirah`}
           </title>
         </Helmet>
 
@@ -76,7 +76,7 @@ export const ForgotPasswordPage = () => {
             <Button
               onClick={() => navigate("/auth/login")}
               className="w-full"
-              variant="default"
+              variant="primary"
             >
               {t`Back to login`}
             </Button>
@@ -97,7 +97,7 @@ export const ForgotPasswordPage = () => {
     <div className="container max-w-md mx-auto px-4 py-16">
       <Helmet>
         <title>
-          {t`Reset password`} - {t`Cverra`}
+          {t`Reset password`} - {t`Inlirah`}
         </title>
       </Helmet>
 

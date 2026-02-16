@@ -65,8 +65,8 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
   color: string;
   fields: {
     user: string[];
-    job?: string[];
-    custom?: string[];
+    job: string[];
+    custom: string[];
   };
 }> = {
   'Job Application': {
@@ -75,18 +75,17 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'blue',
     fields: {
       user: ['name', 'email', 'phone', 'skills', 'experience', 'achievements'],
-      job: ['position', 'company', 'hiringManager', 'jobDescription'],
+      job: ['recipient', 'position', 'company', 'hiringManager', 'jobDescription'], // Added recipient
       custom: ['customInstructions']
     }
   },
-
   'Internship Application': {
     icon: GraduationCap,
     description: t`Applications for internship positions focusing on learning and growth potential`,
     color: 'green',
     fields: {
       user: ['name', 'email', 'phone', 'skills', 'experience', 'academicLevel', 'relevantCoursework', 'careerGoals'],
-      job: ['position', 'company', 'department'],
+      job: ['recipient', 'position', 'company', 'department'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -96,7 +95,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'purple',
     fields: {
       user: ['name', 'email', 'phone', 'academicAchievements', 'researchInterests', 'academicGoals', 'futurePlans'],
-      job: ['programName', 'institution', 'fieldOfStudy'],
+      job: ['recipient', 'programName', 'institution', 'fieldOfStudy'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -105,8 +104,10 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     description: t`Professional proposals for business collaborations and partnerships`,
     color: 'indigo',
     fields: {
-      user: ['name', 'email', 'phone', 'company', 'experience'],
-      job: ['partnershipType', 'collaborationDetails'],
+      user: ['name', 'email', 'phone', 'company', 'position', 'companyAddress', 'experience'],
+      job: ['recipient', 'partnershipType', 'collaborationDetails', 'recipientCompany', 'recipientPosition', 
+            'proposalPurpose', 'proposedBenefits', 'partnershipScope', 'proposedTimeline', 
+            'rolesAndResponsibilities', 'financialTerms', 'confidentialityClause', 'disputeResolution', 'exitTerms'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -116,7 +117,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'orange',
     fields: {
       user: ['name', 'email', 'phone', 'experience', 'achievements'],
-      job: ['position', 'company', 'currentOffer', 'negotiationPoints'],
+      job: ['recipient', 'position', 'company', 'currentOffer', 'negotiationPoints'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -126,7 +127,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'teal',
     fields: {
       user: ['name', 'email', 'phone', 'relationship'],
-      job: ['purpose', 'keyPoints'],
+      job: ['recipient', 'purpose', 'keyPoints'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -136,7 +137,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'red',
     fields: {
       user: ['name', 'email', 'phone'],
-      job: ['situation', 'impact', 'resolution'],
+      job: ['recipient', 'situation', 'impact', 'resolution'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -146,7 +147,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'pink',
     fields: {
       user: ['name', 'email', 'phone'],
-      job: ['recipient', 'reason', 'impact'],
+      job: ['recipient', 'reason', 'impact'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -156,7 +157,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'rose',
     fields: {
       user: ['name', 'email', 'phone'],
-      job: ['relationship', 'purpose', 'personalContext', 'familyUpdates', 'personalNews', 'emotionalTone'],
+      job: ['recipient', 'relationship', 'purpose', 'personalContext', 'familyUpdates', 'personalNews', 'emotionalTone'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -166,7 +167,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'cyan',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
-      job: ['travelPurpose', 'destination', 'duration', 'supportingDocs', 'accommodation', 'financialSupport', 'returnPlans'],
+      job: ['recipient', 'travelPurpose', 'destination', 'duration', 'supportingDocs', 'accommodation', 'financialSupport', 'returnPlans'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -176,7 +177,7 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'amber',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
-      job: ['issue', 'productService', 'desiredResolution'],
+      job: ['recipient', 'issue', 'productService', 'desiredResolution'], // Added recipient
       custom: ['customInstructions']
     }
   },
@@ -186,11 +187,12 @@ const CATEGORY_CONFIG: Record<LetterCategory, {
     color: 'gray',
     fields: {
       user: ['name', 'email', 'phone', 'address'],
-      job: ['purpose', 'recipient', 'keyInformation'],
+      job: ['recipient', 'purpose', 'keyInformation'], // Added recipient
       custom: ['customInstructions']
     }
   }
 };
+
 export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverLetterWizardProps) => {
   // Wizard states
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
@@ -307,6 +309,7 @@ export const CoverLetterWizard = ({ onGenerate, isGenerating, onCancel }: CoverL
     customInstructions: '',
    
   });
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [showImportedData, setShowImportedData] = useState(true);
@@ -644,43 +647,64 @@ const hasAutoSelectedTemplate = useRef(false);
 useEffect(() => {
   const fetchTemplatesByCategory = async () => {
     if (!selectedCategory) return;
-   
+    
     setIsLoadingTemplates(true);
     try {
       const encodedCategory = encodeURIComponent(selectedCategory);
       const response = await coverLetterService.getTemplatesByCategory(encodedCategory);
       setTemplates(response);
-     
-      // Auto-select first template only once when category changes
-      if (response.length > 0 && !formData.layout && !hasAutoSelectedTemplate.current) {
+      
+      // Always select the first template of THIS category when category changes
+      if (response.length > 0) {
+        // Check if the currently selected template belongs to this category
+        const currentTemplateBelongsToThisCategory = formData.layout && 
+          response.some(t => t.id === formData.layout);
+        
+        // If no template is selected OR the selected template is not from this category,
+        // select the first template of this category
+        if (!formData.layout || !currentTemplateBelongsToThisCategory) {
+          setFormData(prev => ({
+            ...prev,
+            layout: response[0].id
+          }));
+          
+          // Optional: Show which template was selected
+          console.log(`Selected ${response[0].name} template for ${selectedCategory} category`);
+        }
+        // If the current template IS from this category, keep it (user's choice)
+        
+      } else {
+        // No templates for this category
         setFormData(prev => ({
           ...prev,
-          layout: response[0].id
+          layout: undefined
         }));
-        hasAutoSelectedTemplate.current = true;
       }
     } catch (error) {
       console.error('Failed to fetch templates:', error);
       toast.error(t`Failed to load templates. Using default templates.`);
-      // Set default templates if API fails
       setTemplates([]);
+      setFormData(prev => ({
+        ...prev,
+        layout: undefined
+      }));
     } finally {
       setIsLoadingTemplates(false);
     }
   };
+  
   fetchTemplatesByCategory();
- 
-  // Cleanup: reset the ref when category changes
-  return () => {
-    hasAutoSelectedTemplate.current = false;
-  };
-}, [selectedCategory]); // Only selectedCategory as dependency
+  
+}, [selectedCategory]); // Only depend on selectedCategory
   // Auto-select first resume if available and in resume mode
   useEffect(() => {
     if (inputMethod === 'resume' && hasResumes && !selectedResumeId) {
       setSelectedResumeId(resumes[0].id);
     }
   }, [inputMethod, hasResumes, resumes, selectedResumeId]);
+
+
+  
   // Handle resume selection and data import
 useEffect(() => {
   if (selectedResumeId && inputMethod === 'resume' && resumes) {
@@ -822,10 +846,20 @@ const getFieldConfig = (field: string) => {
     },
     // Professional & Business
     company: {
-      label: t`Your Company/Organization`,
+      label: t`Company/Organization`,
       type: 'text',
-      placeholder: t`Your current company or organization`,
+      placeholder: t`company or organization if applicable`,
       required: false
+    },
+    position: {
+      label: t`Your Position/Title`,
+      type: 'text',
+      placeholder: t`e.g., CEO, Business Development Manager`
+    },
+    companyAddress: {
+      label: t`Company Address`,
+      type: 'text',
+      placeholder: t`Full address of your company`
     },
     partnershipType: {
       label: t`Partnership Type`,
@@ -850,6 +884,61 @@ const getFieldConfig = (field: string) => {
       type: 'textarea',
       placeholder: t`Key points you want to negotiate`,
       required: false
+    },
+    recipientCompany: {
+      label: t`Recipient Company/Organization`,
+      type: 'text',
+      placeholder: t`Name of the company you're proposing to`
+    },
+    recipientPosition: {
+      label: t`Recipient's Position/Title`,
+      type: 'text',
+      placeholder: t`e.g., CEO, Partnerships Director`
+    },
+    proposalPurpose: {
+      label: t`Proposal Purpose`,
+      type: 'textarea',
+      placeholder: t`Clear statement of why you're proposing this partnership`
+    },
+    proposedBenefits: {
+      label: t`Proposed Benefits`,
+      type: 'textarea',
+      placeholder: t`Mutual benefits for both parties - what each company gains from this partnership`
+    },
+    partnershipScope: {
+      label: t`Partnership Scope`,
+      type: 'textarea',
+      placeholder: t`What the partnership will cover (shared resources, joint projects, market access, etc.)`
+    },
+    proposedTimeline: {
+      label: t`Proposed Timeline`,
+      type: 'textarea',
+      placeholder: t`Start date, duration, key milestones, and review periods`
+    },
+    rolesAndResponsibilities: {
+      label: t`Roles & Responsibilities`,
+      type: 'textarea',
+      placeholder: t`Specific responsibilities for each party - who does what`
+    },
+    financialTerms: {
+      label: t`Financial Terms`,
+      type: 'textarea',
+      placeholder: t`Investment amounts, profit sharing, payment terms, revenue split, etc.`
+    },
+    confidentialityClause: {
+      label: t`Confidentiality Requirements`,
+      type: 'textarea',
+      placeholder: t`How sensitive information will be handled and protected`
+    },
+    disputeResolution: {
+      label: t`Dispute Resolution`,
+      type: 'textarea',
+      placeholder: t`How disagreements or conflicts will be resolved (mediation, arbitration, etc.)`
+    },
+    exitTerms: {
+      label: t`Exit Terms`,
+      type: 'textarea',
+      placeholder: t`How the partnership can be terminated and what happens afterward`
     },
     // Recommendation & Relationships
     relationship: {
@@ -997,12 +1086,7 @@ const getFieldConfig = (field: string) => {
       required: false
     },
     // Job Specific
-    position: {
-      label: t`Position/Role`,
-      type: 'text',
-      placeholder: t`Job title or position you are applying for`,
-      required: false
-    },
+   
     hiringManager: {
       label: t`Hiring Manager/Recipient Name`,
       type: 'text',
@@ -1117,36 +1201,153 @@ const handleSubmit = async (e: React.FormEvent) => {
     return [];
   };
   
+  // Create a comprehensive jobData object with ALL possible fields
+  const jobData: any = {
+    // Job Application / Internship
+    position: formData.jobData?.position || '',
+    company: formData.jobData?.company || '',
+    hiringManager: formData.jobData?.hiringManager || '',
+    jobDescription: formData.jobData?.jobDescription || '',
+    department: formData.jobData?.department || '',
+    
+    // Academic
+    programName: formData.jobData?.programName || '',
+    institution: formData.jobData?.institution || '',
+    fieldOfStudy: formData.jobData?.fieldOfStudy || '',
+    
+    // Business Partnership - ALL FIELDS
+    partnershipType: formData.jobData?.partnershipType || '',
+    collaborationDetails: formData.jobData?.collaborationDetails || '',
+    recipientCompany: formData.jobData?.recipientCompany || '',
+    recipientPosition: formData.jobData?.recipientPosition || '',
+    proposalPurpose: formData.jobData?.proposalPurpose || '',
+    proposedBenefits: formData.jobData?.proposedBenefits || '',
+    partnershipScope: formData.jobData?.partnershipScope || '',
+    proposedTimeline: formData.jobData?.proposedTimeline || '',
+    rolesAndResponsibilities: formData.jobData?.rolesAndResponsibilities || '',
+    financialTerms: formData.jobData?.financialTerms || '',
+    confidentialityClause: formData.jobData?.confidentialityClause || '',
+    disputeResolution: formData.jobData?.disputeResolution || '',
+    exitTerms: formData.jobData?.exitTerms || '',
+    
+    // Contract Negotiation
+    currentOffer: formData.jobData?.currentOffer || '',
+    negotiationPoints: stringToArray(formData.jobData?.negotiationPoints),
+    
+    // Recommendation
+    purpose: formData.jobData?.purpose || '',
+    keyPoints: stringToArray(formData.jobData?.keyPoints),
+    
+    // Apology
+    situation: formData.jobData?.situation || '',
+    impact: formData.jobData?.impact || '',
+    resolution: formData.jobData?.resolution || '',
+    
+    // Appreciation
+    recipient: formData.jobData?.recipient || '',
+    reason: formData.jobData?.reason || '',
+    
+    // Personal/Family
+    relationship: formData.jobData?.relationship || '',
+    personalContext: formData.jobData?.personalContext || '',
+    familyUpdates: formData.jobData?.familyUpdates || '',
+    personalNews: formData.jobData?.personalNews || '',
+    emotionalTone: formData.jobData?.emotionalTone || '',
+    
+    // Visa/Travel
+    travelPurpose: formData.jobData?.travelPurpose || '',
+    destination: formData.jobData?.destination || '',
+    duration: formData.jobData?.duration || '',
+    supportingDocs: formData.jobData?.supportingDocs || '',
+    accommodation: formData.jobData?.accommodation || '',
+    financialSupport: formData.jobData?.financialSupport || '',
+    returnPlans: formData.jobData?.returnPlans || '',
+    
+    // Complaint
+    issue: formData.jobData?.issue || '',
+    productService: formData.jobData?.productService || '',
+    desiredResolution: formData.jobData?.desiredResolution || '',
+    
+    // General
+    keyInformation: formData.jobData?.keyInformation || ''
+  };
+
+  // Create userData object with ALL possible fields
+  const userData: any = {
+    name: formData.userData?.name || '',
+    email: formData.userData?.email || '',
+    phone: formData.userData?.phone || '',
+    address: formData.userData?.address || '',
+    skills: stringToArray(formData.userData?.skills),
+    experience: stringToArray(formData.userData?.experience),
+    achievements: stringToArray(formData.userData?.achievements),
+    professionalSummary: formData.userData?.professionalSummary || '',
+    academicLevel: formData.userData?.academicLevel || '',
+    relevantCoursework: stringToArray(formData.userData?.relevantCoursework),
+    careerGoals: formData.userData?.careerGoals || '',
+    academicAchievements: stringToArray(formData.userData?.academicAchievements),
+    researchInterests: formData.userData?.researchInterests || '',
+    academicGoals: formData.userData?.academicGoals || '',
+    futurePlans: formData.userData?.futurePlans || '',
+    relationship: formData.userData?.relationship || '',
+    company: formData.userData?.company || '',
+    position: formData.userData?.position || '',
+    companyAddress: formData.userData?.companyAddress || '',
+    partnershipType: formData.userData?.partnershipType || '',
+    collaborationDetails: formData.userData?.collaborationDetails || '',
+    currentOffer: formData.userData?.currentOffer || '',
+    negotiationPoints: stringToArray(formData.userData?.negotiationPoints),
+    purpose: formData.userData?.purpose || '',
+    keyPoints: stringToArray(formData.userData?.keyPoints),
+    situation: formData.userData?.situation || '',
+    impact: formData.userData?.impact || '',
+    resolution: formData.userData?.resolution || '',
+    recipient: formData.userData?.recipient || '',
+    reason: formData.userData?.reason || '',
+    personalContext: formData.userData?.personalContext || '',
+    familyUpdates: formData.userData?.familyUpdates || '',
+    personalNews: formData.userData?.personalNews || '',
+    emotionalTone: formData.userData?.emotionalTone || '',
+    travelPurpose: formData.userData?.travelPurpose || '',
+    destination: formData.userData?.destination || '',
+    duration: formData.userData?.duration || '',
+    supportingDocs: formData.userData?.supportingDocs || '',
+    accommodation: formData.userData?.accommodation || '',
+    financialSupport: formData.userData?.financialSupport || '',
+    returnPlans: formData.userData?.returnPlans || '',
+    issue: formData.userData?.issue || '',
+    productService: formData.userData?.productService || '',
+    desiredResolution: formData.userData?.desiredResolution || '',
+    keyInformation: formData.userData?.keyInformation || '',
+    selectedResumeId: inputMethod === 'resume' ? selectedResumeId : undefined
+  };
+
   const preparedData: CreateCoverLetterData & { metadata?: any } = {
     ...formData,
     category: selectedCategory!,
-    userData: {
-      ...formData.userData,
-      selectedResumeId: inputMethod === 'resume' ? selectedResumeId : undefined,
-      skills: stringToArray(formData.userData?.skills),
-      experience: stringToArray(formData.userData?.experience),
-      achievements: stringToArray(formData.userData?.achievements),
-      relevantCoursework: stringToArray(formData.userData?.relevantCoursework),
-      academicAchievements: stringToArray(formData.userData?.academicAchievements),
-      negotiationPoints: stringToArray(formData.userData?.negotiationPoints),
-      keyPoints: stringToArray(formData.userData?.keyPoints),
-    },
-    jobData: {
-      ...formData.jobData,
-      negotiationPoints: stringToArray(formData.jobData?.negotiationPoints),
-      keyPoints: stringToArray(formData.jobData?.keyPoints),
-    },
-    // Add metadata as an optional field
+    userData,
+    jobData,
     metadata: {
       language: languageOverride.trim() || undefined,
       inputMethod: inputMethod,
-      // Any other metadata you need
     }
   };
   
+  // Debug log to see what's being sent
+  console.log('📤 Sending to backend:', {
+    category: preparedData.category,
+    userDataKeys: Object.keys(preparedData.userData || {}).filter(k => preparedData.userData?.[k]),
+    jobDataKeys: Object.keys(preparedData.jobData || {}).filter(k => preparedData.jobData?.[k]),
+    businessPartnershipFields: {
+      partnershipType: preparedData.jobData?.partnershipType,
+      collaborationDetails: preparedData.jobData?.collaborationDetails?.substring(0, 50),
+      recipientCompany: preparedData.jobData?.recipientCompany,
+      proposalPurpose: preparedData.jobData?.proposalPurpose?.substring(0, 50)
+    }
+  });
+  
   return preparedData;
 };
-
 
 
 // Add this helper function at the top of your component (inside the CoverLetterWizard function)
@@ -1397,7 +1598,9 @@ const renderField = (field: string, category: LetterCategory) => {
     ? formData.userData?.[field as keyof typeof formData.userData] || ''
     : formData.jobData?.[field as keyof typeof formData.jobData] || '';
   const onChange = isUserField ? handleUserDataChange : handleJobDataChange;
+  
   const fieldConfig: Record<string, any> = {
+    // Personal Information
     name: {
       label: t`Your Name *`,
       type: 'text',
@@ -1419,6 +1622,7 @@ const renderField = (field: string, category: LetterCategory) => {
       type: 'text',
       placeholder: t`123 Main St, City, State 12345`
     },
+    // Professional Information
     skills: {
       label: t`Key Skills & Qualifications`,
       type: 'textarea',
@@ -1434,6 +1638,12 @@ const renderField = (field: string, category: LetterCategory) => {
       type: 'textarea',
       placeholder: t`Employee of the Year 2022, Best Project Award...`
     },
+    professionalSummary: {
+      label: t`Professional Summary`,
+      type: 'textarea',
+      placeholder: t`Experienced professional with expertise in...`
+    },
+    // Academic Information
     academicLevel: {
       label: t`Academic Level`,
       type: 'text',
@@ -1459,68 +1669,315 @@ const renderField = (field: string, category: LetterCategory) => {
       type: 'textarea',
       placeholder: t`Your specific research interests and focus areas`
     },
-    // Add more field configurations as needed...
+    academicGoals: {
+      label: t`Academic Goals`,
+      type: 'textarea',
+      placeholder: t`Your educational objectives and plans`
+    },
+    futurePlans: {
+      label: t`Future Plans`,
+      type: 'textarea',
+      placeholder: t`Your long-term career or academic plans`
+    },
+    // Professional & Business - ADD THESE MISSING FIELDS
+    company: {
+      label: t`Your Company/Organization`,
+      type: 'text',
+      placeholder: t`Your current company or organization`
+    },
+    partnershipType: {
+      label: t`Partnership Type`,
+      type: 'text',
+      placeholder: t`e.g., Strategic Alliance, Joint Venture, Collaboration`
+    },
+    collaborationDetails: {
+      label: t`Collaboration Details`,
+      type: 'textarea',
+      placeholder: t`Specific details about the proposed collaboration`
+    },
+    currentOffer: {
+      label: t`Current Offer Details`,
+      type: 'textarea',
+      placeholder: t`Details of the current contract or offer`
+    },
+    negotiationPoints: {
+      label: t`Negotiation Points`,
+      type: 'textarea',
+      placeholder: t`Key points you want to negotiate`
+    },
+    // Recommendation & Relationships
+    relationship: {
+      label: t`Relationship`,
+      type: 'text',
+      placeholder: t`e.g., Former Manager, Professor, Colleague`
+    },
+    purpose: {
+      label: t`Purpose`,
+      type: 'textarea',
+      placeholder: t`Purpose of this request or letter`
+    },
+    keyPoints: {
+      label: t`Key Points to Highlight`,
+      type: 'textarea',
+      placeholder: t`Important points you want emphasized`
+    },
+    // Apology & Complaint
+    situation: {
+      label: t`Situation Description`,
+      type: 'textarea',
+      placeholder: t`Describe what happened`
+    },
+    impact: {
+      label: t`Impact`,
+      type: 'textarea',
+      placeholder: t`Describe the impact or consequences`
+    },
+    resolution: {
+      label: t`Proposed Resolution`,
+      type: 'textarea',
+      placeholder: t`How you plan to resolve the situation`
+    },
+    // Appreciation & Personal
+    recipient: {
+      label: t`Recipient`,
+      type: 'text',
+      placeholder: t`Name of the person or organization`
+    },
+    reason: {
+      label: t`Reason for Appreciation`,
+      type: 'textarea',
+      placeholder: t`Why you are expressing appreciation`
+    },
+    // Personal/Family Letters
+    personalContext: {
+      label: t`Personal Context`,
+      type: 'textarea',
+      placeholder: t`Background information or context`
+    },
+    familyUpdates: {
+      label: t`Family Updates`,
+      type: 'textarea',
+      placeholder: t`Recent family news or updates`
+    },
+    personalNews: {
+      label: t`Personal News`,
+      type: 'textarea',
+      placeholder: t`Your personal updates and news`
+    },
+    emotionalTone: {
+      label: t`Emotional Tone`,
+      type: 'text',
+      placeholder: t`e.g., Warm and caring, Formal, Casual`
+    },
+    // Visa & Travel
+    travelPurpose: {
+      label: t`Travel Purpose`,
+      type: 'textarea',
+      placeholder: t`Reason for travel or visa application`
+    },
+    destination: {
+      label: t`Destination`,
+      type: 'text',
+      placeholder: t`Country and city you are traveling to`
+    },
+    duration: {
+      label: t`Duration of Stay`,
+      type: 'text',
+      placeholder: t`e.g., 2 weeks, 6 months, 1 year`
+    },
+    supportingDocs: {
+      label: t`Supporting Documents`,
+      type: 'textarea',
+      placeholder: t`Documents you are submitting with application`
+    },
+    accommodation: {
+      label: t`Accommodation Details`,
+      type: 'textarea',
+      placeholder: t`Where you will be staying`
+    },
+    financialSupport: {
+      label: t`Financial Support`,
+      type: 'textarea',
+      placeholder: t`How your trip will be funded`
+    },
+    returnPlans: {
+      label: t`Return Plans`,
+      type: 'textarea',
+      placeholder: t`Your plans to return home`
+    },
+    // Complaint & Resolution
+    issue: {
+      label: t`Issue Description`,
+      type: 'textarea',
+      placeholder: t`Detailed description of the problem`
+    },
+    productService: {
+      label: t`Product/Service`,
+      type: 'text',
+      placeholder: t`Product or service involved`
+    },
+    desiredResolution: {
+      label: t`Desired Resolution`,
+      type: 'textarea',
+      placeholder: t`What you would like to happen`
+    },
+    // General Correspondence
+    keyInformation: {
+      label: t`Key Information`,
+      type: 'textarea',
+      placeholder: t`Main points or information to include`
+    },
+    // Job Specific
+    position: {
+      label: t`Position/Role`,
+      type: 'text',
+      placeholder: t`eg: Software Engineer, Marketing Manager, Research Assistant...`
+    },
+    hiringManager: {
+      label: t`Hiring Manager/Recipient Name`,
+      type: 'text',
+      placeholder: t`Name of the hiring manager or recipient`
+    },
+    jobDescription: {
+      label: t`Job Description/Requirements`,
+      type: 'textarea',
+      placeholder: t`Key requirements and responsibilities from job description`
+    },
+    programName: {
+      label: t`Program Name`,
+      type: 'text',
+      placeholder: t`Name of the program or opportunity`
+    },
+    institution: {
+      label: t`Institution/Organization`,
+      type: 'text',
+      placeholder: t`Name of the institution or organization`
+    },
+    fieldOfStudy: {
+      label: t`Field of Study`,
+      type: 'text',
+      placeholder: t`Your academic or professional field`
+    },
+    department: {
+      label: t`Department`,
+      type: 'text',
+      placeholder: t`Specific department or division`
+    }
   };
+  
   const fieldInfo = fieldConfig[field] || {
     label: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
     type: 'text',
     placeholder: t`Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`
   };
-  // List of fields that should be treated as arrays
-  const arrayFields = [
-    'skills', 'experience', 'achievements',
-    'relevantCoursework', 'academicAchievements',
-    'negotiationPoints', 'keyPoints'
+  
+  // Fields that should be stored as arrays (comma-separated lists)
+  // These are typically short, discrete items like skills or coursework
+  const arrayStorageFields = ['skills', 'relevantCoursework', 'negotiationPoints', 'keyPoints'];
+  
+  // Fields that should remain as strings with all formatting preserved
+  // These are longer text fields where users need full formatting control
+  const textStorageFields = [
+    'experience', 'achievements', 'careerGoals', 
+    'academicAchievements', 'researchInterests', 'professionalSummary',
+    'collaborationDetails', 'currentOffer', 'jobDescription',
+    'situation', 'impact', 'resolution', 'reason',
+    'personalContext', 'familyUpdates', 'personalNews',
+    'travelPurpose', 'supportingDocs', 'accommodation',
+    'financialSupport', 'returnPlans', 'issue',
+    'desiredResolution', 'keyInformation', 'purpose',
+     // New business partnership textarea fields
+    'proposalPurpose', 'proposedBenefits', 'partnershipScope',
+    'proposedTimeline', 'rolesAndResponsibilities', 'financialTerms',
+    'confidentialityClause', 'disputeResolution', 'exitTerms'
   ];
+  
+  // Rest of your renderField code remains the same...
   if (fieldInfo.type === 'textarea') {
-    const isArrayField = arrayFields.includes(field);
-   
-    // For array fields: display as comma/line-separated string for editing
-    // But store as array in state
-    const displayValue = isArrayField && Array.isArray(value)
-      ? value.join(', ') // Show array as comma-separated string
-      : (typeof value === 'string' ? value : '');
+    const shouldStoreAsArray = arrayStorageFields.includes(field);
+    const shouldStoreAsText = textStorageFields.includes(field);
+    
+    // For ALL textareas, we want to display the value exactly as it should appear
+    // No transformation for display - just show what's stored
+    let displayValue = '';
+    
+    if (shouldStoreAsArray && Array.isArray(value)) {
+      // If it's stored as an array, join with commas for display
+      displayValue = value.join(', ');
+    } else if (typeof value === 'string') {
+      // If it's stored as a string, show it directly (preserves all commas, spaces, newlines)
+      displayValue = value;
+    } else if (Array.isArray(value)) {
+      // Fallback for any other arrays
+      displayValue = value.join(', ');
+    } else {
+      displayValue = '';
+    }
+    
     return (
       <div key={field}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {fieldInfo.label} {fieldInfo.required && '*'}
-          {isArrayField && (
+          {shouldStoreAsArray && (
             <span className="text-xs text-gray-500 ml-2">
-              {t`(Separate with commas or new lines)`}
+              {t`(Separate items with commas)`}
+            </span>
+          )}
+          {shouldStoreAsText && (
+            <span className="text-xs text-gray-500 ml-2">
+              {t`(Spaces, commas, and line breaks are preserved)`}
             </span>
           )}
         </label>
         <textarea
           value={displayValue}
           onChange={(e) => {
-            if (isArrayField) {
-              // Convert text to array when user types
-              const arrayValue = e.target.value
-                .split(/[,;\n]+/)
-                .map(item => item.trim())
-                .filter(Boolean);
-              onChange(field, arrayValue);
+            const newValue = e.target.value;
+            
+            if (shouldStoreAsArray) {
+              // For array-stored fields: only split on commas when saving
+              if (newValue.includes(',')) {
+                const arrayValue = newValue
+                  .split(',')
+                  .map(item => item.trim())
+                  .filter(Boolean);
+                onChange(field, arrayValue);
+              } else {
+                // If no commas, store as single-item array
+                onChange(field, newValue.trim() ? [newValue] : []);
+              }
             } else {
-              onChange(field, e.target.value);
+              // For text-stored fields: store exactly as typed
+              // This preserves ALL characters: spaces, commas, newlines, etc.
+              onChange(field, newValue);
             }
           }}
           onBlur={(e) => {
-            if (isArrayField) {
-              // Clean up the display value on blur
-              const cleanValue = e.target.value
-                .split(/[,;\n]+/)
-                .map(item => item.trim())
-                .filter(Boolean)
-                .join(', ');
-              // Update display value for better UX
-              e.target.value = cleanValue;
+            // Only clean up array fields on blur
+            if (shouldStoreAsArray) {
+              const currentValue = e.target.value;
+              if (currentValue.includes(',')) {
+                const cleanArray = currentValue
+                  .split(',')
+                  .map(item => item.trim())
+                  .filter(Boolean);
+                onChange(field, cleanArray);
+                // Update display to show clean comma-separated format
+                e.target.value = cleanArray.join(', ');
+              } else {
+                const singleItem = currentValue.trim();
+                onChange(field, singleItem ? [singleItem] : []);
+                e.target.value = singleItem;
+              }
             }
+            // For text fields: NO TRANSFORMATION on blur
+            // This preserves all user formatting
           }}
           rows={4}
           className="w-full text-gray-700 dark:bg-gray-800 dark:text-gray-100 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           placeholder={fieldInfo.placeholder}
         />
-        {isArrayField && Array.isArray(value) && value.length > 0 && (
+        {shouldStoreAsArray && Array.isArray(value) && value.length > 0 && (
           <div className="mt-2 text-xs text-gray-500">
             {value.length} {t`item${value.length !== 1 ? 's' : ''}`} {t`entered`}
           </div>
@@ -1528,12 +1985,15 @@ const renderField = (field: string, category: LetterCategory) => {
       </div>
     );
   }
+  
   // For regular input fields
+  const shouldStoreAsArray = arrayStorageFields.includes(field);
+  
   return (
     <div key={field}>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {fieldInfo.label} {fieldInfo.required && '*'}
-        {arrayFields.includes(field) && (
+        {shouldStoreAsArray && (
           <span className="text-xs text-gray-500 ml-2">
             {t`(Separate with commas)`}
           </span>
@@ -1544,32 +2004,42 @@ const renderField = (field: string, category: LetterCategory) => {
         required={fieldInfo.required}
         value={Array.isArray(value) ? value.join(', ') : value || ''}
         onChange={(e) => {
-          if (arrayFields.includes(field)) {
-            // For array fields, convert comma-separated string to array
-            const arrayValue = e.target.value
-              .split(',')
-              .map(item => item.trim())
-              .filter(Boolean);
-            onChange(field, arrayValue);
+          if (shouldStoreAsArray) {
+            const newValue = e.target.value;
+            if (newValue.includes(',')) {
+              const arrayValue = newValue
+                .split(',')
+                .map(item => item.trim())
+                .filter(Boolean);
+              onChange(field, arrayValue);
+            } else {
+              onChange(field, newValue.trim() ? [newValue] : []);
+            }
           } else {
             onChange(field, e.target.value);
           }
         }}
         onBlur={(e) => {
-          if (arrayFields.includes(field)) {
-            // Clean up the display value on blur
-            const cleanValue = e.target.value
-              .split(',')
-              .map(item => item.trim())
-              .filter(Boolean)
-              .join(', ');
-            e.target.value = cleanValue;
+          if (shouldStoreAsArray) {
+            const currentValue = e.target.value;
+            if (currentValue.includes(',')) {
+              const cleanArray = currentValue
+                .split(',')
+                .map(item => item.trim())
+                .filter(Boolean);
+              onChange(field, cleanArray);
+              e.target.value = cleanArray.join(', ');
+            } else {
+              const singleItem = currentValue.trim();
+              onChange(field, singleItem ? [singleItem] : []);
+              e.target.value = singleItem;
+            }
           }
         }}
         className="w-full px-4 py-3 text-gray-700 dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder={fieldInfo.placeholder}
       />
-      {arrayFields.includes(field) && Array.isArray(value) && value.length > 0 && (
+      {shouldStoreAsArray && Array.isArray(value) && value.length > 0 && (
         <div className="mt-1 text-xs text-gray-500">
           {value.length} {t`item${value.length !== 1 ? 's' : ''}`} {t`entered`}
         </div>

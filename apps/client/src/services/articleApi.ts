@@ -841,6 +841,8 @@ export const articleApi = {
   getArticles: (params?: FilterParams): Promise<ApiResponse<ArticleListDto>> => 
     apiClient.get('/articles', { params }),
   
+
+
   // Get single article
   getArticle: async (identifier: string, params?: { language?: string }): Promise<ApiResponse<any>> => {
     const queryParams = new URLSearchParams();
@@ -1042,6 +1044,9 @@ export const articleApi = {
 
   bulkSaveArticles: (articleIds: string[]): Promise<ApiResponse<{ success: boolean }>> =>
     apiClient.post('/articles/bulk/save', { articleIds }),
+
+
+  
 
   // Search functions
   searchArticles: async (query: string, filters?: SearchFilters): Promise<ApiResponse<PaginatedResponse<Article>>> => {
@@ -1317,5 +1322,9 @@ export const articleApiWithLanguage = {
   bulkToggleLikeArticles: articleApi.bulkToggleLikeArticles,
   exportFilteredArticles: articleApi.exportFilteredArticles,
 };
+
+export const getAdminArticles = (params?: FilterParams): Promise<ArticleListDto> => 
+  apiClient.get('/articles/admin/articles/list', { params })
+    .then(response => response.data); 
 
 export default articleApi;

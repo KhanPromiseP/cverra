@@ -15,8 +15,8 @@ import {
 
 export const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState({
-    platformName: 'Cverra Pro',
-    supportEmail: 'support@cverra.com',
+    platformName: 'Inlirah',
+    supportEmail: 'support@inlirah.com',
     defaultCurrency: 'USD',
     maintenanceMode: false,
     userRegistration: true,
@@ -48,8 +48,8 @@ export const AdminSettings: React.FC = () => {
 
   const handleResetSettings = () => {
     setSettings({
-      platformName: 'Cverra Pro',
-      supportEmail: 'support@cverra.com',
+      platformName: 'Inlirah',
+      supportEmail: 'support@inlirah.com',
       defaultCurrency: 'USD',
       maintenanceMode: false,
       userRegistration: true,

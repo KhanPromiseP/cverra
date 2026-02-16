@@ -24,6 +24,8 @@ import { User } from "./decorators/user.decorator";
 import { UserService } from "./user.service";
 import { ArticleService } from "../articles/article.service";
 import { PrismaService } from "nestjs-prisma"; // Add this import
+import { WelcomeService } from '../welcome/welcome.service'; 
+import { I18nService } from "../i18n/i18n.service";
 
 // Define custom error messages BEFORE the class
 const CustomErrorMessages = {
@@ -31,6 +33,7 @@ const CustomErrorMessages = {
   InternalServerError: "Internal server error",
   SecretsNotFound: "Secrets not found",
   UserAlreadyExists: "User already exists",
+  
 };
 
 @ApiTags("User")
@@ -41,6 +44,8 @@ export class UserController {
     private readonly userService: UserService,
     private readonly articleService: ArticleService,
     private readonly prisma: PrismaService, // Add this
+    private readonly welcomeService: WelcomeService,
+    private readonly i18nService: I18nService,
   ) {}
 
   @Get("me")
@@ -49,37 +54,37 @@ export class UserController {
     return user;
   }
 
-  @Patch("me")
-  @UseGuards(TwoFactorGuard)
-  async update(@User("email") email: string, @Body() updateUserDto: UpdateUserDto) {
-    try {
-      // If user is updating their email, send a verification email
-      if (updateUserDto.email && updateUserDto.email !== email) {
-        await this.userService.updateByEmail(email, {
-          emailVerified: false,
-          email: updateUserDto.email,
-        });
+  // @Patch("me")
+  // @UseGuards(TwoFactorGuard)
+  // async update(@User("email") email: string, @Body() updateUserDto: UpdateUserDto) {
+  //   try {
+  //     // If user is updating their email, send a verification email
+  //     if (updateUserDto.email && updateUserDto.email !== email) {
+  //       await this.userService.updateByEmail(email, {
+  //         emailVerified: false,
+  //         email: updateUserDto.email,
+  //       });
 
-        await this.authService.sendVerificationEmail(updateUserDto.email);
+  //       await this.authService.sendVerificationEmail(updateUserDto.email);
 
-        email = updateUserDto.email;
-      }
+  //       email = updateUserDto.email;
+  //     }
 
-      return await this.userService.updateByEmail(email, {
-        name: updateUserDto.name,
-        picture: updateUserDto.picture,
-        username: updateUserDto.username,
-        locale: updateUserDto.locale,
-      });
-    } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new BadRequestException(CustomErrorMessages.UserAlreadyExists);
-      }
+  //     return await this.userService.updateByEmail(email, {
+  //       name: updateUserDto.name,
+  //       picture: updateUserDto.picture,
+  //       username: updateUserDto.username,
+  //       locale: updateUserDto.locale,
+  //     });
+  //   } catch (error) {
+  //     if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+  //       throw new BadRequestException(CustomErrorMessages.UserAlreadyExists);
+  //     }
 
-      Logger.error(error);
-      throw new InternalServerErrorException(error);
-    }
-  }
+  //     Logger.error(error);
+  //     throw new InternalServerErrorException(error);
+  //   }
+  // }
 
   @Delete("me")
   @UseGuards(TwoFactorGuard)
@@ -369,4 +374,110 @@ export class UserController {
     
     return colors[categoryName] || '#6B7280';
   }
+
+@Patch("locale")
+@UseGuards(TwoFactorGuard)
+@ApiOperation({ summary: "Update user language/locale preference" })
+@ApiResponse({ status: 200, description: "Locale updated successfully" })
+@ApiResponse({ status: 400, description: "Invalid locale" })
+async updateLocale(
+  @User() user: UserDto,
+  @Body() body: { locale: string },
+) {
+  try {
+    // Validate locale
+    const supportedLocales = ['en', 'en-US', 'fr', 'fr-FR', 'fr-CA'];
+    
+    if (!supportedLocales.includes(body.locale)) {
+      throw new BadRequestException(`Unsupported locale: ${body.locale}. Supported: ${supportedLocales.join(', ')}`);
+    }
+
+    // Get user to check current locale
+    const currentUser = await this.userService.findOneByEmail(user.email);
+    const oldLocale = currentUser?.locale || 'en';
+    
+    // Update user locale
+    const updatedUser = await this.userService.updateByEmail(user.email, {
+      locale: body.locale,
+    });
+
+    // Clear ALL caches
+    this.userService.clearUserCache(user.id);
+    
+    // Clear I18nService cache for this user
+    await this.i18nService.clearUserLanguageCache(user.id);
+
+    
+    // Also clear WelcomeService notification states
+    // You'll need to inject WelcomeService
+    await this.welcomeService.refreshUserLanguage(user.id);
+
+    await this.welcomeService.rescheduleNotificationsForUser(user.id);
+
+    Logger.log(`[LOCALE] Updated user ${user.id} locale from ${oldLocale} to ${body.locale}`);
+
+    return {
+      success: true,
+      message: 'Locale updated successfully',
+      data: {
+        id: updatedUser.id,
+        locale: updatedUser.locale,
+      },
+    };
+  } catch (error) {
+    Logger.error('Locale update error:', error);
+    
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    
+    throw new InternalServerErrorException('Failed to update locale');
+  }
+}
+
+@Patch("me")
+@UseGuards(TwoFactorGuard)
+async update(@User("email") email: string, @Body() updateUserDto: UpdateUserDto) {
+  try {
+    // Check if locale is being updated
+    const user = await this.userService.findOneByEmail(email);
+    const localeChanged = updateUserDto.locale && updateUserDto.locale !== user?.locale;
+    
+    // If user is updating their email, send a verification email
+    if (updateUserDto.email && updateUserDto.email !== email) {
+      await this.userService.updateByEmail(email, {
+        emailVerified: false,
+        email: updateUserDto.email,
+      });
+
+      await this.authService.sendVerificationEmail(updateUserDto.email);
+
+      email = updateUserDto.email;
+    }
+
+    const result = await this.userService.updateByEmail(email, {
+      name: updateUserDto.name,
+      picture: updateUserDto.picture,
+      username: updateUserDto.username,
+      locale: updateUserDto.locale,
+    });
+
+    // If locale was changed, clear caches
+    if (localeChanged && user?.id) {
+      this.userService.clearUserCache(user.id);
+      await this.i18nService.clearUserLanguageCache(user.id);
+      Logger.log(`[LOCALE] Updated user ${user.id} locale via /me endpoint to ${updateUserDto.locale}`);
+    }
+
+    return result;
+  } catch (error) {
+    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new BadRequestException(CustomErrorMessages.UserAlreadyExists);
+    }
+
+    Logger.error(error);
+    throw new InternalServerErrorException(error);
+  }
+}
+  
 }

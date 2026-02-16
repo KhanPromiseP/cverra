@@ -62,296 +62,265 @@ const JoditWrapper: React.FC<JoditWrapperProps> = ({
     }
   };
 
-  // Layout Templates with Beautiful Styling
-  const layoutTemplates = {
-    // 3 Images Horizontal Grid
-    threeImagesHorizontal: () => `
-      <div class="my-8">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-          <div class="relative group">
-            <div class="aspect-square rounded-xl flex items-center justify-center cursor-pointer hover:border-blue-400 transition-all duration-300">
-              <div class="text-center p-4">
-                <div class="text-4xl mb-2">🖼️</div>
-                <p class="text-sm text-gray-600">Click to upload image 1</p>
-              </div>
-            </div>
-           
-          </div>
-          <div class="relative group">
-            <div class="aspect-square rounded-xl flex items-center justify-center cursor-pointer hover:border-purple-400 transition-all duration-300">
-              <div class="text-center p-4">
-                <div class="text-4xl mb-2">🖼️</div>
-                <p class="text-sm text-gray-600">Click to upload image 2</p>
-              </div>
-            </div>
 
-          </div>
-          <div class="relative group">
-            <div class="aspect-square rounded-xl flex items-center justify-center cursor-pointer hover:border-green-400 transition-all duration-300">
-              <div class="text-center p-4">
-                <div class="text-4xl mb-2">🖼️</div>
-                <p class="text-sm text-gray-600">Click to upload image 3</p>
-              </div>
-            </div>
-       
-          </div>
-        </div>
-        <p class="text-center text-gray-500 text-sm italic">Three image horizontal gallery with captions</p>
+// Layout Templates with Class Names Only (No Inline Styles)
+const layoutTemplates = {
+  // 3 Images Horizontal Grid
+  threeImagesHorizontal: () => `
+    <section class="article-block block-grid block-grid-three">
+      <div class="block-grid__header">
+        <h3 class="block-grid__title">Image Gallery</h3>
+        <p class="block-grid__description">Beautiful horizontal layout for showcasing multiple images</p>
       </div>
-    `,
-
-    // Image Left, Text Right (Modern Card)
-imageLeftTextRight: () => `
-  <div style="margin: 2rem 0; background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #e5e7eb;">
-    <div style="display: flex; flex-direction: row; flex-wrap: nowrap;">
-      <!-- Image Section (Left - 40%) -->
-      <div style="flex: 2; min-width: 40%; position: relative;">
-        <div style="height: 100%; min-height: 300px; background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
-          <div style="text-align: center; margin-bottom: 1rem;">
-            <div style="font-size: 3.75rem; line-height: 1; margin-bottom: 1rem;">📷</div>
-            <h4 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Your Visual Content</h4>
-            <p style="color: #4b5563;">Upload or drag & drop your image here</p>
+      <div class="block-grid__container">
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🖼️</span>
+            <p class="block-grid__placeholder-text">Click to upload image 1</p>
           </div>
-          <div style="width: 100%; max-width: 20rem;">
-            <div style="border: 2px dashed #d1d5db; border-radius: 0.75rem; padding: 1rem; text-align: center; cursor: pointer; transition: border-color 0.3s;">
-              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">⬆️</div>
-              <p style="font-size: 0.875rem; color: #374151; font-weight: 500;">Click to upload</p>
-              <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">PNG, JPG, GIF up to 5MB</p>
-            </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Image 1" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">Description for image 1</textarea>
           </div>
         </div>
-        <div style="position: absolute; bottom: 1rem; right: 1rem;">
-          <div style="background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); border-radius: 9999px; padding: 0.25rem 0.75rem; font-size: 0.75rem; color: #374151; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
-            Image Section
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🖼️</span>
+            <p class="block-grid__placeholder-text">Click to upload image 2</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Image 2" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">Description for image 2</textarea>
+          </div>
+        </div>
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🖼️</span>
+            <p class="block-grid__placeholder-text">Click to upload image 3</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Image 3" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">Description for image 3</textarea>
           </div>
         </div>
       </div>
-      
-      <!-- Text Section (Right - 60%) -->
-      <div style="flex: 3; min-width: 60%; padding: 2rem;">
-        <div style="margin-bottom: 1.5rem;">
-          <span style="display: inline-block; padding: 0.25rem 1rem; border-radius: 9999px; background: linear-gradient(to right, #3b82f6, #4f46e5); color: white; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.75rem;">Featured</span>
-          <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 1rem;">Visual Content Layout</h3>
-          <p style="color: #374151; font-size: 1.125rem; line-height: 1.625;">Create compelling content with this image-on-left, text-on-right layout. Perfect for showcasing visuals with supporting details.</p>
+      <div class="block-grid__footer">
+        <p class="block-grid__footer-text">Three image horizontal gallery with captions</p>
+      </div>
+    </section>
+  `,
+
+  // Image Left, Text Right
+  imageLeftTextRight: () => `
+    <section class="article-block block-image-text">
+      <div class="block-image-text__container">
+        <div class="block-image-text__image-section">
+          <div class="block-image-text__image-wrapper">
+            <div class="block-image-text__image-placeholder">
+              <span class="block-image-text__placeholder-icon">📷</span>
+              <h4 class="block-image-text__placeholder-title">Your Visual Content</h4>
+              <p class="block-image-text__placeholder-text">Upload or drag & drop your image here</p>
+            </div>
+            <div class="block-image-text__upload-area">
+              <span class="block-image-text__upload-icon">⬆️</span>
+              <p class="block-image-text__upload-text">Click to upload</p>
+              <p class="block-image-text__upload-hint">PNG, JPG, GIF up to 5MB</p>
+            </div>
+          </div>
+          <div class="block-image-text__badge">Image Section</div>
         </div>
         
-        <div style="margin-bottom: 1.5rem;">
-          <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%); display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0;">
-              <span style="font-size: 1.25rem;">✨</span>
-            </div>
-            <div>
-              <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.25rem; margin-top: 0;">Visual First Approach</h4>
-              <p style="color: #4b5563;">Images grab attention first, then text provides context and details.</p>
-            </div>
+        <div class="block-image-text__text-section">
+          <div class="block-image-text__header">
+            <span class="block-image-text__badge badge-featured">Featured</span>
+            <h3 class="block-image-text__title">Visual Content Layout</h3>
+            <p class="block-image-text__description">Create compelling content with this image-on-left, text-on-right layout. Perfect for showcasing visuals with supporting details.</p>
           </div>
           
-          <div style="display: flex; align-items: flex-start;">
-            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%); display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0;">
-              <span style="font-size: 1.25rem;">🎨</span>
-            </div>
-            <div>
-              <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.25rem; margin-top: 0;">Balanced Design</h4>
-              <p style="color: #4b5563;">Perfect balance between visual impact and textual information.</p>
-            </div>
-          </div>
-        </div>
-        
-        <div style="background-color: #f9fafb; border-radius: 0.5rem; padding: 1rem; border: 1px solid #e5e7eb;">
-          <p style="font-size: 0.875rem; color: #4b5563; font-style: italic;">Tip: Replace the placeholder image with your own content. All text is fully editable.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-`,
-
-textLeftImageRight: () => `
-  <div style="margin: 2rem 0; background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #e5e7eb;">
-    <table style="width: 100%; border-collapse: collapse;">
-      <tr>
-        <!-- Text Section (Left - 60%) -->
-        <td style="width: 60%; vertical-align: top; padding: 2rem;">
-          <div style="margin-bottom: 1.5rem;">
-            <span style="display: inline-block; padding: 0.25rem 1rem; border-radius: 9999px; background: linear-gradient(to right, #8b5cf6, #ec4899); color: white; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.75rem;">Premium</span>
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 1rem;">Engaging Content Layout</h3>
-            <p style="color: #374151; font-size: 1.125rem; line-height: 1.625;">Create compelling content with this text-on-left, image-on-right layout. Perfect for feature highlights and detailed explanations.</p>
-          </div>
-          
-          <div style="margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-              <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #f3e8ff 0%, #fce7f3 100%); display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0;">
-                <span style="font-size: 1.25rem;">🎯</span>
+          <div class="block-image-text__features">
+            <div class="block-image-text__feature">
+              <div class="block-image-text__feature-icon">
+                <span>✨</span>
               </div>
               <div>
-                <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.25rem; margin-top: 0;">Focus on Message</h4>
-                <p style="color: #4b5563;">Text first ensures readers focus on your message before visual elements.</p>
+                <h4 class="block-image-text__feature-title">Visual First Approach</h4>
+                <p class="block-image-text__feature-text">Images grab attention first, then text provides context and details.</p>
               </div>
             </div>
             
-            <div style="display: flex; align-items: flex-start;">
-              <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #dbeafe 0%, #cffafe 100%); display: flex; align-items: center; justify-content: center; margin-right: 1rem; flex-shrink: 0;">
-                <span style="font-size: 1.25rem;">💫</span>
+            <div class="block-image-text__feature">
+              <div class="block-image-text__feature-icon">
+                <span>🎨</span>
               </div>
               <div>
-                <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.25rem; margin-top: 0;">Visual Impact</h4>
-                <p style="color: #4b5563;">Supporting image on the right creates strong visual reinforcement.</p>
+                <h4 class="block-image-text__feature-title">Balanced Design</h4>
+                <p class="block-image-text__feature-text">Perfect balance between visual impact and textual information.</p>
               </div>
             </div>
           </div>
           
-          <div style="background-color: #f9fafb; border-radius: 0.5rem; padding: 1rem; border: 1px solid #e5e7eb;">
-            <p style="font-size: 0.875rem; color: #4b5563; font-style: italic;">Tip: Replace the placeholder image with your own content. All text is fully editable.</p>
+          <div class="block-image-text__tip">
+            <p>Tip: Replace the placeholder image with your own content. All text is fully editable.</p>
           </div>
-        </td>
-        
-        <!-- Image Section (Right - 40%) -->
-        <td style="width: 40%; vertical-align: top; position: relative;">
-          <div style="height: 100%; min-height: 300px; background: linear-gradient(135deg, #fffbeb 0%, #ffedd5 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
-            <div style="text-align: center; margin-bottom: 1rem;">
-              <div style="font-size: 3.75rem; line-height: 1; margin-bottom: 1rem;">📸</div>
-              <h4 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Your Visual Content</h4>
-              <p style="color: #4b5563;">Upload or drag & drop your image here</p>
-            </div>
-            <div style="width: 100%; max-width: 20rem;">
-              <div style="border: 2px dashed #d1d5db; border-radius: 0.75rem; padding: 1rem; text-align: center; cursor: pointer; transition: border-color 0.3s;">
-                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">⬆️</div>
-                <p style="font-size: 0.875rem; color: #374151; font-weight: 500;">Click to upload</p>
-                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">PNG, JPG, GIF up to 5MB</p>
-              </div>
-            </div>
-          </div>
-          <div style="position: absolute; bottom: 1rem; right: 1rem;">
-            <div style="background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); border-radius: 9999px; padding: 0.25rem 0.75rem; font-size: 0.75rem; color: #374151; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
-              Image Section
-            </div>
-          </div>
-        </td>
-      </tr>
-    </table>
-  </div>
-`,
-    // Image Grid Gallery (2x2)
-    imageGrid2x2: () => `
-      <div class="my-8">
-        <div class="mb-6 text-center">
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Image Gallery</h3>
-          <p class="text-gray-600">Beautiful 2x2 grid layout for showcasing multiple images</p>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Grid Item 1 -->
-          <div class="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-500">
-            <div class="aspect-video bg-gradient-to-br from-cyan-100 to-blue-200 flex items-center justify-center">
-              <div class="text-center">
-                <div class="text-5xl mb-3">🌅</div>
-                <p class="font-medium text-gray-800">Landscape Image</p>
-              </div>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div class="p-4 bg-white">
-              <input type="text" class="w-full text-lg font-semibold border-none focus:outline-none focus:ring-0" placeholder="Image Title" value="Beautiful Landscape" />
-              <textarea class="w-full mt-2 text-sm text-gray-600 border-none focus:outline-none focus:ring-0 resize-none" placeholder="Description" rows="2">A stunning view of mountains and lakes during sunset.</textarea>
-            </div>
-          </div>
-          
-          <!-- Grid Item 2 -->
-          <div class="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-500">
-            <div class="aspect-video bg-gradient-to-br from-pink-100 to-rose-200 flex items-center justify-center">
-              <div class="text-center">
-                <div class="text-5xl mb-3">🏙️</div>
-                <p class="font-medium text-gray-800">Cityscape</p>
-              </div>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div class="p-4 bg-white">
-              <input type="text" class="w-full text-lg font-semibold border-none focus:outline-none focus:ring-0" placeholder="Image Title" value="Urban Cityscape" />
-              <textarea class="w-full mt-2 text-sm text-gray-600 border-none focus:outline-none focus:ring-0 resize-none" placeholder="Description" rows="2">Modern city skyline at night with illuminated buildings.</textarea>
-            </div>
-          </div>
-          
-          <!-- Grid Item 3 -->
-          <div class="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-500">
-            <div class="aspect-video bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center">
-              <div class="text-center">
-                <div class="text-5xl mb-3">🌿</div>
-                <p class="font-medium text-gray-800">Nature</p>
-              </div>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div class="p-4 bg-white">
-              <input type="text" class="w-full text-lg font-semibold border-none focus:outline-none focus:ring-0" placeholder="Image Title" value="Forest Pathway" />
-              <textarea class="w-full mt-2 text-sm text-gray-600 border-none focus:outline-none focus:ring-0 resize-none" placeholder="Description" rows="2">Sunlight filtering through trees in a peaceful forest.</textarea>
-            </div>
-          </div>
-          
-          <!-- Grid Item 4 -->
-          <div class="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-500">
-            <div class="aspect-video bg-gradient-to-br from-amber-100 to-orange-200 flex items-center justify-center">
-              <div class="text-center">
-                <div class="text-5xl mb-3">🏖️</div>
-                <p class="font-medium text-gray-800">Beach</p>
-              </div>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div class="p-4 bg-white">
-              <input type="text" class="w-full text-lg font-semibold border-none focus:outline-none focus:ring-0" placeholder="Image Title" value="Tropical Beach" />
-              <textarea class="w-full mt-2 text-sm text-gray-600 border-none focus:outline-none focus:ring-0 resize-none" placeholder="Description" rows="2">White sand and turquoise waters of a tropical paradise.</textarea>
-            </div>
-          </div>
-        </div>
-        
-        <div class="mt-6 text-center">
-          <p class="text-sm text-gray-500 italic">Each image box is fully editable. Click to upload images and edit text.</p>
         </div>
       </div>
-    `,
+    </section>
+  `,
 
-    // Feature Card with Icon + Text
-    featureCard: () => `
-      <div class="my-8">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Feature 1 -->
-          <div class="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 border border-blue-100 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-300 group">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-              <span class="text-2xl text-white">🚀</span>
+  // Text Left, Image Right
+  textLeftImageRight: () => `
+    <section class="article-block block-image-text block-image-text--reverse">
+      <div class="block-image-text__container">
+        <div class="block-image-text__text-section">
+          <div class="block-image-text__header">
+            <span class="block-image-text__badge badge-premium">Premium</span>
+            <h3 class="block-image-text__title">Engaging Content Layout</h3>
+            <p class="block-image-text__description">Create compelling content with this text-on-left, image-on-right layout. Perfect for feature highlights and detailed explanations.</p>
+          </div>
+          
+          <div class="block-image-text__features">
+            <div class="block-image-text__feature">
+              <div class="block-image-text__feature-icon">
+                <span>🎯</span>
+              </div>
+              <div>
+                <h4 class="block-image-text__feature-title">Focus on Message</h4>
+                <p class="block-image-text__feature-text">Text first ensures readers focus on your message before visual elements.</p>
+              </div>
             </div>
-            <h4 class="text-xl font-bold text-gray-900 mb-3">High Performance</h4>
-            <p class="text-gray-700 mb-4">Lightning fast rendering and smooth editing experience for all your content needs.</p>
-            <div class="flex items-center text-blue-600 text-sm font-medium">
-              <span>Learn more</span>
-              <span class="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+            
+            <div class="block-image-text__feature">
+              <div class="block-image-text__feature-icon">
+                <span>💫</span>
+              </div>
+              <div>
+                <h4 class="block-image-text__feature-title">Visual Impact</h4>
+                <p class="block-image-text__feature-text">Supporting image on the right creates strong visual reinforcement.</p>
+              </div>
             </div>
           </div>
           
-          <!-- Feature 2 -->
-          <div class="bg-gradient-to-br from-white to-purple-50 rounded-2xl p-6 border border-purple-100 shadow-sm hover:shadow-lg hover:border-purple-300 transition-all duration-300 group">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-              <span class="text-2xl text-white">🎨</span>
+          <div class="block-image-text__tip">
+            <p>Tip: Replace the placeholder image with your own content. All text is fully editable.</p>
+          </div>
+        </div>
+        
+        <div class="block-image-text__image-section">
+          <div class="block-image-text__image-wrapper">
+            <div class="block-image-text__image-placeholder">
+              <span class="block-image-text__placeholder-icon">📸</span>
+              <h4 class="block-image-text__placeholder-title">Your Visual Content</h4>
+              <p class="block-image-text__placeholder-text">Upload or drag & drop your image here</p>
             </div>
-            <h4 class="text-xl font-bold text-gray-900 mb-3">Beautiful Design</h4>
-            <p class="text-gray-700 mb-4">Elegant layouts and stunning visual components that make your content stand out.</p>
-            <div class="flex items-center text-purple-600 text-sm font-medium">
-              <span>Learn more</span>
-              <span class="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+            <div class="block-image-text__upload-area">
+              <span class="block-image-text__upload-icon">⬆️</span>
+              <p class="block-image-text__upload-text">Click to upload</p>
+              <p class="block-image-text__upload-hint">PNG, JPG, GIF up to 5MB</p>
             </div>
           </div>
-          
-          <!-- Feature 3 -->
-          <div class="bg-gradient-to-br from-white to-green-50 rounded-2xl p-6 border border-green-100 shadow-sm hover:shadow-lg hover:border-green-300 transition-all duration-300 group">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-              <span class="text-2xl text-white">⚡</span>
-            </div>
-            <h4 class="text-xl font-bold text-gray-900 mb-3">Easy to Use</h4>
-            <p class="text-gray-700 mb-4">Intuitive interface with drag & drop functionality that anyone can master quickly.</p>
-            <div class="flex items-center text-green-600 text-sm font-medium">
-              <span>Learn more</span>
-              <span class="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-            </div>
+          <div class="block-image-text__badge">Image Section</div>
+        </div>
+      </div>
+    </section>
+  `,
+
+  // Image Grid Gallery (2x2)
+  imageGrid2x2: () => `
+    <section class="article-block block-grid block-grid-four">
+      <div class="block-grid__header">
+        <h3 class="block-grid__title">Image Gallery</h3>
+        <p class="block-grid__description">Beautiful 2x2 grid layout for showcasing multiple images</p>
+      </div>
+      <div class="block-grid__container">
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🌅</span>
+            <p class="block-grid__placeholder-text">Landscape Image</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Beautiful Landscape" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">A stunning view of mountains and lakes during sunset.</textarea>
+          </div>
+        </div>
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🏙️</span>
+            <p class="block-grid__placeholder-text">Cityscape</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Urban Cityscape" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">Modern city skyline at night with illuminated buildings.</textarea>
+          </div>
+        </div>
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🌿</span>
+            <p class="block-grid__placeholder-text">Nature</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Forest Pathway" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">Sunlight filtering through trees in a peaceful forest.</textarea>
+          </div>
+        </div>
+        <div class="block-grid__item">
+          <div class="block-grid__image-placeholder">
+            <span class="block-grid__placeholder-icon">🏖️</span>
+            <p class="block-grid__placeholder-text">Beach</p>
+          </div>
+          <div class="block-grid__caption">
+            <input class="block-grid__title-input" placeholder="Image Title" value="Tropical Beach" />
+            <textarea class="block-grid__description-input" placeholder="Description" rows="2">White sand and turquoise waters of a tropical paradise.</textarea>
           </div>
         </div>
       </div>
-    `
-  };
+      <div class="block-grid__footer">
+        <p class="block-grid__footer-text">Each image box is fully editable. Click to upload images and edit text.</p>
+      </div>
+    </section>
+  `,
+
+  // Feature Cards
+  featureCard: () => `
+    <section class="article-block block-features">
+      <div class="block-features__container">
+        <div class="block-features__item block-features__item--primary">
+          <div class="block-features__icon">
+            <span>🚀</span>
+          </div>
+          <h4 class="block-features__title">High Performance</h4>
+          <p class="block-features__description">Lightning fast rendering and smooth editing experience for all your content needs.</p>
+          <div class="block-features__link">
+            <span>Learn more</span>
+            <span class="block-features__link-arrow">→</span>
+          </div>
+        </div>
+        <div class="block-features__item block-features__item--secondary">
+          <div class="block-features__icon">
+            <span>🎨</span>
+          </div>
+          <h4 class="block-features__title">Beautiful Design</h4>
+          <p class="block-features__description">Elegant layouts and stunning visual components that make your content stand out.</p>
+          <div class="block-features__link">
+            <span>Learn more</span>
+            <span class="block-features__link-arrow">→</span>
+          </div>
+        </div>
+        <div class="block-features__item block-features__item--tertiary">
+          <div class="block-features__icon">
+            <span>⚡</span>
+          </div>
+          <h4 class="block-features__title">Easy to Use</h4>
+          <p class="block-features__description">Intuitive interface with drag & drop functionality that anyone can master quickly.</p>
+          <div class="block-features__link">
+            <span>Learn more</span>
+            <span class="block-features__link-arrow">→</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  `
+};
+
 
   // Advanced configuration with custom styling
  const config = useMemo(() => ({
@@ -727,7 +696,6 @@ textLeftImageRight: () => `
         />
       </div>
       
-      {/* Add custom CSS for advanced animations */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }

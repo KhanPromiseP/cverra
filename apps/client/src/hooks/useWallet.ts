@@ -51,7 +51,7 @@ export function useWallet(userId: string) {
     }
   }, [userId]);
 
-  // useWallet.ts - update deductCoinsWithRollback method
+
 const deductCoinsWithRollback = useCallback(async (
   amount: number,
   description?: string,

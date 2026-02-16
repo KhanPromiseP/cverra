@@ -126,7 +126,9 @@ export class SubscriptionsService {
           planId,
           status: 'PENDING' as any, // Use type assertion
           currentPeriodStart,
-          currentPeriodEnd,
+          amount: 0,
+          // currentPeriodEnd,
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
           cancelAtPeriodEnd: false,
         },
       });

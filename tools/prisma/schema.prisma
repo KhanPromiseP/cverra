@@ -40,7 +40,6 @@ enum AIBuilderSource {
   LINKEDIN
 }
 
-
 // Add to enums
 enum ContactSubject {
   SUPPORT
@@ -57,7 +56,6 @@ enum ContactStatus {
   CLOSED
 }
 
-
 enum CategoryTranslationStatus {
   PENDING
   PROCESSING
@@ -65,7 +63,30 @@ enum CategoryTranslationStatus {
   FAILED
 }
 
+enum AssistantMode {
+  TUTOR
+  CAREER_COACH
+  CONTENT_GUIDE
+  GENERAL_ASSISTANT
+}
 
+enum MemoryImportance {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ArticleStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+  PUBLISHED
+  ARCHIVED
+  SCHEDULED
+}
 
 // Update User model to include role AND article relations
 model User {
@@ -115,10 +136,23 @@ model User {
 
   resumeBuilderJobs ResumeBuilderJob[]
 
+  // ========== VALIDATION MESSAGE RELATIONS ==========
+  createdValidationMessages  ValidationMessage[] @relation("CreatedValidationMessages")
+  resolvedValidationMessages ValidationMessage[] @relation("ResolvedValidationMessages")
+
+  // ========== ARTICLE REVIEW RELATIONS ==========
+  reviewedArticles Article[] @relation("ReviewedArticles")
 
   // ========== CONTACT RELATIONS ==========
   contacts Contact[]
-  
+
+  // ========== ASSISTANT RELATIONS ========== 
+  assistantMemories      AssistantMemory[]
+  assistantConversations AssistantConversation[]
+  assistantAnalytics     AssistantAnalytics?
+
+  // AuditLog relation
+  auditLogs AuditLog[]
 }
 
 model Secrets {
@@ -136,32 +170,30 @@ model Secrets {
   @@unique([userId, id])
 }
 
-
 // Add to models
 model Contact {
-  id        String        @id @default(cuid())
-  name      String
-  email     String
-  subject   ContactSubject
-  message   String        @db.Text
-  status    ContactStatus @default(NEW)
-  
-  userId    String?
-  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id      String         @id @default(cuid())
+  name    String
+  email   String
+  subject ContactSubject
+  message String         @db.Text
+  status  ContactStatus  @default(NEW)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   ipAddress String?
   userAgent String?
-  metadata  Json?         @default("{}")
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  metadata  Json?   @default("{}")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   respondedAt DateTime?
-  
+
   @@index([email])
   @@index([status])
   @@index([createdAt])
   @@index([subject])
-  
   @@map("contacts")
 }
 
@@ -259,17 +291,17 @@ model CoverLetter {
   layout     String?
 
   // Translation support
-  language     String        @default("en") // Language code
-  originalId   String? // Points to original letter if this is a translation
+  language     String        @default("en")
+  originalId   String?
   translations CoverLetter[] @relation("TranslationVersions")
   parent       CoverLetter?  @relation("TranslationVersions", fields: [originalId], references: [id])
 
-  // Translation metadata in content
-  // content should have: {..., translationInfo: {originalLanguage: "en", translatedFrom: "letter-123"}}
-
-  @@unique([userId, id])
-  @@unique([userId, slug])
-  @@unique([userId, slug, language]) // Ensure unique slug per language
+  // 🔥 FIX: Make slug truly unique per user
+  @@unique([userId, slug]) // Remove language from unique constraint
+  
+  // Add a separate unique for translations if needed
+  @@unique([userId, originalId, language]) // This ensures only one translation per language
+  
   @@index([userId])
   @@index([originalId])
   @@index([language])
@@ -405,6 +437,7 @@ model UserSubscription {
   cancelAtPeriodEnd  Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  amount             Float // Monthly amount in coins
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan     SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -483,14 +516,6 @@ enum UsageAction {
 
 // ========== ARTICLE SYSTEM ==========
 
-// Add to your existing enums section
-enum ArticleStatus {
-  DRAFT
-  PUBLISHED
-  SCHEDULED
-  ARCHIVED
-}
-
 enum ContentAccess {
   FREE
   PREMIUM
@@ -522,10 +547,10 @@ model ArticleCategory {
   availableLanguages String[] @default(["en"])
 
   // Relations
-  articles         Article[]
-  favoredBy        UserReadingProfile[]
-  translations     CategoryTranslation[]
-  translationJobs  CategoryTranslationJob[]
+  articles        Article[]
+  favoredBy       UserReadingProfile[]
+  translations    CategoryTranslation[]
+  translationJobs CategoryTranslationJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -536,10 +561,10 @@ model ArticleCategory {
 
 // Add Category Translation model
 model CategoryTranslation {
-  id        String                 @id @default(cuid())
-  category  ArticleCategory        @relation(fields: [categoryId], references: [id])
+  id         String          @id @default(cuid())
+  category   ArticleCategory @relation(fields: [categoryId], references: [id])
   categoryId String
-  language  String // ISO code: "fr", "es", "de", etc.
+  language   String // ISO code: "fr", "es", "de", etc.
 
   // Translated fields
   name        String
@@ -554,8 +579,8 @@ model CategoryTranslation {
   attemptCount Int                       @default(0)
 
   // Quality control
-  needsReview  Boolean   @default(false)
-  qualityScore Int?      // 1-5 score
+  needsReview  Boolean @default(false)
+  qualityScore Int? // 1-5 score
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -568,8 +593,8 @@ model CategoryTranslation {
 
 // Add Category Translation Job model
 model CategoryTranslationJob {
-  id             String                   @id @default(cuid())
-  category       ArticleCategory          @relation(fields: [categoryId], references: [id])
+  id             String                    @id @default(cuid())
+  category       ArticleCategory           @relation(fields: [categoryId], references: [id])
   categoryId     String
   targetLanguage String
   status         CategoryTranslationStatus @default(PENDING)
@@ -625,11 +650,11 @@ model Article {
   readingTime     Int      @default(5) // minutes
 
   // Status & Visibility
-  status       ArticleStatus @default(DRAFT)
-  isFeatured   Boolean       @default(false)
-  isTrending   Boolean       @default(false)
-  isEditorPick Boolean       @default(false)
-  isPopular    Boolean       @default(false)
+
+  isFeatured   Boolean @default(false)
+  isTrending   Boolean @default(false)
+  isEditorPick Boolean @default(false)
+  isPopular    Boolean @default(false)
 
   featuredRanking Int    @default(3)
   trendingScore   Int    @default(50)
@@ -672,6 +697,18 @@ model Article {
   updatedAt     DateTime        @updatedAt
   PremiumAccess PremiumAccess[]
 
+  // Add these fields for draft workflow
+  status               String    @default("DRAFT") // DRAFT, UNDER_REVIEW, APPROVED, REJECTED, NEEDS_REVISION, PUBLISHED, ARCHIVED
+  submittedForReviewAt DateTime?
+  reviewedAt           DateTime?
+  reviewerId           String?
+
+  // Add validation messages relation
+  validationMessages ValidationMessage[]
+
+  // Add reviewer relation
+  reviewer User? @relation("ReviewedArticles", fields: [reviewerId], references: [id])
+
   @@index([slug])
   @@index([authorId])
   @@index([categoryId])
@@ -698,6 +735,10 @@ enum NotificationType {
   ARTICLE_PUBLISHED
   COMMENT_REPLY
   MENTION
+
+  DRAFT_SUBMITTED
+  DRAFT_REVIEWED
+  VALIDATION_MESSAGE_ADDED
 }
 
 model Notification {
@@ -997,6 +1038,34 @@ model CommentLike {
   @@index([userId])
 }
 
+// Add ValidationMessage model
+model ValidationMessage {
+  id           String    @id @default(cuid())
+  articleId    String
+  message      String
+  type         String // "ERROR", "WARNING", "SUGGESTION", "REJECTION"
+  section      String? // e.g., "Introduction", "Conclusion", "SEO"
+  lineNumber   Int?
+  createdById  String
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  article    Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdBy  User    @relation("CreatedValidationMessages", fields: [createdById], references: [id])
+  resolvedBy User?   @relation("ResolvedValidationMessages", fields: [resolvedById], references: [id])
+
+  @@index([articleId])
+  @@index([createdById])
+  @@index([resolved])
+  @@index([type])
+  @@index([createdAt])
+}
+
 // ========== TRANSLATION QUEUE ==========
 
 model TranslationJob {
@@ -1265,4 +1334,182 @@ model ResumeTranslationRecord {
   @@index([originalResumeId])
   @@index([translatedResumeId])
   @@index([language])
+}
+
+model AssistantMemory {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // relation to AssistantConversation
+  conversation   AssistantConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String?
+
+  // Core memory
+  topic     String
+  summary   String   @db.Text
+  keyPoints String[] // Important facts/decisions
+
+  // Context
+  contextType String // e.g., "career_advice", "learning_path", "content_reading"
+  relatedIds  String[] // Related article/resume/letter IDs
+  tags        String[]
+
+  // Importance scoring
+  importance     MemoryImportance @default(MEDIUM)
+  relevanceScore Float            @default(0.5) // 0-1
+  lastAccessed   DateTime         @default(now())
+
+  // Temporal awareness
+  startedAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime? // Optional expiration
+
+  // Metadata
+  source   String // e.g., "conversation", "article_read", "resume_created"
+  metadata Json?
+
+  @@index([userId])
+  @@index([topic])
+  @@index([importance])
+  @@index([lastAccessed])
+  @@index([contextType])
+  @@index([updatedAt])
+  @@map("assistant_memories")
+}
+
+// Update your existing AssistantConversation model
+model AssistantConversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Conversation state
+  mode    AssistantMode @default(GENERAL_ASSISTANT)
+  title   String
+  summary String?       @db.Text
+
+  // Context window
+  contextSize Int   @default(10)
+  temperature Float @default(0.7)
+
+  // Engagement metrics
+  messageCount Int     @default(0)
+  active       Boolean @default(true)
+
+  // Soft delete fields
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  restoredAt DateTime?
+
+  // Organization fields
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  isStarred  Boolean   @default(false)
+  isPinned   Boolean   @default(false)
+
+  // Timestamps
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  lastMessageAt      DateTime?
+  lastMessageContent String? // Add this field for better UI
+
+  // Relations
+  messages AssistantMessage[]
+  memories AssistantMemory[]
+
+  @@index([userId])
+  @@index([mode])
+  @@index([active])
+  @@index([updatedAt])
+  @@index([isDeleted])
+  @@index([isArchived])
+  @@index([isStarred])
+  @@index([isPinned])
+  @@map("assistant_conversations")
+}
+
+// Update AssistantMessage model
+model AssistantMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Message content
+  role    String // "user" | "assistant" | "system"
+  content String @db.Text
+  tokens  Int?
+
+  // Context references
+  referencedArticles String[] // Article IDs referenced
+  referencedResumes  String[] // Resume IDs referenced
+  referencedLetters  String[] // Cover letter IDs referenced
+
+  // AI metadata
+  model           String?
+  reasoningTokens Int?
+
+  // User feedback
+  userFeedback Json? // { helpful: boolean, rating: number }
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([role])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@map("assistant_messages")
+}
+
+model AssistantAnalytics {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Usage stats
+  totalConversations Int @default(0)
+  totalMessages      Int @default(0)
+  totalTokens        Int @default(0)
+
+  // Mode preferences
+  preferredMode AssistantMode?
+  modeUsage     Json           @default("{}") // { TUTOR: 5, CAREER_COACH: 3 }
+
+  // Performance
+  averageResponseTime Float? // in seconds
+  satisfactionScore   Float? // 0-1
+
+  // Cost tracking
+  totalCost Float @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId])
+  @@map("assistant_analytics")
+}
+
+// Audit Log model for SUPER_ADMIN tracking
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  action       String // e.g., "USER_CREATED", "ARTICLE_DELETED"
+  resourceType String // e.g., "USER", "ARTICLE", "CATEGORY"
+  resourceId   String?
+  details      Json? // Additional details as JSON
+  ipAddress    String?
+  userAgent    String?
+  severity     String   @default("INFO") // "INFO", "WARNING", "ERROR", "CRITICAL"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@index([severity])
 }

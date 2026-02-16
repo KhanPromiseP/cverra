@@ -966,7 +966,7 @@ import { useAuthStore } from '@/client/stores/auth';
 import { useWallet } from '@/client/hooks/useWallet';
 import { CoinConfirmPopover } from '@/client/components/modals/coin-confirm-modal';
 import { toast } from "sonner";
-
+import { TranslationVersion } from '@/client/services/cover-letter.service';
 // Types
 type ProcessState = 'idle' | 'reserving' | 'processing' | 'success' | 'error';
 type ProcessType = 'enhance' | 'regenerate' | 'quick-enhance' | 'regenerate-complete' | 'translate';
@@ -1050,7 +1050,8 @@ export const AISection = () => {
   const [preserveTermsInput, setPreserveTermsInput] = useState('');
   
   // Language versions state
-  const [availableTranslations, setAvailableTranslations] = useState<any[]>([]);
+
+  const [availableTranslations, setAvailableTranslations] = useState<TranslationVersion[]>([]);
   const [loadingTranslations, setLoadingTranslations] = useState(false);
   
   // UI states
@@ -1060,7 +1061,7 @@ export const AISection = () => {
   const quickEnhanceRef = useRef<HTMLDivElement>(null);
   const regenerateRef = useRef<HTMLButtonElement>(null);
   const customEnhanceRef = useRef<HTMLButtonElement>(null);
-  const translateRef = useRef<HTMLButtonElement>(null);
+  const translateRef = useRef<HTMLDivElement>(null);
 
   // AI enhancement costs
   const enhancementCosts = {
@@ -1082,17 +1083,25 @@ export const AISection = () => {
     }
   }, [coverLetter?.id, user]);
 
-  const loadTranslations = async () => {
-    try {
-      setLoadingTranslations(true);
-      const response = await coverLetterService.getLetterTranslations(coverLetter!.id);
-      setAvailableTranslations(response.data || []);
-    } catch (error) {
-      console.error('Failed to load translations:', error);
-    } finally {
-      setLoadingTranslations(false);
-    }
-  };
+ const loadTranslations = async () => {
+  if (!coverLetter?.id) return;
+  
+  try {
+    setLoadingTranslations(true);
+    const response = await coverLetterService.getLetterTranslations(coverLetter.id);
+    
+    console.log('Translations API response:', response);
+    
+    // response is already typed as TranslationVersion[] from the service
+    setAvailableTranslations(response);
+    
+  } catch (error) {
+    console.error('Failed to load translations:', error);
+    setAvailableTranslations([]);
+  } finally {
+    setLoadingTranslations(false);
+  }
+};
 
   const generateTransactionId = (type: ProcessType): string => {
     return `ai_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1279,7 +1288,7 @@ export const AISection = () => {
       }
 
       if (result && result.coverLetter) {
-        if (type === 'translate' && result.createNewVersion) {
+        if (type === 'translate' && (result as any).createNewVersion) {
           // For new translations, open the new version
           toast.success(
             <div className="space-y-1">
@@ -1408,36 +1417,44 @@ export const AISection = () => {
   };
 
   const handleEnhancedTranslation = async () => {
-    if (!coverLetter?.id || !translationLanguage) {
-      toast.error(t`Please select a target language`);
-      return;
-    }
+  if (!coverLetter?.id || !translationLanguage) {
+    toast.error(t`Please select a target language`);
+    return;
+  }
 
-    const terms = preserveTermsInput.split(',').map(t => t.trim()).filter(Boolean);
+  console.log('Starting enhanced translation:', {
+    letterId: coverLetter.id,
+    targetLanguage: translationLanguage,
+    settings: translationSettings
+  });
 
-    const translationData = {
-      targetLanguage: translationLanguage,
-      method: translationSettings.method,
-      preservation: translationSettings.preservation,
-      preserveNames: translationSettings.preserveNames,
-      preserveDates: translationSettings.preserveDates,
-      preserveNumbers: translationSettings.preserveNumbers,
-      preserveUrls: translationSettings.preserveUrls,
-      preserveEmailAddresses: translationSettings.preserveEmailAddresses,
-      preserveTerms: [...translationSettings.preserveTerms, ...terms],
-      createNewVersion: translationSettings.createNewVersion,
-      versionName: translationSettings.versionName || undefined,
-    };
+  const terms = preserveTermsInput.split(',').map(t => t.trim()).filter(Boolean);
 
-    await handleProcess('translate', undefined, translationData, translateRef);
+  const translationData = {
+    targetLanguage: translationLanguage,
+    method: translationSettings.method,
+    preservation: translationSettings.preservation,
+    preserveNames: translationSettings.preserveNames,
+    preserveDates: translationSettings.preserveDates,
+    preserveNumbers: translationSettings.preserveNumbers,
+    preserveUrls: translationSettings.preserveUrls,
+    preserveEmailAddresses: translationSettings.preserveEmailAddresses,
+    preserveTerms: [...translationSettings.preserveTerms, ...terms],
+    createNewVersion: translationSettings.createNewVersion,
+    versionName: translationSettings.versionName || undefined,
   };
+
+  console.log('Translation data:', translationData);
+  
+  await handleProcess('translate', undefined, translationData, translateRef);
+};
 
 const handleSwitchLanguage = async (languageCode: string) => {
   try {
     console.log('🔄 Starting language switch:', {
       currentLetterId: coverLetter!.id,
       currentTitle: coverLetter!.title,
-      currentLanguage: coverLetter!.language,
+      currentLanguage: (coverLetter as any).language,
       targetLanguage: languageCode
     });
 
@@ -1874,7 +1891,7 @@ const CompleteRegenerationSection = () => (
               <div className="grid grid-cols-3 gap-2">
                 <Button
                   type="button"
-                  variant={translationSettings.method === 'preserve-structure' ? 'default' : 'outline'}
+                  variant={(translationSettings.method === 'preserve-structure' ? 'default' : 'outline') as any}
                   onClick={() => setTranslationSettings({...translationSettings, method: 'preserve-structure'})}
                   className="h-9 text-xs"
                 >
@@ -1883,7 +1900,7 @@ const CompleteRegenerationSection = () => (
                 </Button>
                 <Button
                   type="button"
-                  variant={translationSettings.method === 'section-by-section' ? 'default' : 'outline'}
+                  variant={(translationSettings.method === 'section-by-section' ? 'default' : 'outline') as any}
                   onClick={() => setTranslationSettings({...translationSettings, method: 'section-by-section'})}
                   className="h-9 text-xs"
                 >
@@ -1892,7 +1909,7 @@ const CompleteRegenerationSection = () => (
                 </Button>
                 <Button
                   type="button"
-                  variant={translationSettings.method === 'complete' ? 'default' : 'outline'}
+                  variant={(translationSettings.method === 'complete' ? 'default' : 'outline') as any}
                   onClick={() => setTranslationSettings({...translationSettings, method: 'complete'})}
                   className="h-9 text-xs"
                 >
@@ -1912,7 +1929,7 @@ const CompleteRegenerationSection = () => (
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
-                  variant={translationSettings.preservation === 'all' ? 'default' : 'outline'}
+                  variant={(translationSettings.preservation === 'all' ? 'default' : 'outline') as any}
                   onClick={() => setTranslationSettings({...translationSettings, preservation: 'all'})}
                   className="h-9 text-xs"
                 >
@@ -1921,7 +1938,7 @@ const CompleteRegenerationSection = () => (
                 </Button>
                 <Button
                   type="button"
-                  variant={translationSettings.preservation === 'formatting-only' ? 'default' : 'outline'}
+                  variant={(translationSettings.preservation === 'formatting-only' ? 'default' : 'outline') as any}
                   onClick={() => setTranslationSettings({...translationSettings, preservation: 'formatting-only'})}
                   className="h-9 text-xs"
                 >
@@ -2083,7 +2100,13 @@ const CompleteRegenerationSection = () => (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSwitchLanguage(version.language)}
+                        onClick={() => {
+                          if (version.language) {
+                            handleSwitchLanguage(version.language);
+                          } else {
+                            toast.error(t`Cannot switch to undefined language`);
+                          }
+                        }}
                         className="h-7 text-xs border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                       >
                         <Eye className="w-3 h-3 mr-1" />
@@ -2334,7 +2357,7 @@ const CompleteRegenerationSection = () => (
                   <Button
                     key={lang.code}
                     type="button"
-                    variant={translationLanguage === lang.code ? 'default' : 'outline'}
+                    variant={(translationLanguage === lang.code ? 'default' : 'outline') as any}
                     onClick={() => setTranslationLanguage(lang.code)}
                     className="h-auto py-3 justify-start border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700"
                   >

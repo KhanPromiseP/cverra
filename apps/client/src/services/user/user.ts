@@ -77,54 +77,6 @@
 //   }
 // };
 
-// export const useUser = () => {
-//   const setUser = useAuthStore((state) => state.setUser);
-//   const userFromStore = useAuthStore((state) => state.user);
-//   const hasInitializedRef = useRef(false);
-
-//   const {
-//     error,
-//     isPending: loading,
-//     data: user,
-//     refetch,
-//   } = useQuery({
-//     queryKey: ["user"],
-//     queryFn: ({ signal }) => fetchUser(signal),
-//     staleTime: CACHE_CONFIG.staleTime,
-//     gcTime: CACHE_CONFIG.gcTime,
-//     retry: false, // CRITICAL: No retries for auth failures
-//     refetchOnMount: userFromStore ? "always" : false, //prevent unnecessary initial fetch for non-logged users
-//     refetchOnWindowFocus: false, // Disable annoying refetches
-//     refetchOnReconnect: false, // We'll handle this manually
-//     initialData: userFromStore, // Use store data first
-//     placeholderData: userFromStore, // Show cached data while loading
-//     throwOnError: false, // Don't throw errors to components
-//   });
-
-//   // Debounced user update to store
-//   useEffect(() => {
-//     const timer = setTimeout(() => {
-//       if (user !== undefined) {
-//         setUser(user ?? null);
-//       }
-//     }, 100);
-    
-//     return () => clearTimeout(timer);
-//   }, [user, setUser]);
-
-//   // Manual refresh with debounce
-//   const refreshUser = useRef(() => {
-//     return refetch();
-//   }).current;
-
-//   return { 
-//     user: user ?? userFromStore, // Fallback to store
-//     loading: loading && !userFromStore, // Don't show loading if we have cached data
-//     error,
-//     refreshUser 
-//   };
-// };
-
 
 import type { UserDto } from "@reactive-resume/dto";
 import { useQuery } from "@tanstack/react-query";
@@ -140,9 +92,18 @@ const CACHE_CONFIG = {
   gcTime: 30 * 60 * 1000, // 30 minutes - cache duration
 } as const;
 
-export const fetchUser = async (signal?: AbortSignal) => {
+export const fetchUser = async (context?: { signal?: AbortSignal } | AbortSignal) => {
+  let signal: AbortSignal | undefined;
+  
+  // Handle both cases
+  if (context && 'signal' in context) {
+    signal = context.signal;
+  } else if (context instanceof AbortSignal) {
+    signal = context;
+  }
+
   try {
-    const response = await axios.get<UserDto | undefined, AxiosResponse<UserDto | undefined>>(
+    const response = await axios.get<UserDto | undefined>(
       "/user/me",
       { signal }
     );

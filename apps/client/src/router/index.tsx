@@ -54,6 +54,7 @@ import { AdminSettingsPage } from '../pages/admin/settings/page';
 import Dashboard from '../pages/articles/Dashboard';
 import DashboardWrapper from '../pages/articles/Dashboard';
 import ArticlesList from '../pages/articles/admin/articles/ArticlesList';
+import ArticleDrafts from '../pages/articles/admin/articles/ArticleDrafts';
 import ArticleForm from '../pages/articles/admin/articles/ArticleForm';
 import CategoriesManagement from '../pages/articles/admin/CategoriesManagement';
 import TranslationManagement from '../pages/articles/admin/TranslationManagement';
@@ -72,16 +73,25 @@ import AllArticlesPage from '../components/articles/AllArticlesPage';
 
 import { DocumentationPage } from "../pages/documentation/DocumentationPage"
 
+import AssistantDashboard from "../pages/dashboard/assistant/assistantdashboard";
 
 
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
     <Route errorElement={<ErrorPage />}>
+
+      {/* Public Payment Callback Routes (Tranzak redirects here) */}
+      <Route path="/payments/callback/tranzak/success" element={<PaymentSuccessPage />} />
+      <Route path="/payments/callback/tranzak/failure" element={<PaymentSuccessPage />} />
+
+        {/* ✅ STRIPE CALLBACK ROUTES - ADD THESE HERE */}
+      <Route path="/payment/success" element={<PaymentSuccessPage />} />
+      <Route path="/payment/cancel" element={<PaymentSuccessPage />} />
+
       <Route element={<HomeLayout />}>
         <Route path="/" element={<HomePage />} />
 
-      
       </Route>
 
       <Route element={<DashboardLayout />}>
@@ -104,10 +114,7 @@ export const routes = createRoutesFromElements(
       <Route path="/terms-of-service" element={<TermsOfServicePage />} />
       <Route path="/docs" element={<DocumentationPage />} />
 
-      {/* Public Payment Callback Routes (Tranzak redirects here) */}
-      <Route path="/payments/callback/tranzak/success" element={<PaymentSuccessPage />} />
-      <Route path="/payments/callback/tranzak/failure" element={<PaymentSuccessPage />} />
-
+     
       {/* Protected Payment Routes */}
       <Route path="/payments">
         <Route element={<AuthGuard />}>
@@ -155,6 +162,9 @@ export const routes = createRoutesFromElements(
             {/* <Route index element={<DashboardHomePage />} /> */}
             <Route path="resumes" element={<ResumesPage />} />
             <Route path="cover-letters" element={<CoverLettersPage />} />
+
+            {/* Add Assistant Route Here */}
+            <Route path="assistant" element={<AssistantDashboard />} />
             
             {/* Add the wizard route under dashboard */}
             <Route path="cover-letters/wizard" element={<CoverLetterWizardPage />} />
@@ -170,11 +180,11 @@ export const routes = createRoutesFromElements(
               <Route path="articles" element={<ArticlesList />} />
               <Route path="articles/new" element={<ArticleForm />} />
               <Route path="articles/edit/:id" element={<ArticleForm />} />
-              <Route path="articles/drafts" element={<ArticlesList />} />
+              <Route path="articles/drafts" element={<ArticleDrafts />} />
               <Route path="articles/scheduled" element={<ArticlesList />} />
               <Route path="categories" element={<CategoriesManagement />} />
               <Route path="translations" element={<TranslationManagement />} />
-              <Route path="settings" element={<div>Article Settings Page</div>} />
+            
             </Route>
             
             {/* MAIN ADMIN ROUTES */}

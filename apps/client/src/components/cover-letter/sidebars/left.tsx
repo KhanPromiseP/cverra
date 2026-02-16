@@ -70,7 +70,7 @@ export const LeftSidebar = () => {
       {/* Content Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1">
-          <div ref={containterRef} className="grid gap-y-6 p-6 @container/left">
+          <div ref={containterRef} className="grid gap-y-6 pb-[150px] p-6 @container/left">
             <ContentSection />
             <Separator />
             <AISection />

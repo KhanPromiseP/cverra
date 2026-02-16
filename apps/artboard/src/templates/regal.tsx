@@ -178,6 +178,8 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (
@@ -567,7 +569,7 @@ export const Regal = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
   return (
-    <div className="p-custom space-y-4">
+    <div className="p-custom space-y-2">
       {isFirstPage && <Header />}
 
       {main.map((section) => (

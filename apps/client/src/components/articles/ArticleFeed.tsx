@@ -103,7 +103,7 @@ import {
 import { cn } from "@reactive-resume/utils";
 import { useLingui } from '@lingui/react';
 import { t, Trans } from "@lingui/macro"; // Added Lingui macro
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import articleApi, { Article, FilterParams, ArticleListDto } from '../../services/articleApi';
 import { useAuthStore } from '@/client/stores/auth';
 import './ArticleFeed.css';

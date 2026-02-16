@@ -72,12 +72,49 @@ export class CoverLetterService {
         )
       );
 
-      const content = response.data.choices[0]?.message?.content || '';
+      // Validate response
+      if (!response.data?.choices?.[0]?.message?.content) {
+        this.logger.error('Invalid Groq API response structure:', response.data);
+        throw new Error('Invalid response from Groq API');
+      }
+
+      const content = response.data.choices[0].message.content;
+      
+      // Validate content is not empty
+      if (!content || content.trim().length === 0) {
+        throw new Error('Groq API returned empty content');
+      }
+      
       this.logger.log('Successfully received response from Groq API');
       return content;
     } catch (error) {
-      this.logger.error('Groq API error:', error.response?.data || error.message);
-      throw new Error(`Failed to generate content: ${error.response?.data?.error?.message || error.message}`);
+      // Log full error details
+      this.logger.error('Groq API error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout
+        }
+      });
+      
+      // Check for specific error types
+      if (error.code === 'ENOTFOUND') {
+        throw new Error('Network error: Cannot reach Groq API. Check your internet connection and DNS settings.');
+      } else if (error.code === 'ECONNABORTED') {
+        throw new Error('Groq API timeout: The request took too long to complete.');
+      } else if (error.response?.status === 401) {
+        throw new Error('Groq API authentication failed: Invalid API key.');
+      } else if (error.response?.status === 429) {
+        throw new Error('Groq API rate limit exceeded. Please try again later.');
+      } else if (error.response?.status === 500) {
+        throw new Error('Groq API server error. Please try again later.');
+      }
+      
+      throw new Error(`Failed to generate content: ${error.message}`);
     }
   }
 
@@ -97,19 +134,19 @@ export class CoverLetterService {
   }
 
   // Category-specific prompt builders
-  private buildCategorySpecificPrompt(category: string, data: any): string {
-    const categoryPrompts: Record<string, string> = {
-      // Job Application
-      'Job Application': `JOB APPLICATION CONTEXT:
+private buildCategorySpecificPrompt(category: string, data: any): string {
+  const categoryPrompts: Record<string, string> = {
+    // Job Application
+    'Job Application': `JOB APPLICATION CONTEXT:
 - Position: ${data.position || 'Not specified'}
 - Company: ${data.company || 'Not specified'}
-- Hiring Manager: ${data.hiringManager || 'Sir/Mme'}
+- Hiring Manager: ${data.hiringManager || 'Hiring Manager'}
 - Job Description: ${data.jobDescription || 'Not provided'}
 
 Focus on: Professional qualifications, relevant experience, skills matching the job requirements, enthusiasm for the role and company, and clear call to action for next steps.`,
 
-      // Internship Application
-      'Internship Application': `INTERNSHIP APPLICATION CONTEXT:
+    // Internship Application
+    'Internship Application': `INTERNSHIP APPLICATION CONTEXT:
 - Position: ${data.position || 'Internship Position'}
 - Company: ${data.company || 'Not specified'}
 - Department: ${data.department || 'Not specified'}
@@ -117,25 +154,36 @@ Focus on: Professional qualifications, relevant experience, skills matching the 
 
 Focus on: Academic achievements, relevant coursework, eagerness to learn, transferable skills, enthusiasm for the industry, and willingness to contribute.`,
 
-      // Scholarship/Academic Request
-      'Scholarship/Academic Request': `SCHOLARSHIP/ACADEMIC REQUEST CONTEXT:
-- Scholarship/Program: ${data.programName || 'Not specified'}
+    // Scholarship/Academic Request
+    'Scholarship/Academic Request': `SCHOLARSHIP/ACADEMIC REQUEST CONTEXT:
+- Program: ${data.programName || 'Not specified'}
 - Institution: ${data.institution || 'Not specified'}
 - Field of Study: ${data.fieldOfStudy || 'Not specified'}
 - Academic Achievements: ${data.academicAchievements || 'Not provided'}
 
 Focus on: Academic excellence, research interests, career goals, financial need (if applicable), contributions to academic community, and alignment with program objectives.`,
 
-      // Business Partnership Proposal
-      'Business Partnership Proposal': `BUSINESS PARTNERSHIP PROPOSAL CONTEXT:
-- Company/Organization: ${data.company || 'Not specified'}
+    // Business Partnership Proposal - COMPLETE with ALL fields
+    'Business Partnership Proposal': `BUSINESS PARTNERSHIP PROPOSAL CONTEXT:
+- Your Company: ${data.company || 'Not specified'}
 - Partnership Type: ${data.partnershipType || 'Strategic Partnership'}
-- Proposed Collaboration: ${data.collaborationDetails || 'Not specified'}
+- Collaboration Details: ${data.collaborationDetails || 'Not specified'}
+- Recipient Company: ${data.recipientCompany || 'Not specified'}
+- Recipient Position: ${data.recipientPosition || 'Not specified'}
+- Proposal Purpose: ${data.proposalPurpose || 'Not specified'}
+- Proposed Benefits: ${data.proposedBenefits || 'Not specified'}
+- Partnership Scope: ${data.partnershipScope || 'Not specified'}
+- Proposed Timeline: ${data.proposedTimeline || 'Not specified'}
+- Roles & Responsibilities: ${data.rolesAndResponsibilities || 'Not specified'}
+- Financial Terms: ${data.financialTerms || 'Not specified'}
+- Confidentiality Requirements: ${data.confidentialityClause || 'Not specified'}
+- Dispute Resolution: ${data.disputeResolution || 'Not specified'}
+- Exit Terms: ${data.exitTerms || 'Not specified'}
 
 Focus on: Mutual benefits, strategic alignment, value proposition, proposed terms, success metrics, and next steps for discussion.`,
 
-      // Contract / Offer Negotiation
-      'Contract / Offer Negotiation': `CONTRACT/OFFER NEGOTIATION CONTEXT:
+    // Contract / Offer Negotiation
+    'Contract / Offer Negotiation': `CONTRACT/OFFER NEGOTIATION CONTEXT:
 - Position: ${data.position || 'Not specified'}
 - Company: ${data.company || 'Not specified'}
 - Current Offer: ${data.currentOffer || 'Not specified'}
@@ -143,66 +191,72 @@ Focus on: Mutual benefits, strategic alignment, value proposition, proposed term
 
 Focus on: Professional tone, clear rationale for requests, value proposition, flexibility, and maintaining positive relationship.`,
 
-      // Recommendation Request
-      'Recommendation Request': `RECOMMENDATION REQUEST CONTEXT:
-- Purpose: ${data.purpose || 'Not specified (e.g., job, scholarship, program)'}
+    // Recommendation Request
+    'Recommendation Request': `RECOMMENDATION REQUEST CONTEXT:
+- Purpose: ${data.purpose || 'Not specified'}
 - Relationship: ${data.relationship || 'Not specified'}
-- Key Points to Highlight: ${data.keyPoints || 'Not provided'}
+- Key Points: ${data.keyPoints || 'Not provided'}
 
 Focus on: Respectful tone, clear request, relevant context about the opportunity, suggested talking points, and appreciation for their time.`,
 
-      // Apology Letter
-      'Apology Letter': `APOLOGY LETTER CONTEXT:
+    // Apology Letter
+    'Apology Letter': `APOLOGY LETTER CONTEXT:
 - Situation: ${data.situation || 'Not specified'}
 - Impact: ${data.impact || 'Not specified'}
-- Resolution: ${data.resolution || 'Steps being taken to address the issue'}
+- Resolution: ${data.resolution || 'Not specified'}
 
 Focus on: Sincere apology, acknowledgment of impact, taking responsibility, corrective actions, and commitment to improvement.`,
 
-      // Appreciation Letter
-      'Appreciation Letter': `APPRECIATION LETTER CONTEXT:
+    // Appreciation Letter
+    'Appreciation Letter': `APPRECIATION LETTER CONTEXT:
 - Recipient: ${data.recipient || 'Not specified'}
-- Reason for Appreciation: ${data.reason || 'Not specified'}
-- Impact: ${data.impact || 'How their actions helped you'}
+- Reason: ${data.reason || 'Not specified'}
+- Impact: ${data.impact || 'Not specified'}
 
 Focus on: Genuine gratitude, specific examples, emotional tone, and lasting impact of their actions.`,
 
-      // Letter to Parent/Relative
-      'Letter to Parent/Relative': `PERSONAL LETTER CONTEXT:
-- Relationship: ${data.relationship || 'Family member/Relative'}
-- Purpose: ${data.purpose || 'Personal update, sharing news, etc.'}
+    // Letter to Parent/Relative
+    'Letter to Parent/Relative': `PERSONAL LETTER CONTEXT:
+- Relationship: ${data.relationship || 'Family member'}
+- Purpose: ${data.purpose || 'Personal update'}
 - Personal Context: ${data.personalContext || 'Not specified'}
+- Family Updates: ${data.familyUpdates || 'Not specified'}
+- Personal News: ${data.personalNews || 'Not specified'}
+- Emotional Tone: ${data.emotionalTone || 'Warm and caring'}
 
-Focus on: Warm, personal tone, emotional connection, family updates, and genuine care. Use appropriate level of formality based on relationship.`,
+Focus on: Warm, personal tone, emotional connection, family updates, and genuine care.`,
 
-      // Visa Request / Embassy Letter
-      'Visa Request / Embassy Letter': `OFFICIAL EMBASSY/VISA REQUEST CONTEXT:
-- Purpose of Travel: ${data.travelPurpose || 'Not specified'}
+    // Visa Request / Embassy Letter
+    'Visa Request / Embassy Letter': `VISA/EMBASSY REQUEST CONTEXT:
+- Travel Purpose: ${data.travelPurpose || 'Not specified'}
 - Destination: ${data.destination || 'Not specified'}
 - Duration: ${data.duration || 'Not specified'}
 - Supporting Documents: ${data.supportingDocs || 'Not specified'}
+- Accommodation: ${data.accommodation || 'Not specified'}
+- Financial Support: ${data.financialSupport || 'Not specified'}
+- Return Plans: ${data.returnPlans || 'Not specified'}
 
 Focus on: Formal, respectful tone, clear purpose, compliance with requirements, supporting evidence, and professional presentation.`,
 
-      // Complaint Letter
-      'Complaint Letter': `COMPLAINT LETTER CONTEXT:
+    // Complaint Letter
+    'Complaint Letter': `COMPLAINT LETTER CONTEXT:
 - Issue: ${data.issue || 'Not specified'}
 - Product/Service: ${data.productService || 'Not specified'}
 - Desired Resolution: ${data.desiredResolution || 'Not specified'}
 
 Focus on: Professional tone, clear description of issue, specific facts, reasonable requests, and desired outcome.`,
 
-      // General Official Correspondence
-      'General Official Correspondence': `GENERAL OFFICIAL CORRESPONDENCE CONTEXT:
+    // General Official Correspondence
+    'General Official Correspondence': `GENERAL OFFICIAL CORRESPONDENCE:
 - Purpose: ${data.purpose || 'Not specified'}
 - Recipient: ${data.recipient || 'Not specified'}
 - Key Information: ${data.keyInformation || 'Not specified'}
 
 Focus on: Professional tone, clear communication, appropriate formality, and specific purpose.`
-    };
+  };
 
-    return categoryPrompts[category] || categoryPrompts['General Official Correspondence'];
-  }
+  return categoryPrompts[category] || categoryPrompts['General Official Correspondence'];
+}
 
   // Get user resume data
   private async getUserResumeData(userId: string): Promise<any> {
@@ -254,6 +308,16 @@ private async buildEnhancedPrompt(params: {
     ? await this.getResumeById(userId, selectedResumeId)
     : await this.getUserResumeData(userId);
 
+  // Log what we're sending to the AI
+  this.logger.log(`Building prompt for ${category} with jobData keys:`, Object.keys(jobData || {}));
+  this.logger.log(`Business Partnership fields present:`, {
+    partnershipType: !!jobData?.partnershipType,
+    collaborationDetails: !!jobData?.collaborationDetails,
+    recipientCompany: !!jobData?.recipientCompany,
+    proposalPurpose: !!jobData?.proposalPurpose,
+    proposedBenefits: !!jobData?.proposedBenefits
+  });
+
   // Use the enhanced prompt builder
   const prompt = EnhancedPromptBuilder.buildPromptWithLanguageOverride(
     category,
@@ -266,12 +330,20 @@ private async buildEnhancedPrompt(params: {
     language
   );
 
+  // Add category-specific context with ALL fields
+  const categorySpecificPrompt = this.buildCategorySpecificPrompt(category, jobData);
+
   const templateInstructions = layout ? 
     `TEMPLATE: ${layout}\nSTRUCTURE: ${JSON.stringify(structure)}` : '';
 
   const resumeContext = this.buildResumeContext(resumeData);
 
-  // 🔥 CRITICAL FIX: Add STRICT output instructions
+  // 🔥 CRITICAL: Include ALL job data in a structured format
+  const allJobData = Object.entries(jobData || {})
+    .filter(([key, value]) => value && typeof value === 'string' && value.trim())
+    .map(([key, value]) => `- ${key}: ${value}`)
+    .join('\n');
+
   return `🚨 STRICT OUTPUT RULES:
 1. OUTPUT ONLY the final letter text with section markers
 2. NEVER include explanations, reasoning, or commentary
@@ -282,6 +354,11 @@ private async buildEnhancedPrompt(params: {
 📌 LANGUAGE REQUIREMENT: ${language ? `Write ENTIRE letter in ${language.toUpperCase()}` : 'Match the language of user inputs'}
 
 ${prompt}
+
+📋 COMPLETE JOB/PARTNERSHIP INFORMATION:
+${allJobData || 'No additional job information provided'}
+
+${categorySpecificPrompt}
 
 ${templateInstructions}
 ${resumeContext}
@@ -479,6 +556,28 @@ async applyTemplateToCoverLetter(userId: string, coverLetterId: string, template
     throw new NotFoundException('Template not found');
   }
 
+  // Get current content
+  const currentContent = coverLetter.content as any;
+  
+  // CRITICAL FIX: Apply subject line styles to any subject line blocks
+  const updatedBlocks = (currentContent.blocks || []).map((block: any) => {
+    if (block.type === 'subject_line' && template.structure.subjectLineStyle) {
+      return {
+        ...block,
+        formatting: {
+          ...block.formatting,
+          // Apply all subject line styles to the block's formatting
+          textTransform: template.structure.subjectLineStyle.textTransform || block.formatting?.textTransform || 'none',
+          textDecoration: template.structure.subjectLineStyle.textDecoration || block.formatting?.textDecoration || 'none',
+          fontWeight: template.structure.subjectLineStyle.fontWeight || block.formatting?.fontWeight || 'normal',
+          fontSize: template.structure.subjectLineStyle.fontSize || block.formatting?.fontSize || 'normal',
+          textAlign: template.structure.subjectLineStyle.textAlign || block.formatting?.textAlign || 'center'
+        }
+      };
+    }
+    return block;
+  });
+
   // Update the cover letter with the new template
   const updatedCoverLetter = await this.prisma.coverLetter.update({
     where: { id: coverLetterId },
@@ -487,6 +586,7 @@ async applyTemplateToCoverLetter(userId: string, coverLetterId: string, template
       layout: template.id,
       content: {
         ...(coverLetter.content as object),
+        blocks: updatedBlocks, // Use updated blocks with formatting
         layoutType: template.layout,
         structure: ensureJsonSerializable(template.structure),
         style: template.style,
@@ -751,13 +851,77 @@ private extractBlocksFromContent(content: any): any[] {
     };
   }
 
-  private extractJobDataFromContent(content: any): any {
-    return {
-      position: content.jobData?.position || 'the position',
-      company: content.jobData?.company || 'the company',
-      hiringManager: content.jobData?.hiringManager || 'Recipient'
-    };
-  }
+ private extractJobDataFromContent(content: any): any {
+  return {
+    // Job Application / Internship
+    position: content.jobData?.position || 'the position',
+    company: content.jobData?.company || 'the company',
+    hiringManager: content.jobData?.hiringManager || 'Hiring Manager',
+    jobDescription: content.jobData?.jobDescription || '',
+    department: content.jobData?.department || '',
+    
+    // Academic
+    programName: content.jobData?.programName || '',
+    institution: content.jobData?.institution || '',
+    fieldOfStudy: content.jobData?.fieldOfStudy || '',
+    
+    // Business Partnership - ALL FIELDS
+    partnershipType: content.jobData?.partnershipType || '',
+    collaborationDetails: content.jobData?.collaborationDetails || '',
+    recipientCompany: content.jobData?.recipientCompany || '',
+    recipientPosition: content.jobData?.recipientPosition || '',
+    proposalPurpose: content.jobData?.proposalPurpose || '',
+    proposedBenefits: content.jobData?.proposedBenefits || '',
+    partnershipScope: content.jobData?.partnershipScope || '',
+    proposedTimeline: content.jobData?.proposedTimeline || '',
+    rolesAndResponsibilities: content.jobData?.rolesAndResponsibilities || '',
+    financialTerms: content.jobData?.financialTerms || '',
+    confidentialityClause: content.jobData?.confidentialityClause || '',
+    disputeResolution: content.jobData?.disputeResolution || '',
+    exitTerms: content.jobData?.exitTerms || '',
+    
+    // Contract Negotiation
+    currentOffer: content.jobData?.currentOffer || '',
+    negotiationPoints: content.jobData?.negotiationPoints || [],
+    
+    // Recommendation
+    purpose: content.jobData?.purpose || '',
+    keyPoints: content.jobData?.keyPoints || [],
+    
+    // Apology
+    situation: content.jobData?.situation || '',
+    impact: content.jobData?.impact || '',
+    resolution: content.jobData?.resolution || '',
+    
+    // Appreciation
+    recipient: content.jobData?.recipient || '',
+    reason: content.jobData?.reason || '',
+    
+    // Personal/Family
+    relationship: content.jobData?.relationship || '',
+    personalContext: content.jobData?.personalContext || '',
+    familyUpdates: content.jobData?.familyUpdates || '',
+    personalNews: content.jobData?.personalNews || '',
+    emotionalTone: content.jobData?.emotionalTone || '',
+    
+    // Visa/Travel
+    travelPurpose: content.jobData?.travelPurpose || '',
+    destination: content.jobData?.destination || '',
+    duration: content.jobData?.duration || '',
+    supportingDocs: content.jobData?.supportingDocs || '',
+    accommodation: content.jobData?.accommodation || '',
+    financialSupport: content.jobData?.financialSupport || '',
+    returnPlans: content.jobData?.returnPlans || '',
+    
+    // Complaint
+    issue: content.jobData?.issue || '',
+    productService: content.jobData?.productService || '',
+    desiredResolution: content.jobData?.desiredResolution || '',
+    
+    // General
+    keyInformation: content.jobData?.keyInformation || ''
+  };
+}
 
   private extractNameFromHeader(headerContent: string): string {
     if (!headerContent) return 'Sender';
@@ -869,9 +1033,34 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
   try {
     this.logger.log(`Generating cover letter for user ${userId}`);
     
-    // Extract language from DTO (frontend will send this)
+    // Extract language from DTO
     const languageOverride = (createCoverLetterDto as any).language;
     const selectedResumeId = (createCoverLetterDto as any).selectedResumeId;
+    const category = (createCoverLetterDto as any).category || 'Job Application';
+    
+    // Log ALL incoming data for debugging
+    this.logger.log(`Incoming DTO:`, {
+      category,
+      hasUserData: !!createCoverLetterDto.userData,
+      userDataKeys: Object.keys(createCoverLetterDto.userData || {}),
+      hasJobData: !!createCoverLetterDto.jobData,
+      jobDataKeys: Object.keys(createCoverLetterDto.jobData || {}),
+      customInstructions: !!createCoverLetterDto.customInstructions
+    });
+    
+    // Log business partnership fields specifically
+    if (category === 'Business Partnership Proposal') {
+      this.logger.log(`Business Partnership Data:`, {
+        partnershipType: createCoverLetterDto.jobData?.partnershipType,
+        collaborationDetails: createCoverLetterDto.jobData?.collaborationDetails?.substring(0, 100),
+        recipientCompany: createCoverLetterDto.jobData?.recipientCompany,
+        recipientPosition: createCoverLetterDto.jobData?.recipientPosition,
+        proposalPurpose: createCoverLetterDto.jobData?.proposalPurpose?.substring(0, 100),
+        proposedBenefits: createCoverLetterDto.jobData?.proposedBenefits?.substring(0, 100),
+        partnershipScope: createCoverLetterDto.jobData?.partnershipScope?.substring(0, 100),
+        financialTerms: createCoverLetterDto.jobData?.financialTerms?.substring(0, 100)
+      });
+    }
     
     // Log language info
     if (languageOverride) {
@@ -886,18 +1075,7 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
 
     const layout = this.validateTemplate((createCoverLetterDto as any).layout || 'modern-professional');
     const template = this.templateService.getTemplateById(layout);
-    
-    if (!template) {
-      this.logger.warn(`Template ${layout} not found, using default 'modern-professional'`);
-      const defaultLayout = 'modern-professional';
-      const template = this.templateService.getTemplateById(defaultLayout);
-      if (!template) {
-        throw new Error(`Default template ${defaultLayout} not found`);
-      }
-    }
-    
     const structure = template?.structure || this.templateService.getTemplateStructure(layout);
-    const category = (createCoverLetterDto as any).category || 'Job Application';
 
     const prompt = await this.buildEnhancedPrompt({
       ...createCoverLetterDto,
@@ -907,7 +1085,7 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
       category,
       userId,
       selectedResumeId,
-      language: languageOverride  // Pass language to prompt builder
+      language: languageOverride
     });
     
     const content = await this.generateContent(prompt);
@@ -915,9 +1093,31 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
     // 🔥 CRITICAL: Clean AI reasoning from content
     const cleanedContent = this.cleanAIGeneratedContent(content);
     
-    const blocks = this.parseContentToBlocks(cleanedContent);
-    const enhancedLayout = TemplateLayoutGenerator.generateLayout(structure, blocks);
+    // Parse content to blocks
+    let blocks = this.parseContentToBlocks(cleanedContent);
     
+    // Apply template subject line styles
+    if (template?.structure?.subjectLineStyle) {
+      blocks = blocks.map(block => {
+        if (block.type === 'subject_line') {
+          return {
+            ...block,
+            formatting: {
+              ...block.formatting,
+              textTransform: template.structure.subjectLineStyle?.textTransform || block.formatting?.textTransform || 'none',
+              textDecoration: template.structure.subjectLineStyle?.textDecoration || block.formatting?.textDecoration || 'none',
+              fontWeight: template.structure.subjectLineStyle?.fontWeight || block.formatting?.fontWeight || 'normal',
+              fontSize: template.structure.subjectLineStyle?.fontSize || block.formatting?.fontSize || 'normal',
+              textAlign: template.structure.subjectLineStyle?.textAlign || block.formatting?.textAlign || 'center'
+            }
+          };
+        }
+        return block;
+      });
+    }
+    
+    // Generate layout with the styled blocks
+    const enhancedLayout = TemplateLayoutGenerator.generateLayout(structure, blocks);
 
     const serializableContent = {
       blocks: ensureJsonSerializable(blocks),
@@ -928,8 +1128,42 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
       category: category,
       lastSaved: new Date().toISOString(),
       resumeUsed: selectedResumeId || null,
-      language: languageOverride || 'auto-detected'  // Store language info
+      language: languageOverride || 'auto-detected',
+      // Store ALL original data for reference - but ensure it's serializable
+      originalData: {
+        userData: ensureJsonSerializable(createCoverLetterDto.userData || {}),
+        jobData: ensureJsonSerializable(createCoverLetterDto.jobData || {})
+      },
+      templateStyles: {
+        subjectLineStyle: template?.structure?.subjectLineStyle || null
+      }
     };
+
+    // Make sure ensureJsonSerializable handles all cases
+    function ensureJsonSerializable(obj: any): any {
+      if (obj === null || obj === undefined) return null;
+      
+      try {
+        // Try to stringify and parse to ensure it's serializable
+        return JSON.parse(JSON.stringify(obj));
+      } catch (error) {
+        console.error('Failed to serialize object:', error);
+        // Return a simplified version if serialization fails
+        if (Array.isArray(obj)) {
+          return obj.map(item => ensureJsonSerializable(item));
+        }
+        if (typeof obj === 'object') {
+          const result: any = {};
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              result[key] = ensureJsonSerializable(obj[key]);
+            }
+          }
+          return result;
+        }
+        return String(obj);
+      }
+    }
 
     const coverLetter = await this.prisma.coverLetter.create({
       data: {
@@ -943,6 +1177,8 @@ async generateCoverLetter(userId: string, createCoverLetterDto: CreateCoverLette
       }
     });
 
+    this.logger.log(`Successfully generated cover letter ${coverLetter.id} for category ${category}`);
+    
     return {
       success: true,
       coverLetter,
@@ -1044,37 +1280,92 @@ private cleanAIGeneratedContent(content: string): string {
   }
 
   async findOne(userId: string, id: string): Promise<CoverLetter> {
-    const coverLetter = await this.prisma.coverLetter.findFirst({
-      where: { id, userId },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        content: true, // This should be properly serialized
-        style: true,
-        layout: true,
-        language: true,
-        originalId: true,
-        userId: true,
-        createdAt: true,
-        updatedAt: true,
-        isPublic: true,
-        visibility: true
-      }
-    });
-
-    if (!coverLetter) {
-      throw new NotFoundException('Cover letter not found');
+  const coverLetter = await this.prisma.coverLetter.findFirst({
+    where: { id, userId },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      content: true,
+      style: true,
+      layout: true,
+      language: true,
+      originalId: true,
+      userId: true,
+      createdAt: true,
+      updatedAt: true,
+      isPublic: true,
+      visibility: true
     }
+  });
 
-    // Ensure content is properly formatted
-    if (coverLetter.content && typeof coverLetter.content === 'object' && 'set' in coverLetter.content) {
-      // Fix the Prisma JSON issue
-      coverLetter.content = coverLetter.content.set || coverLetter.content;
-    }
-
-    return coverLetter;
+  if (!coverLetter) {
+    throw new NotFoundException('Cover letter not found');
   }
+
+  // Ensure content is properly formatted
+  if (coverLetter.content && typeof coverLetter.content === 'object' && 'set' in coverLetter.content) {
+    coverLetter.content = coverLetter.content.set || coverLetter.content;
+  }
+
+  // 🔥 FIX: Safely handle potentially null layout with proper type checking
+  let template = null;
+  
+  // Only try to get template if layout exists and is a string
+  if (coverLetter.layout && typeof coverLetter.layout === 'string') {
+    const layoutId = coverLetter.layout as string;
+    
+    try {
+      // Try to get template by the stored layout ID
+      template = this.templateService.getTemplateById(layoutId);
+      
+      // If template not found and layout is 'modern', try 'modern-professional'
+      if (!template && layoutId === 'modern') {
+        this.logger.warn(`Template 'modern' not found, trying 'modern-professional'`);
+        template = this.templateService.getTemplateById('modern-professional');
+      }
+      
+      // If still not found, try to find any template with similar name
+      if (!template) {
+        const allTemplates = this.templateService.getAllTemplates();
+        template = allTemplates.find(t => 
+          t.id.includes(layoutId) || 
+          t.name.toLowerCase().includes(layoutId.toLowerCase())
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`Could not find template for layout: ${layoutId}`, error);
+    }
+  } else {
+    this.logger.debug(`Cover letter ${id} has no layout or layout is not a string`);
+  }
+
+  // CRITICAL FIX: Apply subject line styles to blocks if template has them
+  if (template?.structure?.subjectLineStyle && coverLetter.content) {
+    const content = coverLetter.content as any;
+    if (content.blocks && Array.isArray(content.blocks)) {
+      content.blocks = content.blocks.map((block: any) => {
+        if (block.type === 'subject_line') {
+          return {
+            ...block,
+            formatting: {
+              ...block.formatting,
+              // Apply subject line styles, preferring existing formatting but falling back to template
+              textTransform: block.formatting?.textTransform || template.structure.subjectLineStyle?.textTransform || 'none',
+              textDecoration: block.formatting?.textDecoration || template.structure.subjectLineStyle?.textDecoration || 'none',
+              fontWeight: block.formatting?.fontWeight || template.structure.subjectLineStyle?.fontWeight || 'normal',
+              fontSize: block.formatting?.fontSize || template.structure.subjectLineStyle?.fontSize || 'normal',
+              textAlign: block.formatting?.textAlign || template.structure.subjectLineStyle?.textAlign || 'center'
+            }
+          };
+        }
+        return block;
+      });
+    }
+  }
+
+  return coverLetter;
+}
 
   async update(userId: string, id: string, updateCoverLetterDto: UpdateCoverLetterDto): Promise<CoverLetter> {
   const coverLetter = await this.prisma.coverLetter.findFirst({
@@ -1097,41 +1388,63 @@ private cleanAIGeneratedContent(content: string): string {
     updatedAt: new Date()
   };
 
-  // CRITICAL FIX: Always update content if provided
-  if (updateCoverLetterDto.content !== undefined) {
-    updateData.content = updateCoverLetterDto.content;
-    
-    // Ensure content has lastSaved timestamp
-    if (typeof updateData.content === 'object' && updateData.content !== null) {
-      updateData.content = {
-        ...updateData.content,
-        lastSaved: new Date().toISOString()
-      };
-    }
-  }
-
-  // Update title if provided
+  // CRITICAL FIX: Update title if provided
   if (updateCoverLetterDto.title !== undefined) {
     updateData.title = updateCoverLetterDto.title;
   }
   
-  // Update style if provided
+  // CRITICAL FIX: Update style if provided
   if (updateCoverLetterDto.style !== undefined) {
     updateData.style = isCoverLetterStyle(updateCoverLetterDto.style) 
       ? updateCoverLetterDto.style 
       : CoverLetterStyle.Professional;
   }
 
-  // Update layout if provided
-  if (updateCoverLetterDto.layout !== undefined) {
-    updateData.layout = updateCoverLetterDto.layout;
+  // 🔥 FIX: Handle layout updates with legacy ID mapping
+  if (updateCoverLetterDto.layout !== undefined && typeof updateCoverLetterDto.layout === 'string') {
+    // Map legacy 'modern' to 'modern-professional'
+    const resolvedLayout = updateCoverLetterDto.layout === 'modern' 
+      ? 'modern-professional' 
+      : updateCoverLetterDto.layout;
     
-    // If we're updating layout, also update content structure if it doesn't have one
-    if (updateData.content && updateCoverLetterDto.structure) {
-      updateData.content = {
-        ...updateData.content,
-        structure: updateCoverLetterDto.structure
-      };
+    updateData.layout = resolvedLayout;
+    
+    // If we're updating layout, get template and apply subject line styles
+    try {
+      const template = this.templateService.getTemplateById(resolvedLayout);
+      if (template?.structure?.subjectLineStyle && updateCoverLetterDto.content) {
+        // Apply subject line styles to blocks
+        const content = updateCoverLetterDto.content;
+        if (content.blocks) {
+          content.blocks = content.blocks.map((block: any) => {
+            if (block.type === 'subject_line') {
+              return {
+                ...block,
+                formatting: {
+                  ...block.formatting,
+                  textTransform: template.structure.subjectLineStyle?.textTransform || block.formatting?.textTransform || 'none',
+                  textDecoration: template.structure.subjectLineStyle?.textDecoration || block.formatting?.textDecoration || 'underline',
+                  fontWeight: template.structure.subjectLineStyle?.fontWeight || block.formatting?.fontWeight || 'bold',
+                  fontSize: block.formatting?.fontSize || template.structure.subjectLineStyle?.fontSize || 'normal',
+                  textAlign: block.formatting?.textAlign || template.structure.subjectLineStyle?.textAlign || 'center'
+                }
+              };
+            }
+            return block;
+          });
+        }
+        updateData.content = content;
+      }
+    } catch (error) {
+      this.logger.warn(`Could not find template for layout: ${resolvedLayout}`, error);
+    }
+  }
+  
+  // CRITICAL FIX: Handle content updates
+  if (updateCoverLetterDto.content !== undefined) {
+    // If we're not also updating layout, just use the content as provided
+    if (!updateCoverLetterDto.layout) {
+      updateData.content = updateCoverLetterDto.content;
     }
   }
   
@@ -1140,6 +1453,14 @@ private cleanAIGeneratedContent(content: string): string {
     updateData.content = {
       ...updateData.content,
       structure: updateCoverLetterDto.structure
+    };
+  }
+
+  // Ensure content has lastSaved timestamp
+  if (updateData.content && typeof updateData.content === 'object') {
+    updateData.content = {
+      ...updateData.content,
+      lastSaved: new Date().toISOString()
     };
   }
 
@@ -1194,16 +1515,10 @@ async duplicateQuick(userId: string, coverLetterId: string, newName?: string): P
     let duplicateTitle: string;
     
     if (newName && newName.trim()) {
-      // Use the custom name provided by the user
       duplicateTitle = newName.trim();
     } else {
-      // Generate default duplicate title
       duplicateTitle = original.title;
-      
-      // Remove any existing "(Copy)" suffix
       duplicateTitle = duplicateTitle.replace(/\s*\(Copy\)(\s*\(Copy\))*\s*$/, '').trim();
-      
-      // Add single "(Copy)" suffix
       duplicateTitle = `${duplicateTitle} (Copy)`;
     }
     
@@ -1213,7 +1528,6 @@ async duplicateQuick(userId: string, coverLetterId: string, newName?: string): P
     // 4. Create duplicate content with updated metadata
     const duplicateContent = {
       ...originalContent,
-      // Update the title in the content as well
       title: duplicateTitle,
       originalId: coverLetterId,
       duplicatedFrom: coverLetterId,
@@ -1221,10 +1535,30 @@ async duplicateQuick(userId: string, coverLetterId: string, newName?: string): P
       lastSaved: new Date().toISOString()
     };
 
-    // 5. Generate a unique slug for the duplicate
-    const duplicateSlug = this.generateSlug(`copy-of-${original.slug}-${Date.now()}`);
+    // 5. Generate a unique slug with timestamp and random string
+    const baseSlug = this.generateSlug(duplicateTitle);
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 8);
+    let duplicateSlug = `${baseSlug}-${timestamp}${random}`;
 
-    // 6. Create the duplicate directly in database
+    // 🔥 FIX: Ensure slug is unique
+    let counter = 0;
+    while (true) {
+      const existing = await this.prisma.coverLetter.findFirst({
+        where: { 
+          userId,
+          slug: duplicateSlug 
+        }
+      });
+      
+      if (!existing) break;
+      
+      // If exists, add a counter
+      counter++;
+      duplicateSlug = `${baseSlug}-${timestamp}${random}-${counter}`;
+    }
+
+    // 6. Create the duplicate
     const duplicate = await this.prisma.coverLetter.create({
       data: {
         title: duplicateTitle,
@@ -1239,19 +1573,40 @@ async duplicateQuick(userId: string, coverLetterId: string, newName?: string): P
       }
     });
 
-    this.logger.log(`Successfully quick-duplicated cover letter ${coverLetterId} to ${duplicate.id} for user ${userId}`);
+    this.logger.log(`Successfully duplicated cover letter ${coverLetterId} to ${duplicate.id}`);
     
     return duplicate;
     
   } catch (error) {
-    this.logger.error(`Failed to quick-duplicate cover letter ${coverLetterId} for user ${userId}:`, error.stack);
-    
-    if (error instanceof NotFoundException) {
-      throw error;
-    }
-    
+    this.logger.error(`Failed to duplicate:`, error.stack);
     throw new Error(`Failed to duplicate cover letter: ${error.message}`);
   }
+}
+
+/**
+ * Apply template styles to blocks, especially subject line styles
+ */
+private applyTemplateStylesToBlocks(blocks: any[], template: any): any[] {
+  if (!template?.structure?.subjectLineStyle) {
+    return blocks;
+  }
+
+  return blocks.map(block => {
+    if (block.type === 'subject_line') {
+      return {
+        ...block,
+        formatting: {
+          ...block.formatting,
+          textTransform: template.structure.subjectLineStyle.textTransform || block.formatting?.textTransform || 'none',
+          textDecoration: template.structure.subjectLineStyle.textDecoration || block.formatting?.textDecoration || 'none',
+          fontWeight: template.structure.subjectLineStyle.fontWeight || block.formatting?.fontWeight || 'normal',
+          fontSize: template.structure.subjectLineStyle.fontSize || block.formatting?.fontSize || 'normal',
+          textAlign: template.structure.subjectLineStyle.textAlign || block.formatting?.textAlign || 'center'
+        }
+      };
+    }
+    return block;
+  });
 }
 
   async enhanceBlock(userId: string, id: string, enhanceBlockDto: EnhanceBlockDto) {
@@ -1632,43 +1987,48 @@ private async translateSectionBySection(
   const translationErrors: any[] = [];
   const startTime = Date.now();
 
-  // Provide default value for preservation
-  const preservation = dto.preservation || TranslationPreservation.ALL;
-  const preserveNames = dto.preserveNames !== false; // default to true
-  const preserveDates = dto.preserveDates !== false; // default to true
-  const preserveTerms = dto.preserveTerms || [];
+  // Track if any block was successfully translated
+  let anyBlockTranslated = false;
 
   for (let i = 0; i < originalBlocks.length; i++) {
     const originalBlock = originalBlocks[i];
     
     try {
-      // Check if this block should be translated or preserved
+      // Check if this block should be translated
       const shouldTranslate = this.shouldTranslateBlock(
         originalBlock,
-        preservation, // Now guaranteed to be TranslationPreservation
-        preserveNames,
-        preserveDates,
-        preserveTerms
+        dto.preservation || TranslationPreservation.ALL,
+        dto.preserveNames !== false,
+        dto.preserveDates !== false,
+        dto.preserveTerms || []
       );
 
       if (!shouldTranslate) {
-        // Copy block exactly as-is
         translatedBlocks.push(this.cloneBlock(originalBlock));
         continue;
       }
 
-      // Build translation prompt for this specific section
       const translationPrompt = this.buildSectionTranslationPrompt(
         originalBlock,
         dto.targetLanguage,
-        preservation, // Pass the resolved preservation
+        dto.preservation || TranslationPreservation.ALL,
         dto
       );
 
-      // Generate translation
       const translatedContent = await this.generateContent(translationPrompt);
+      
+      // CRITICAL: Validate that translation actually changed
+      if (!translatedContent || translatedContent === originalBlock.content) {
+        throw new Error(`Translation failed for block ${i} - content unchanged`);
+      }
 
-      // Create translated block with EXACT same structure
+      // Check if content appears to be in the target language
+      const targetLanguageCode = this.normalizeLanguageCode(dto.targetLanguage);
+      if (targetLanguageCode !== 'en' && !this.containsTargetLanguageChars(translatedContent, targetLanguageCode)) {
+        this.logger.warn(`Block ${i} may not be in target language: ${targetLanguageCode}`);
+        // Still accept it but log warning
+      }
+
       const translatedBlock = this.createTranslatedBlock(
         originalBlock,
         translatedContent,
@@ -1682,25 +2042,32 @@ private async translateSectionBySection(
       );
 
       translatedBlocks.push(translatedBlock);
+      anyBlockTranslated = true;
 
-      // Add small delay to avoid rate limiting
       if (i < originalBlocks.length - 1) {
         await this.delay(200);
       }
 
     } catch (error) {
-      this.logger.warn(`Failed to translate block ${i} (${originalBlock.type}):`, error.message);
-      
-      // Fallback to original block
-      translatedBlocks.push(this.cloneBlock(originalBlock));
-      
+      this.logger.error(`Failed to translate block ${i} (${originalBlock.type}):`, error.message);
       translationErrors.push({
         blockIndex: i,
         blockType: originalBlock.type,
-        error: error.message,
-        content: originalBlock.content?.substring(0, 100)
+        error: error.message
       });
+      
+      // Don't add this block - we'll fail the whole translation
+      throw new Error(`Translation failed at block ${i}: ${error.message}`);
     }
+  }
+
+  // If no blocks were translated and there are translatable blocks, fail
+  const translatableBlocks = originalBlocks.filter(b => 
+    !['contact_info', 'date', 'signature'].includes(b.type || '')
+  );
+  
+  if (!anyBlockTranslated && translatableBlocks.length > 0) {
+    throw new Error('No blocks were successfully translated');
   }
 
   const duration = Date.now() - startTime;
@@ -1716,6 +2083,28 @@ private async translateSectionBySection(
       averageTimePerBlock: duration / originalBlocks.length
     }
   };
+}
+
+// Helper to check if content contains target language characters
+private containsTargetLanguageChars(content: string, targetLanguage: string): boolean {
+  const languageCharRanges: Record<string, RegExp> = {
+    'fr': /[àâäéèêëïîôöùûüÿçœæ]/i,
+    'es': /[áéíóúüñ¿¡]/i,
+    'de': /[äöüß]/i,
+    'zh': /[\u4e00-\u9fff]/,
+    'ja': /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/,
+    'ru': /[\u0400-\u04FF]/,
+    'ar': /[\u0600-\u06FF]/,
+    'hi': /[\u0900-\u097F]/,
+    'ko': /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/,
+    'it': /[àèéìíîòóùú]/i,
+    'pt': /[áâãàçéêíóôõú]/i
+  };
+  
+  const regex = languageCharRanges[targetLanguage];
+  if (!regex) return true; // Can't check, assume it's fine
+  
+  return regex.test(content);
 }
 
   /**
@@ -2195,8 +2584,8 @@ private shouldTranslateBlock(
     const baseSlug = originalSlug.replace(/-[a-z]{2}(-\w+)?$/, '');
     
     // Generate timestamp and random string for uniqueness
-    const timestamp = Date.now().toString(36); // Base36 for shorter string
-    const random = Math.random().toString(36).substring(2, 6); // 4 random chars
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 8); // Longer random string
     
     return `${baseSlug}-${languageCode}-${timestamp}${random}`;
   }
@@ -2999,7 +3388,6 @@ async translateLetterEnhanced(
     transactionId
   });
 
-  // Get original cover letter
   const originalCoverLetter = await this.prisma.coverLetter.findFirst({
     where: { id: coverLetterId, userId }
   });
@@ -3008,33 +3396,44 @@ async translateLetterEnhanced(
     throw new NotFoundException('Cover letter not found');
   }
 
-  const originalContent = originalCoverLetter.content as any;
-  const originalBlocks = originalContent.blocks || [];
-  const originalLayout = originalContent.layout;
-  const originalStructure = originalContent.structure;
-  const category = originalContent.category || 'Job Application';
-
-  // CRITICAL FIX: Check if original has blocks
-  console.log('🔍 Original content check:', {
-    id: coverLetterId,
-    title: originalCoverLetter.title,
-    hasContent: !!originalContent,
-    blocksCount: originalBlocks.length,
-    contentKeys: originalContent ? Object.keys(originalContent) : []
+  const targetLanguageCode = this.normalizeLanguageCode(dto.targetLanguage);
+  
+  // Check for existing translation
+  const existingTranslation = await this.prisma.coverLetter.findFirst({
+    where: {
+      OR: [
+        { id: coverLetterId, language: targetLanguageCode },
+        { originalId: coverLetterId, language: targetLanguageCode }
+      ],
+      userId
+    }
   });
 
-  if (!originalBlocks || originalBlocks.length === 0) {
-    console.error('❌ Original letter has no blocks to translate!', {
-      id: coverLetterId,
-      title: originalCoverLetter.title,
-      contentType: typeof originalContent,
-      contentStructure: originalContent
-    });
+  if (existingTranslation) {
+    this.logger.log(`Translation to ${targetLanguageCode} already exists: ${existingTranslation.id}`);
     
-    throw new Error('The original letter has no content to translate. Please ensure the letter has been saved and has content.');
+    return {
+      success: true,
+      exists: true,
+      coverLetter: existingTranslation,
+      targetLanguage: targetLanguageCode,
+      message: 'Translation already exists'
+    };
   }
 
-  // Set defaults for optional parameters
+  const originalContent = originalCoverLetter.content as any;
+  const originalBlocks = originalContent.blocks || [];
+
+  if (!originalBlocks || originalBlocks.length === 0) {
+    throw new Error('The original letter has no content to translate.');
+  }
+
+  // Store original content for comparison
+  const originalText = originalBlocks
+    .filter((b: any) => !['contact_info', 'date', 'signature'].includes(b.type || ''))
+    .map((b: any) => b.content)
+    .join(' ');
+
   const resolvedDto = {
     ...dto,
     preservation: dto.preservation || TranslationPreservation.ALL,
@@ -3047,99 +3446,113 @@ async translateLetterEnhanced(
     preserveTerms: dto.preserveTerms || []
   };
 
-  console.log('✅ Starting translation with:', {
-    originalBlocks: originalBlocks.length,
-    targetLanguage: resolvedDto.targetLanguage,
-    method: resolvedDto.method
-  });
-
   let translatedBlocks: any[];
   let translationMetadata: any;
 
-  // Choose translation method
-  switch (resolvedDto.method) {
-    case TranslationMethod.SECTION_BY_SECTION:
-      ({ blocks: translatedBlocks, metadata: translationMetadata } = 
-        await this.translateSectionBySection(originalBlocks, resolvedDto, transactionId));
-      break;
+  try {
+    // Choose translation method
+    switch (resolvedDto.method) {
+      case TranslationMethod.SECTION_BY_SECTION:
+        ({ blocks: translatedBlocks, metadata: translationMetadata } = 
+          await this.translateSectionBySection(originalBlocks, resolvedDto, transactionId));
+        break;
+      
+      case TranslationMethod.COMPLETE:
+        ({ blocks: translatedBlocks, metadata: translationMetadata } = 
+          await this.translateCompleteLetter(originalBlocks, resolvedDto, transactionId));
+        break;
+      
+      case TranslationMethod.PRESERVE_STRUCTURE:
+      default:
+        ({ blocks: translatedBlocks, metadata: translationMetadata } = 
+          await this.translateWithStructurePreservation(originalBlocks, resolvedDto, transactionId));
+        break;
+    }
     
-    case TranslationMethod.COMPLETE:
-      ({ blocks: translatedBlocks, metadata: translationMetadata } = 
-        await this.translateCompleteLetter(originalBlocks, resolvedDto, transactionId));
-      break;
-    
-    case TranslationMethod.PRESERVE_STRUCTURE:
-    default:
-      ({ blocks: translatedBlocks, metadata: translationMetadata } = 
-        await this.translateWithStructurePreservation(originalBlocks, resolvedDto, transactionId));
-      break;
+    // CRITICAL: Validate that translation actually happened
+    const translatedText = translatedBlocks
+      .filter((b: any) => !['contact_info', 'date', 'signature'].includes(b.type || ''))
+      .map((b: any) => b.content)
+      .join(' ');
+
+    // Check if content changed significantly
+    if (translatedText === originalText) {
+      throw new Error('Translation failed: No content changes detected');
+    }
+
+    // For non-English targets, check for target language characters
+    if (targetLanguageCode !== 'en') {
+      const hasTargetChars = this.containsTargetLanguageChars(translatedText, targetLanguageCode);
+      if (!hasTargetChars) {
+        this.logger.warn('Translation may still be in English - few target language characters detected');
+        // Still accept but log warning
+      }
+    }
+
+  } catch (error) {
+    this.logger.error('Translation process failed:', error);
+    throw new Error(`Translation failed: ${error.message}`);
+  }
+
+  // Only proceed if we have valid translations
+  if (!translatedBlocks || translatedBlocks.length === 0) {
+    throw new Error('Translation failed: No content generated.');
   }
 
   // Build translated content
   const translatedContent = this.buildTranslatedContent(
     originalContent,
     translatedBlocks,
-    originalLayout,
-    originalStructure,
+    originalContent.layout,
+    originalContent.structure,
     {
-      sourceLanguage: 'en', // Default to English
-      targetLanguage: resolvedDto.targetLanguage,
-      targetLanguageName: this.getLanguageDisplayName(resolvedDto.targetLanguage),
+      sourceLanguage: originalCoverLetter.language || 'en',
+      targetLanguage: targetLanguageCode,
+      targetLanguageName: this.getLanguageDisplayName(targetLanguageCode),
       method: resolvedDto.method,
       preservation: resolvedDto.preservation,
       transactionId,
-      ...translationMetadata
+      ...translationMetadata,
+      translationVerified: true
     }
   );
 
-  let resultCoverLetter;
-  
-  if (resolvedDto.createNewVersion) {
-    const translatedTitle = this.generateTranslatedTitle(
-      originalCoverLetter.title,
-      this.getLanguageDisplayName(resolvedDto.targetLanguage),
-      resolvedDto.versionName
-    );
+  // Create the translated version
+  const translatedTitle = this.generateTranslatedTitle(
+    originalCoverLetter.title,
+    this.getLanguageDisplayName(targetLanguageCode),
+    resolvedDto.versionName
+  );
 
-    const translatedSlug = this.generateTranslatedSlug(
-      originalCoverLetter.slug,
-      this.normalizeLanguageCode(resolvedDto.targetLanguage)
-    );
+  const translatedSlug = this.generateTranslatedSlug(
+    originalCoverLetter.slug,
+    targetLanguageCode
+  );
 
-    resultCoverLetter = await this.prisma.coverLetter.create({
-      data: {
-        title: translatedTitle,
-        slug: translatedSlug,
-        content: translatedContent,
-        style: originalCoverLetter.style,
-        layout: originalCoverLetter.layout,
-        language: this.normalizeLanguageCode(resolvedDto.targetLanguage),
-        originalId: originalCoverLetter.id,
-        userId,
-        isPublic: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    });
-  } else {
-    // Update original
-    resultCoverLetter = await this.prisma.coverLetter.update({
-      where: { id: coverLetterId },
-      data: {
-        content: translatedContent,
-        language: this.normalizeLanguageCode(resolvedDto.targetLanguage),
-        updatedAt: new Date()
-      }
-    });
-  }
+  const resultCoverLetter = await this.prisma.coverLetter.create({
+    data: {
+      title: translatedTitle,
+      slug: translatedSlug,
+      content: translatedContent,
+      style: originalCoverLetter.style,
+      layout: originalCoverLetter.layout,
+      language: targetLanguageCode,
+      originalId: originalCoverLetter.id,
+      userId,
+      isPublic: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  });
 
-  // Get all translations for response
+  this.logger.log(`Created new translation: ${resultCoverLetter.id}`);
+
   const allTranslations = await this.getLetterTranslations(userId, coverLetterId);
 
   return {
     success: true,
     coverLetter: resultCoverLetter,
-    targetLanguage: resolvedDto.targetLanguage,
+    targetLanguage: targetLanguageCode,
     method: resolvedDto.method,
     preservation: resolvedDto.preservation,
     createNewVersion: resolvedDto.createNewVersion,
@@ -3148,6 +3561,7 @@ async translateLetterEnhanced(
     metadata: translationMetadata
   };
 }
+
 
 
 /**

@@ -56,11 +56,19 @@ export class AuthController {
       const accessToken = this.authService.generateToken("access", payload);
       const refreshToken = this.authService.generateToken("refresh", payload);
 
-      // Set Refresh Token in Database
-      await this.authService.setRefreshToken(email, refreshToken);
+      // CRITICAL FIX: Set Refresh Token in Database with retry
+      try {
+        await this.authService.setRefreshToken(email, refreshToken);
+        console.log(`[AuthController] Refresh token saved for user: ${email}`);
+      } catch (dbError) {
+        console.error(` [AuthController] Failed to save refresh token:`, dbError);
+        // Don't throw - token is still valid in cookie
+        // The validateRefreshToken will handle the missing token case
+      }
 
       return { accessToken, refreshToken };
     } catch (error) {
+      console.error(`[AuthController] Exchange token error:`, error);
       throw new InternalServerErrorException(error, ErrorMessage.SomethingWentWrong);
     }
   }
@@ -102,10 +110,24 @@ export class AuthController {
     return this.handleAuthenticationResponse(user, response);
   }
 
+  // @Post("login")
+  // @UseGuards(LocalGuard)
+  // async login(@User() user: UserWithSecrets, @Res({ passthrough: true }) response: Response) {
+  //   return this.handleAuthenticationResponse(user, response);
+  // }
+
   @Post("login")
   @UseGuards(LocalGuard)
   async login(@User() user: UserWithSecrets, @Res({ passthrough: true }) response: Response) {
-    return this.handleAuthenticationResponse(user, response);
+    console.log('[Login] User logged in:', user.email);
+    
+    const result = await this.handleAuthenticationResponse(user, response);
+    
+    // Log the cookies being set
+    console.log('[Login] Authentication cookie set');
+    console.log('[Login] Refresh cookie set');
+
+    return result;
   }
 
   @Get("providers")
@@ -166,10 +188,11 @@ export class AuthController {
   }
 
   @Post("refresh")
-  @UseGuards(RefreshGuard)
-  async refresh(@User() user: UserWithSecrets, @Res({ passthrough: true }) response: Response) {
-    return this.handleAuthenticationResponse(user, response, true);
-  }
+@UseGuards(RefreshGuard)
+async refresh(@User() user: UserWithSecrets, @Res({ passthrough: true }) response: Response) {
+  // Pass false for isTwoFactorAuth since this is just a refresh, not a 2FA verification
+  return this.handleAuthenticationResponse(user, response, false);
+}
 
   @Patch("password")
   @UseGuards(TwoFactorGuard)

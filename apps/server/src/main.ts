@@ -45,14 +45,24 @@ async function bootstrap() {
     );
 
     // Body Parser
-    app.use(bodyParser.json({
-      limit: '10mb',
-    }));
+    app.use(
+      bodyParser.json({
+        limit: '10mb',
+        verify: (req: any, res, buf) => {
+          // Attach rawBody only for Stripe webhook route
+          if (req.originalUrl.startsWith('/api/payments/webhook/stripe')) {
+            req.rawBody = buf.toString();
+          }
+        },
+      }),
+    );
 
-    app.use(bodyParser.urlencoded({
-      extended: true,
-      limit: '10mb',
-    }));
+    app.use(
+      bodyParser.urlencoded({
+        extended: true,
+        limit: '10mb',
+      }),
+    );
 
     // Serve static files
     const uploadsPath = join(process.cwd(), 'uploads');
@@ -98,8 +108,8 @@ async function bootstrap() {
 
     // Swagger (OpenAPI Docs)
     const config = new DocumentBuilder()
-      .setTitle("Cverra")
-      .setDescription("Cverra Resume Builder API")
+      .setTitle("Inlirah")
+      .setDescription("Inlirah Resume Builder API")
       .addCookieAuth("Authentication", { type: "http", in: "cookie", scheme: "Bearer" })
       .setVersion("4.0.0")
       .build();
@@ -283,9 +293,9 @@ bootstrap();
 
 //   // Swagger (OpenAPI Docs)
 //   const config = new DocumentBuilder()
-//     .setTitle("Cverra")
+//     .setTitle("Inlirah")
 //     .setDescription(
-//       "Cverra is a powerful resume builder that's built to make the mundane tasks of creating, updating and sharing your resume as easy as 1, 2, 3.",
+//       "Inlirah is a powerful resume builder that's built to make the mundane tasks of creating, updating and sharing your resume as easy as 1, 2, 3.",
 //     )
 //     .addCookieAuth("Authentication", { type: "http", in: "cookie", scheme: "Bearer" })
 //     .setVersion("4.0.0")

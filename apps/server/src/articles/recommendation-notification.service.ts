@@ -3,8 +3,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../tools/prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { RecommendationService } from './recommendation.service';
-import { ArticleStatus } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
+
+export enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
 
 @Injectable()
 export class RecommendationNotificationService {

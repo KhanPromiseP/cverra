@@ -340,47 +340,57 @@ async buildResume(
   let transactionId: string | undefined;
   
   try {
-    const {
-      source = 'text',
-      sourceData,
-      title,
-      enhanceWithAI = true,
-      includeSuggestions = true,
-      aiModel,
-    } = body;
+    console.log('Build endpoint called with body keys:', Object.keys(body));
+    console.log('Has file?', !!file);
+    console.log('Body content-type:', body.contentType);
+    
+    // Handle FormData vs JSON
+    let source: string;
+    let sourceData: any;
+    let title: string;
+    let enhanceWithAI = true;
+    let includeSuggestions = true;
+    let aiModel: string;
 
-    let sourceType: AIBuilderSource;
-    let sourceContent: string | Buffer;
-    let fileName: string | undefined;
-    let fileSize: number | undefined;
-
-    // Determine source type and content
     if (file) {
-      // File upload
-      sourceType = this.mapSourceToEnum(source);
-      sourceContent = file.buffer;
-      fileName = file.originalname;
-      fileSize = file.size;
-    } else if (sourceData) {
-      // Text or base64 data
-      if (source === 'pdf' || source === 'doc') {
-        // Base64 encoded file
-        const buffer = Buffer.from(sourceData, 'base64');
-        sourceType = this.mapSourceToEnum(source);
-        sourceContent = buffer;
-      } else {
-        // Plain text
-        sourceType = AIBuilderSource.TEXT;
-        sourceContent = sourceData;
-      }
+      // FormData request (file upload)
+      console.log('Processing FormData with file:', file.originalname);
+      
+      source = body.source || 'text';
+      title = body.title || `AI Resume from ${file.originalname}`;
+      enhanceWithAI = body.enhanceWithAI === 'true' || body.enhanceWithAI === true;
+      includeSuggestions = body.includeSuggestions === 'true' || body.includeSuggestions === true;
+      aiModel = body.aiModel || 'llama-3.3-70b-versatile';
+      
+      // Use file buffer as sourceData
+      sourceData = file.buffer;
     } else {
+      // JSON request (text input)
+      console.log('Processing JSON request');
+      
+      // Parse body if it's a string (might come as raw JSON string)
+      const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+      
+      source = parsedBody.source || 'text';
+      sourceData = parsedBody.sourceData;
+      title = parsedBody.title || `AI Generated Resume`;
+      enhanceWithAI = parsedBody.enhanceWithAI !== false;
+      includeSuggestions = parsedBody.includeSuggestions !== false;
+      aiModel = parsedBody.aiModel || 'llama-3.3-70b-versatile';
+    }
+
+    if (!sourceData && !file) {
       throw new BadRequestException("No source data provided");
     }
 
+    // Convert source string to enum
+    const sourceType = this.mapSourceToEnum(source);
+    console.log('Source type:', sourceType, 'from source:', source);
+
     // Calculate cost
-    const textLength = typeof sourceContent === 'string' 
-      ? sourceContent.length 
-      : sourceContent.length;
+    const textLength = Buffer.isBuffer(sourceData) 
+      ? sourceData.toString('utf-8', 0, 1000).length // Sample first 1000 chars
+      : (typeof sourceData === 'string' ? sourceData.length : 0);
     
     const cost = this.aiBuilderService.calculateCost(
       { 
@@ -391,6 +401,8 @@ async buildResume(
       },
       textLength
     );
+
+    console.log('Calculated cost:', cost, 'for text length:', textLength);
 
     // Check wallet balance
     const canAfford = await this.walletService.canAfford(user.id, cost);
@@ -406,9 +418,9 @@ async buildResume(
         userId: user.id,
         transactionType: 'ai_resume_builder',
         sourceType: source,
-        textLength: typeof sourceContent === 'string' ? sourceContent.length : undefined,
-        fileName,
-        fileSize,
+        textLength: textLength,
+        fileName: file?.originalname,
+        fileSize: file?.size,
         action: 'ai_resume_builder_build',
       }
     );
@@ -422,14 +434,25 @@ async buildResume(
     // Build resume with AI
     const aiResult = await this.aiBuilderService.buildResumeFromSource(
       user.id,
-      sourceContent,
+      sourceData,
       { 
         source: sourceType, 
         enhanceWithAI,
         includeSuggestions,
         aiModel,
+        metadata: {
+          title: title,
+          ...(file ? {
+            fileName: file.originalname,
+            fileSize: file.size,
+          } : {
+            textLength: typeof sourceData === 'string' ? sourceData.length : 0,
+          })
+        }
       }
     );
+
+    console.log('AI Result received, creating resume...');
 
     // Create resume title
     const resumeTitle = title || 
@@ -437,16 +460,16 @@ async buildResume(
         ? `${aiResult.resumeData.basics.name}'s Resume` 
         : `AI Resume - ${new Date().toLocaleDateString()}`);
 
-    // Create resume in database - force normalization for compatibility
-    const normalizedData = this.normalizeResumeDataForStorage(aiResult.resumeData);
-    
+    // Normalize and create resume
+    const normalizedData = this.resumeService.normalizeResumeDataForStorage(aiResult.resumeData);
+
     const resume = await this.resumeService.create(user.id, {
       title: resumeTitle,
-      visibility: "public", 
-      data: normalizedData,
+      visibility: "private",
+      data: normalizedData as any,
     });
 
-    // Update with AI-generated data
+    // Update with AI-generated data (optional - already normalized)
     const updatedResume = await this.resumeService.update(user.id, resume.id, {
       data: aiResult.resumeData,
     });
@@ -462,6 +485,8 @@ async buildResume(
         userId: user.id,
       });
     }
+
+    console.log('Resume created successfully:', resume.id);
 
     return {
       success: true,
@@ -483,26 +508,18 @@ async buildResume(
     };
 
   } catch (error) {
+    console.error('Error in build endpoint:', error);
+    
     // Refund if error occurred after deduction
     if (transactionId) {
       await this.walletService.refundTransaction(user.id, transactionId, error.message);
     }
-    throw error;
+    
+    throw new BadRequestException(
+      error.message || 'AI processing failed. Please try again.'
+    );
   }
 }
 
-private normalizeResumeDataForStorage(data: any): any {
-  // Convert AI structure to storage-friendly format
-  const normalized = JSON.parse(JSON.stringify(data));
-  
-  // Ensure it's marked as AI-generated
-  if (!normalized.metadata) {
-    normalized.metadata = {};
-  }
-  normalized.metadata.aiGenerated = true;
-  normalized.metadata.aiGeneratedAt = new Date().toISOString();
-  
-  return normalized;
-}
   
 }

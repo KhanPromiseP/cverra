@@ -21,18 +21,22 @@ export const SocialAuth = () => {
         </Button>
       )} */}
 
-      {providers.includes("google") && (
-        <Button
-          asChild
-          // size="lg"
-          className="!bg-[#4285F4] !text-white hover:!bg-[#4285F4]/80"
+      {/* Google Auth */}
+      <Button
+        asChild
+        size="lg"
+        className="w-full !bg-[#4285F4] !text-white font-medium hover:!bg-[#4285F4]/90 transition-all"
+      >
+        <a
+          href="/api/auth/google"
+          className="flex items-center justify-center gap-3"
         >
-          <a href="/api/auth/google">
-            <GoogleLogo className="" />
-            {t`Google`}
-          </a>
-        </Button>
-      )}
+          <GoogleLogo className="size-6" weight="bold" />
+          <span className="text-sm tracking-wide">
+            {t`Continue with Google`}
+          </span>
+        </a>
+      </Button>
 
       {providers.includes("openid") && (
         <Button

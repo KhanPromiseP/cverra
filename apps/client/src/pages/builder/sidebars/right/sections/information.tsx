@@ -32,19 +32,19 @@ const CapabilitiesCard = () => (
       <div className="flex items-center gap-3 mb-2">
         
         <CardTitle className="text-xl">
-          {t`Unlock Your Full Potential with Cverra`}
+          {t`Unlock Your Full Potential with Inlirah Resume Builder`}
         </CardTitle>
       </div>
       
       <CardDescription className="space-y-4 text-foreground/80 dark:text-foreground/80">
         <div className="space-y-3">
           <p className="text-lg font-medium text-blue-700 dark:text-blue-300">
-            <Trans>Cverra powerful resume builder gives you the best.</Trans>
+            <Trans>Inlirah resume builder gives you the best.</Trans>
           </p>
           
           <div className="space-y-2">
             <h4 className="font-semibold text-foreground dark:text-foreground">
-              {t`Cverra handles all kinds of complex resumes with ease:`}
+              {t`Inlirah handles all kinds of complex resumes with ease:`}
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
@@ -77,7 +77,7 @@ const CapabilitiesCard = () => (
           
           <div className="space-y-2 mt-4">
             <h4 className="font-semibold text-foreground dark:text-foreground">
-              {t`Why Cverra Resume Builder?`}
+              {t`Why Inlirah Resume Builder`}
             </h4>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="bg-blue-100/50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
@@ -136,7 +136,7 @@ const SupportCard = () => (
                 {t`Documentation & Guides`}
               </h4>
               <p className="text-sm mb-3">
-                {t`Comprehensive guides and tutorials to help you make the most of Cverra's features.`}
+                {t`Comprehensive guides and tutorials to help you make the most of Inlirah Resume Builder's features.`}
               </p>
               <a
                 className={cn(buttonVariants({ size: "sm", variant: "outline" }), "border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20 w-full")}
@@ -176,10 +176,10 @@ const SupportCard = () => (
                   <div>
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{t`Email Support`}</p>
                     <a 
-                      href="mailto:support@cverra.com" 
+                      href="mailto:support@i.com" 
                       className="text-lg font-bold text-foreground dark:text-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                     >
-                      support@cverra.com
+                      support@inlirah.com
                     </a>
                   </div>
                 </div>
@@ -224,10 +224,10 @@ export const InformationSection = () => {
       <footer className="mt-6 pt-6 border-t border-border">
         <div className="text-center space-y-2">
           <p className="text-sm text-muted-foreground">
-            <Trans>Cverra - Building Careers, One Resume at a Time</Trans>
+            <Trans>Inlirah Resume Builder- Building Careers, One Resume at a Time</Trans>
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-            <span>© {new Date().getFullYear()} Cverra</span>
+            <span>© {new Date().getFullYear()} {t`Inlirah Resume Builder`}</span>
             <span>•</span>
             <span>{t`All rights reserved`}</span>
             <span>•</span>

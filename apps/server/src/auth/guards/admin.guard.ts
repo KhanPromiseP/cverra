@@ -1,4 +1,4 @@
-// src/auth/guards/admin.guard.ts
+
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../../../../tools/prisma/prisma.service';
@@ -28,7 +28,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('User not found');
     }
 
-    // Check if user has admin role
+    // Allow both ADMIN and SUPER_ADMIN
     if (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Insufficient permissions. Admin access required.');
     }
@@ -39,7 +39,7 @@ export class AdminGuard implements CanActivate {
   }
 }
 
-// Optional: Super Admin Guard for more restrictive routes
+// Super Admin Guard for more restrictive routes
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
   constructor(

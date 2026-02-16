@@ -28,70 +28,84 @@ const Header = () => {
   const profiles = useArtboardStore((state) => state.resume.sections.profiles);
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-2 pb-2 text-center">
-      <Picture />
-
-      <div>
-        <div className="text-2xl font-bold">{basics.name}</div>
-        <div className="text-base">{basics.headline}</div>
+    <div className="flex items-start gap-4 pb-4 border-b border-primary/20">
+      {/* Picture - Smaller */}
+      <div className="shrink-0">
+        <Picture size={80} className="rounded-full border-2 border-primary/30" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
-        {basics.location && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-map-pin text-primary" />
-            <div>{basics.location}</div>
+      {/* Main Header Content - Compact */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 truncate">{basics.name}</h1>
+            <p className="text-sm text-primary font-medium truncate">{basics.headline}</p>
           </div>
-        )}
-        {basics.phone && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-phone text-primary" />
-            <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-              {basics.phone}
-            </a>
-          </div>
-        )}
-        {basics.email && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-at text-primary" />
-            <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-              {basics.email}
-            </a>
-          </div>
-        )}
-
-        <Link url={basics.url} />
-
-        {basics.customFields.map((item) => (
-          <div key={item.id} className="flex items-center gap-x-1.5">
-            <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
-            {isUrl(item.value) ? (
-              <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
-                {item.name || item.value}
+          
+          {/* Contact Info - Full Visibility with Labels */}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {basics.phone && (
+              <a href={`tel:${basics.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-primary">
+                <i className="ph ph-bold ph-phone text-sm" />
+                <span>{basics.phone}</span>
               </a>
-            ) : (
-              <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+            )}
+            {basics.email && (
+              <a href={`mailto:${basics.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-primary">
+                <i className="ph ph-bold ph-at text-sm" />
+                <span>{basics.email}</span>
+              </a>
+            )}
+            {basics.location && (
+              <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                <i className="ph ph-bold ph-map-pin text-sm" />
+                <span>{basics.location}</span>
+              </span>
+            )}
+            {isUrl(basics.url.href) && (
+              <Link url={basics.url} className="text-xs text-gray-600 hover:text-primary" />
             )}
           </div>
-        ))}
-      </div>
+        </div>
 
-      {profiles.visible && profiles.items.length > 0 && (
-        <div className="flex items-center gap-x-3 gap-y-0.5">
-          {profiles.items
-            .filter((item) => item.visible)
-            .map((item) => (
-              <div key={item.id} className="flex items-center gap-x-2">
-                <Link
-                  url={item.url}
-                  label={item.username}
-                  className="text-sm"
-                  icon={<BrandIcon slug={item.icon} />}
-                />
+        {/* Custom Fields */}
+        {basics.customFields.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+            {basics.customFields.map((item) => (
+              <div key={item.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                <i className={cn(`ph ph-bold ph-${item.icon}`, "text-sm")} />
+                {isUrl(item.value) ? (
+                  <a href={item.value} target="_blank" rel="noreferrer noopener nofollow" className="hover:text-primary">
+                    {item.name || item.value}
+                  </a>
+                ) : (
+                  <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+                )}
               </div>
             ))}
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Profiles - Full Visibility with Usernames */}
+        {profiles.visible && profiles.items.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t border-gray-100">
+            {profiles.items
+              .filter((item) => item.visible)
+              .map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url.href}
+                  target="_blank"
+                  rel="noreferrer noopener nofollow"
+                  className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-primary"
+                >
+                  <BrandIcon slug={item.icon} />
+                  <span>{item.username}</span>
+                </a>
+              ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -102,15 +116,13 @@ const Summary = () => {
   if (!section.visible || isEmptyString(section.content)) return null;
 
   return (
-    <section id={section.id}>
-      <h4 className="mb-2 border-b border-primary text-center font-bold text-primary">
+    <section id={section.id} className="mb-3">
+      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
         {section.name}
       </h4>
-
       <div
         dangerouslySetInnerHTML={{ __html: sanitize(section.content) }}
-        style={{ columns: section.columns }}
-        className="wysiwyg"
+        className="wysiwyg text-xs text-gray-700 leading-relaxed"
       />
     </section>
   );
@@ -119,11 +131,14 @@ const Summary = () => {
 type RatingProps = { level: number };
 
 const Rating = ({ level }: RatingProps) => (
-  <div className="flex items-center gap-x-1.5">
+  <div className="flex items-center gap-0.5">
     {Array.from({ length: 5 }).map((_, index) => (
       <div
         key={index}
-        className={cn("h-3 w-5 rounded border-2 border-primary", level > index && "bg-primary")}
+        className={cn(
+          "h-1.5 w-3 rounded-xs",
+          level > index ? "bg-primary" : "bg-gray-200"
+        )}
       />
     ))}
   </div>
@@ -132,27 +147,24 @@ const Rating = ({ level }: RatingProps) => (
 type LinkProps = {
   url: URL;
   icon?: React.ReactNode;
-  iconOnRight?: boolean;
   label?: string;
   className?: string;
+  iconOnly?: boolean;
 };
 
-const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
+const Link = ({ url, icon, label, className }: LinkProps) => {
   if (!isUrl(url.href)) return null;
 
   return (
-    <div className="flex items-center gap-x-1.5">
-      {!iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
-      <a
-        href={url.href}
-        target="_blank"
-        rel="noreferrer noopener nofollow"
-        className={cn("inline-block", className)}
-      >
-        {label ?? (url.label || url.href)}
-      </a>
-      {iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
-    </div>
+    <a
+      href={url.href}
+      target="_blank"
+      rel="noreferrer noopener nofollow"
+      className={cn("inline-flex items-center gap-1.5 hover:text-primary", className)}
+    >
+      {icon ?? <i className="ph ph-bold ph-link text-sm" />}
+      <span>{label ?? (url.label || url.href)}</span>
+    </a>
   );
 };
 
@@ -165,15 +177,9 @@ type LinkedEntityProps = {
 
 const LinkedEntity = ({ name, url, separateLinks, className }: LinkedEntityProps) => {
   return !separateLinks && isUrl(url.href) ? (
-    <Link
-      url={url}
-      label={name}
-      icon={<i className="ph ph-bold ph-globe text-primary" />}
-      iconOnRight={true}
-      className={className}
-    />
+    <Link url={url} label={name} className={className} />
   ) : (
-    <div className={className}>{name}</div>
+    <span className={cn("font-medium text-gray-900", className)}>{name}</span>
   );
 };
 
@@ -185,6 +191,7 @@ type SectionProps<T> = {
   levelKey?: keyof T;
   summaryKey?: keyof T;
   keywordsKey?: keyof T;
+  compact?: boolean;
 };
 
 const Section = <T,>({
@@ -195,17 +202,23 @@ const Section = <T,>({
   levelKey,
   summaryKey,
   keywordsKey,
+  compact = false,
 }: SectionProps<T>) => {
+  if (!section || !section.items || !Array.isArray(section.items)) return null;
   if (!section.visible || section.items.length === 0) return null;
 
   return (
-    <section id={section.id} className="grid">
-      <h4 className="mb-2 border-b border-primary text-center font-bold text-primary">
+    <section id={section.id} className="mb-4 last:mb-0">
+      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 border-b border-gray-200 pb-0.5">
         {section.name}
       </h4>
 
       <div
-        className="grid gap-x-6 gap-y-3"
+        className={cn(
+          "grid",
+          compact ? "gap-2" : "gap-3",
+          section.columns > 1 && `grid-cols-${section.columns}`
+        )}
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
@@ -217,23 +230,38 @@ const Section = <T,>({
             const keywords = (keywordsKey && get(item, keywordsKey, [])) as string[] | undefined;
 
             return (
-              <div key={item.id} className={cn("space-y-2", className)}>
+              <div key={item.id} className={cn("space-y-1 text-xs", className)}>
                 <div>{children?.(item as T)}</div>
 
                 {summary !== undefined && !isEmptyString(summary) && (
                   <div
                     dangerouslySetInnerHTML={{ __html: sanitize(summary) }}
-                    className="wysiwyg"
+                    className="wysiwyg text-xs text-gray-600"
                   />
                 )}
 
-                {level !== undefined && level > 0 && <Rating level={level} />}
-
-                {keywords !== undefined && keywords.length > 0 && (
-                  <p className="text-sm">{keywords.join(", ")}</p>
+                {level !== undefined && level > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Rating level={level} />
+                  </div>
                 )}
 
-                {url !== undefined && section.separateLinks && <Link url={url} />}
+                {keywords !== undefined && keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {keywords.map((keyword, idx) => (
+                      <span
+                        key={idx}
+                        className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] rounded"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {url !== undefined && section.separateLinks && (
+                  <Link url={url} className="text-xs text-primary/70" />
+                )}
               </div>
             );
           })}
@@ -242,22 +270,40 @@ const Section = <T,>({
   );
 };
 
+// ============ COMPACT SECTION COMPONENTS ============
+
 const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
-
   return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+    <Section<Experience> section={section} urlKey="url" summaryKey="summary" compact>
       {(item) => (
-        <div>
-          <LinkedEntity
-            name={item.company}
-            url={item.url}
-            separateLinks={section.separateLinks}
-            className="font-bold"
-          />
-          <div>{item.position}</div>
-          <div>{item.location}</div>
-          <div className="font-bold">{item.date}</div>
+        <div className="space-y-0.5">
+          {/* Row 1: Company | Date */}
+          <div className="flex items-start justify-between gap-2">
+            <LinkedEntity
+              name={item.company}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="text-xs font-bold text-gray-900"
+            />
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-medium text-primary whitespace-nowrap">
+                {item.date}
+              </span>
+              {/* Location - Directly under date, aligned right */}
+              {item.location && (
+                <span className="text-[9px] text-gray-500 whitespace-nowrap mt-0.5">
+                  <i className="mr-2 ph ph-map-pin text-[10px]" />
+                  {item.location}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* Row 2: Position (full width) */}
+          <div className="text-[11px] text-gray-700 font-medium">
+            {item.position}
+          </div>
         </div>
       )}
     </Section>
@@ -266,53 +312,28 @@ const Experience = () => {
 
 const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
-
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+    <Section<Education> section={section} urlKey="url" summaryKey="summary" compact>
       {(item) => (
-        <div>
-          <LinkedEntity
-            name={item.institution}
-            url={item.url}
-            separateLinks={section.separateLinks}
-            className="font-bold"
-          />
-          <div>{item.area}</div>
-          <div>{item.score}</div>
-          <div>{item.studyType}</div>
-          <div className="font-bold">{item.date}</div>
-        </div>
-      )}
-    </Section>
-  );
-};
-
-const Awards = () => {
-  const section = useArtboardStore((state) => state.resume.sections.awards);
-
-  return (
-    <Section<Award> section={section} urlKey="url" summaryKey="summary">
-      {(item) => (
-        <div>
-          <div className="font-bold">{item.title}</div>
-          <LinkedEntity name={item.awarder} url={item.url} separateLinks={section.separateLinks} />
-          <div className="font-bold">{item.date}</div>
-        </div>
-      )}
-    </Section>
-  );
-};
-
-const Certifications = () => {
-  const section = useArtboardStore((state) => state.resume.sections.certifications);
-
-  return (
-    <Section<Certification> section={section} urlKey="url" summaryKey="summary">
-      {(item) => (
-        <div>
-          <div className="font-bold">{item.name}</div>
-          <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
-          <div className="font-bold">{item.date}</div>
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <LinkedEntity
+              name={item.institution}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="text-xs font-bold text-gray-900"
+            />
+            <span className="text-[10px] font-medium text-primary whitespace-nowrap">
+              {item.date}
+            </span>
+          </div>
+          <div className="text-[11px] text-gray-700">{item.area}</div>
+          {(item.studyType || item.score) && (
+            <div className="flex flex-wrap gap-1 text-[10px] text-gray-600">
+              {item.studyType && <span>{item.studyType}</span>}
+              {item.score && <span>• {item.score}</span>}
+            </div>
+          )}
         </div>
       )}
     </Section>
@@ -321,81 +342,58 @@ const Certifications = () => {
 
 const Skills = () => {
   const section = useArtboardStore((state) => state.resume.sections.skills);
-
   return (
-    <Section<Skill> section={section} levelKey="level" keywordsKey="keywords">
+    <Section<Skill> section={section} levelKey="level" keywordsKey="keywords" compact>
       {(item) => (
-        <div>
-          <div className="font-bold">{item.name}</div>
-          <div>{item.description}</div>
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-gray-900">{item.name}</div>
+          {item.description && (
+            <div className="text-[10px] text-gray-600 italic">{item.description}</div>
+          )}
         </div>
       )}
     </Section>
   );
 };
 
-const Interests = () => {
-  const section = useArtboardStore((state) => state.resume.sections.interests);
-
+const Awards = () => {
+  const section = useArtboardStore((state) => state.resume.sections.awards);
   return (
-    <Section<Interest> section={section} keywordsKey="keywords" className="space-y-0.5">
-      {(item) => <div className="font-bold">{item.name}</div>}
-    </Section>
-  );
-};
-
-const Publications = () => {
-  const section = useArtboardStore((state) => state.resume.sections.publications);
-
-  return (
-    <Section<Publication> section={section} urlKey="url" summaryKey="summary">
+    <Section<Award> section={section} urlKey="url" summaryKey="summary" compact>
       {(item) => (
-        <div>
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-xs font-bold text-gray-900">{item.title}</span>
+            <span className="text-[10px] font-medium text-primary">{item.date}</span>
+          </div>
           <LinkedEntity
-            name={item.name}
+            name={item.awarder}
             url={item.url}
             separateLinks={section.separateLinks}
-            className="font-bold"
+            className="text-[10px] text-gray-600"
           />
-          <div>{item.publisher}</div>
-          <div className="font-bold">{item.date}</div>
         </div>
       )}
     </Section>
   );
 };
 
-const Volunteer = () => {
-  const section = useArtboardStore((state) => state.resume.sections.volunteer);
-
+const Certifications = () => {
+  const section = useArtboardStore((state) => state.resume.sections.certifications);
   return (
-    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
+    <Section<Certification> section={section} urlKey="url" summaryKey="summary" compact>
       {(item) => (
-        <div>
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-xs font-bold text-gray-900">{item.name}</span>
+            <span className="text-[10px] font-medium text-primary">{item.date}</span>
+          </div>
           <LinkedEntity
-            name={item.organization}
+            name={item.issuer}
             url={item.url}
             separateLinks={section.separateLinks}
-            className="font-bold"
+            className="text-[10px] text-gray-600"
           />
-          <div>{item.position}</div>
-          <div>{item.location}</div>
-          <div className="font-bold">{item.date}</div>
-        </div>
-      )}
-    </Section>
-  );
-};
-
-const Languages = () => {
-  const section = useArtboardStore((state) => state.resume.sections.languages);
-
-  return (
-    <Section<Language> section={section} levelKey="level">
-      {(item) => (
-        <div>
-          <div className="font-bold">{item.name}</div>
-          <div>{item.description}</div>
         </div>
       )}
     </Section>
@@ -404,22 +402,102 @@ const Languages = () => {
 
 const Projects = () => {
   const section = useArtboardStore((state) => state.resume.sections.projects);
-
   return (
-    <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords">
+    <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords" compact>
       {(item) => (
-        <div>
-          <div>
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
             <LinkedEntity
               name={item.name}
               url={item.url}
               separateLinks={section.separateLinks}
-              className="font-bold"
+              className="text-xs font-bold text-gray-900"
             />
-            <div>{item.description}</div>
-            <div className="font-bold">{item.date}</div>
+            <span className="text-[10px] font-medium text-primary">{item.date}</span>
           </div>
+          {item.description && (
+            <div className="text-[10px] text-gray-600">{item.description}</div>
+          )}
         </div>
+      )}
+    </Section>
+  );
+};
+
+const Volunteer = () => {
+  const section = useArtboardStore((state) => state.resume.sections.volunteer);
+  return (
+    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary" compact>
+      {(item) => (
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <LinkedEntity
+              name={item.organization}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="text-xs font-bold text-gray-900"
+            />
+            <span className="text-[10px] font-medium text-primary">{item.date}</span>
+          </div>
+          <div className="text-[11px] text-gray-700 font-medium">{item.position}</div>
+          {item.location && (
+            <div className="text-[10px] text-gray-500">{item.location}</div>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+};
+
+const Publications = () => {
+  const section = useArtboardStore((state) => state.resume.sections.publications);
+  return (
+    <Section<Publication> section={section} urlKey="url" summaryKey="summary" compact>
+      {(item) => (
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <LinkedEntity
+              name={item.name}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="text-xs font-bold text-gray-900"
+            />
+            <span className="text-[10px] font-medium text-primary">{item.date}</span>
+          </div>
+          <div className="text-[10px] text-gray-600">{item.publisher}</div>
+        </div>
+      )}
+    </Section>
+  );
+};
+
+const Languages = () => {
+  const section = useArtboardStore((state) => state.resume.sections.languages);
+  return (
+    <Section<Language> section={section} levelKey="level" compact>
+      {(item) => (
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-900">{item.name}</span>
+            {item.level > 0 && <Rating level={item.level} />}
+          </div>
+          {item.description && (
+            <div className="text-[10px] text-gray-600">{item.description}</div>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+};
+
+const Interests = () => {
+  const section = useArtboardStore((state) => state.resume.sections.interests);
+  return (
+    <Section<Interest> section={section} keywordsKey="keywords" compact>
+      {(item) => (
+        <span className="inline-block text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-700">
+          {item.name}
+        </span>
       )}
     </Section>
   );
@@ -427,18 +505,19 @@ const Projects = () => {
 
 const References = () => {
   const section = useArtboardStore((state) => state.resume.sections.references);
-
   return (
-    <Section<Reference> section={section} urlKey="url" summaryKey="summary">
+    <Section<Reference> section={section} urlKey="url" summaryKey="summary" compact>
       {(item) => (
-        <div>
+        <div className="space-y-0.5">
           <LinkedEntity
             name={item.name}
             url={item.url}
             separateLinks={section.separateLinks}
-            className="font-bold"
+            className="text-xs font-bold text-gray-900"
           />
-          <div>{item.description}</div>
+          {item.description && (
+            <div className="text-[10px] text-gray-600 italic">{item.description}</div>
+          )}
         </div>
       )}
     </Section>
@@ -447,27 +526,33 @@ const References = () => {
 
 const Custom = ({ id }: { id: string }) => {
   const section = useArtboardStore((state) => state.resume.sections.custom[id]);
-
   return (
     <Section<CustomSection>
       section={section}
       urlKey="url"
       summaryKey="summary"
       keywordsKey="keywords"
+      compact
     >
       {(item) => (
-        <div>
-          <div>
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
             <LinkedEntity
               name={item.name}
               url={item.url}
               separateLinks={section.separateLinks}
-              className="font-bold"
+              className="text-xs font-bold text-gray-900"
             />
-            <div>{item.description}</div>
-            <div>{item.location}</div>
-            <div className="font-bold">{item.date}</div>
+            {item.date && (
+              <span className="text-[10px] font-medium text-primary">{item.date}</span>
+            )}
           </div>
+          {item.description && (
+            <div className="text-[10px] text-gray-600">{item.description}</div>
+          )}
+          {item.location && (
+            <div className="text-[10px] text-gray-500">{item.location}</div>
+          )}
         </div>
       )}
     </Section>
@@ -476,45 +561,20 @@ const Custom = ({ id }: { id: string }) => {
 
 const mapSectionToComponent = (section: SectionKey) => {
   switch (section) {
-    case "summary": {
-      return <Summary />;
-    }
-    case "experience": {
-      return <Experience />;
-    }
-    case "education": {
-      return <Education />;
-    }
-    case "awards": {
-      return <Awards />;
-    }
-    case "certifications": {
-      return <Certifications />;
-    }
-    case "skills": {
-      return <Skills />;
-    }
-    case "interests": {
-      return <Interests />;
-    }
-    case "publications": {
-      return <Publications />;
-    }
-    case "volunteer": {
-      return <Volunteer />;
-    }
-    case "languages": {
-      return <Languages />;
-    }
-    case "projects": {
-      return <Projects />;
-    }
-    case "references": {
-      return <References />;
-    }
+    case "summary": return <Summary />;
+    case "experience": return <Experience />;
+    case "education": return <Education />;
+    case "awards": return <Awards />;
+    case "certifications": return <Certifications />;
+    case "skills": return <Skills />;
+    case "interests": return <Interests />;
+    case "publications": return <Publications />;
+    case "volunteer": return <Volunteer />;
+    case "languages": return <Languages />;
+    case "projects": return <Projects />;
+    case "references": return <References />;
     default: {
       if (section.startsWith("custom.")) return <Custom id={section.split(".")[1]} />;
-
       return null;
     }
   }
@@ -522,17 +582,14 @@ const mapSectionToComponent = (section: SectionKey) => {
 
 export const Ascend = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
+  const allSections = [...main, ...sidebar];
 
   return (
-    <div className="p-custom space-y-4">
+    <div className="bg-white p-5 shadow-sm">
       {isFirstPage && <Header />}
-
-      <div className="space-y-4">
-        {main.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
-
-        {sidebar.map((section) => (
+      
+      <div className="space-y-3">
+        {allSections.map((section) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
       </div>

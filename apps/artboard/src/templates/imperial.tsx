@@ -28,8 +28,8 @@ const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
 
   return (
-    <div className="flex items-start justify-between mb-6">
-  <div className="flex items-start gap-4">
+    <div className="flex items-start justify-between mb-2">
+  <div className="flex items-start gap-2">
 
     {/* DECORATED PROFILE PICTURE */}
     <div className="relative">
@@ -56,8 +56,8 @@ const Header = () => {
     </div>
 
     {/* NAME + CONTACT DETAILS */}
-    <div className="space-y-1">
-      <div className="text-2xl font-bold text-gray-900">{basics.name}</div>
+    <div className="ml-4 space-y-1">
+      <div className="text-2xl mt-10 font-bold text-gray-900">{basics.name}</div>
       <div className="text-base text-primary font-semibold">{basics.headline}</div>
       
       <div className="flex flex-wrap gap-2 text-xs text-gray-700 mt-2">
@@ -213,6 +213,8 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (
@@ -280,34 +282,36 @@ const Experience = () => {
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
-          <div className="text-left space-y-1 flex-1">
-            <div className="flex items-start justify-between">
-              <LinkedEntity
-                name={item.company}
-                url={item.url}
-                separateLinks={section.separateLinks}
-                className="text-base"
-              />
-              <div className="shrink-0 text-right group-[.sidebar]:text-left group-[.sidebar]:mt-1">
-                <div className="font-bold text-gray-900 bg-primary/10 px-2 py-0.5 rounded text-xs">
-                  {item.date}
-                </div>
+        <div className="space-y-1.5">
+          {/* Company + Date - Same line */}
+          <div className="flex items-start justify-between gap-2">
+            <LinkedEntity
+              name={item.company}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="text-sm font-semibold text-gray-900 group-[.sidebar]:text-white"
+            />
+            
+            {/* Date - Right Aligned */}
+            <div className="shrink-0 text-right">
+              <div className="text-xs font-medium text-gray-600 group-[.sidebar]:text-white/70">
+                {item.date}
               </div>
             </div>
-            <div className="text-primary font-semibold text-sm">{item.position}</div>
-            {item.summary && (
-              <ul className="text-xs text-gray-700 space-y-0.5 mt-1">
-                {item.summary.split('\n').map((point, index) => (
-                  <li key={index} className="flex items-start gap-x-1">
-                    <span className="text-primary mt-1 text-xs">•</span>
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+          </div>
+
+          {/* Position + Location - Same line */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-primary/80 font-medium group-[.sidebar]:text-white/80">
+              {item.position}
+            </div>
+            
+            {/* Location - Right aligned with position */}
             {item.location && (
-              <div className="text-xs text-gray-600 mt-1">{item.location}</div>
+              <div className="flex items-center gap-1 text-xs text-gray-500 group-[.sidebar]:text-white/60">
+                <i className="ph ph-map-pin text-[10px]" />
+                <span>{item.location}</span>
+              </div>
             )}
           </div>
         </div>
@@ -359,7 +363,7 @@ const Profiles = () => {
   return (
     <Section<Profile>
       section={section}
-      className="flex gap-4 flex-nowrap"   // ← THIS forces side-by-side
+      className="flex gap-1 flex-nowrap"   // ← THIS forces side-by-side
     >
       {(item) => (
         <div className="shrink-0">        {/* prevents element from shrinking */}
@@ -370,13 +374,13 @@ const Profiles = () => {
               icon={<BrandIcon slug={item.icon} />}
             />
           ) : (
-            <div className="font-bold text-gray-900 text-sm">
+            <div className="font-bold text-gray-900 text-xs">
               {item.username}
             </div>
           )}
 
           {!item.icon && (
-            <div className="text-xs text-gray-600 mt-0.5">
+            <div className="text-lg text-gray-600 mt-0.5">
               {item.network}
             </div>
           )}
@@ -418,22 +422,36 @@ const Awards = () => {
 
 const Certifications = () => {
   const section = useArtboardStore((state) => state.resume.sections.certifications);
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   return (
     <Section<Certification> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
-          <div className="text-left space-y-1 flex-1">
-            <div className="flex items-start justify-between">
-              <div className="text-base font-bold text-gray-900">{item.name}</div>
-              <div className="shrink-0 text-right group-[.sidebar]:text-left group-[.sidebar]:mt-1">
-                <div className="font-bold text-gray-900 bg-primary/10 px-2 py-0.5 rounded text-xs">
-                  {item.date}
-                </div>
-              </div>
+        <div className="space-y-1">
+          {/* Header: Name + Date */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-sm font-semibold text-gray-900 group-[.sidebar]:text-white">
+              {item.name}
             </div>
-            <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
+            
+            <div 
+              className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ 
+                backgroundColor: `${primaryColor}15`,
+                color: primaryColor 
+              }}
+            >
+              {item.date}
+            </div>
           </div>
+
+          {/* Issuer */}
+          <LinkedEntity 
+            name={item.issuer} 
+            url={item.url} 
+            separateLinks={section.separateLinks}
+            className="text-xs text-gray-600 group-[.sidebar]:text-gray-300" 
+          />
         </div>
       )}
     </Section>
@@ -446,10 +464,24 @@ const Skills = () => {
   return (
     <Section<Skill> section={section} levelKey="level" keywordsKey="keywords">
       {(item) => (
-        <div className="space-y-1">
-          <div className="font-bold text-gray-900 text-sm">{item.name}</div>
+        <div className="space-y-0.5">
+          {/* Skill Name */}
+          <div className="font-semibold text-gray-900 text-lg group-[.sidebar]:text-white">
+            {item.name}
+          </div>
+          
+          {/* Keywords - Comma separated (takes less space) */}
+          {item.keywords && item.keywords.length > 0 && (
+            <div className="text-xs text-gray-600 group-[.sidebar]:text-gray-300">
+              {item.keywords.join(' • ')}
+            </div>
+          )}
+          
+          {/* Description - Optional */}
           {item.description && (
-            <div className="text-xs text-gray-700">{item.description}</div>
+            <div className="text-xs text-gray-600 group-[.sidebar]:text-gray-300">
+              {item.description}
+            </div>
           )}
         </div>
       )}
@@ -684,24 +716,36 @@ const mapSectionToComponent = (section: SectionKey) => {
 
 export const Imperial = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
+  const basics = useArtboardStore((state) => state.resume.basics);
+   const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
 
   return (
     <div className="p-1 min-h-[inherit] border-4 border-primary rounded-xl bg-white shadow-sm overflow-hidden">
+      
+      {/* ✅ HEADER SPANS FULL WIDTH WITH BOTTOM LINE */}
+      {isFirstPage && (
+        <div 
+  className="px-6 pt-1 border-b-2"
+  style={{ borderBottomColor: primaryColor }}
+>
+          <Header />
+        </div>
+      )}
 
       <div className="grid min-h-[inherit] grid-cols-3">
+        {/* MAIN COLUMN - NO HEADER HERE */}
         <div
           className={cn(
             "main p-6 group space-y-4",
             sidebar.length > 0 ? "col-span-2" : "col-span-3",
           )}
         >
-          {isFirstPage && <Header />}
-
           {main.map((section) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}
         </div>
 
+        {/* SIDEBAR COLUMN - REMOVE CONTACT INFO, ONLY SECTIONS */}
         <div
           className={cn(
             "sidebar p-6 group h-full space-y-4 bg-primary text-white",

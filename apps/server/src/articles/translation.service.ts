@@ -4,7 +4,18 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { PrismaService } from '../../../../tools/prisma/prisma.service';
-import { TranslationStatus, ArticleStatus } from '@prisma/client';
+import { TranslationStatus } from '@prisma/client';
+
+export enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
 
 export interface TranslationResult {
   title: string;

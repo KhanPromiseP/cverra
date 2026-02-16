@@ -22,26 +22,32 @@ export const CoverLetterDashboard = () => {
   }, []);
 
   const fetchCoverLetters = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await coverLetterService.findAll();
-      setCoverLetters(data || []);
-    } catch (error: any) {
-      console.error('Failed to fetch cover letters:', error);
-      
-      if (error.response?.status === 401) {
-        setError(t`Please log in to access letters.`);
-      } else if (error.response?.status === 404) {
-        setError(t`API endpoint not found. Please check if the backend is running.`);
-      } else {
-        setError(error.message || t`Failed to load letters. Please try again.`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const data = await coverLetterService.findAll();
+    
+
+    const uniqueLetters = Array.from(
+      new Map(data?.map(letter => [letter.id, letter])).values()
+    );
+    
+    // Sort by updatedAt
+    uniqueLetters.sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    
+    console.log('Original count:', data?.length);
+    console.log('Unique count:', uniqueLetters.length);
+    
+    setCoverLetters(uniqueLetters);
+  } catch (error: any) {
+    // ... error handling
+  } finally {
+    setLoading(false);
+  }
+};
 
   const deleteCoverLetter = async (id: string) => {
     if (!confirm(t`Are you sure you want to delete this letter?`)) return;
@@ -216,14 +222,19 @@ const duplicateLetter = async () => {
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                   <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div>
-                  <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 to-blue-700 dark:from-white dark:to-blue-300 bg-clip-text text-transparent">
-                    {t`Letters`}
+                <div className="space-y-2">
+                  <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight 
+                    bg-gradient-to-r from-slate-900 via-blue-700 to-indigo-700 
+                    dark:from-white dark:via-blue-300 dark:to-indigo-300 
+                    bg-clip-text text-transparent">
+                    {t`All Letter Categories`}
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    {t`Professional correspondence and communications`}
+
+                  <p className="text-base lg:text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
+                    {t`Craft clear, professional, and purpose-driven letters with INLIRAH’s intelligent writing system.`}
                   </p>
                 </div>
+
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700">
@@ -272,25 +283,45 @@ const duplicateLetter = async () => {
             <Card className="border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 overflow-hidden">
               <CardContent className="p-12 text-center">
                 <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-2xl opacity-50"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-200 to-purple-400 dark:from-blue-900 dark:to-purple-900 rounded-full blur-2xl opacity-50"></div>
                   <div className="relative w-32 h-32 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl">
                     <FileText className="w-16 h-16 text-white" />
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{t`No letters created yet`}</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-lg">
-                  {t`Start by creating your first professional letter. Our AI will help you craft the perfect message.`}
+                  {t`Start by creating your first professional letter. Our smart model will help you craft the perfect message.`}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/docs/#letter-builder" className="w-full sm:w-auto">
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all">
+                 <Link to="/dashboard/cover-letters/wizard" className="w-full sm:w-auto">
+                    <Button
+                      className="
+                        w-full
+                        sm:w-auto
+                        flex items-center justify-center
+                        gap-2
+                        bg-gradient-to-r from-blue-600 to-indigo-600
+                        hover:from-blue-700 hover:to-indigo-700
+                        text-white
+                        px-6 sm:px-8
+                        py-4 sm:py-3
+                        text-base sm:text-lg
+                        rounded-xl
+                        shadow-lg hover:shadow-xl
+                        transition-all duration-300
+                        active:scale-[0.98]
+                      "
+                    >
                       {t`Create First Letter`}
-                      <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                     </Button>
                   </Link>
-                  <Button variant="outline" className="px-8 py-3 text-lg">
-                    {t`Get Help`}
-                  </Button>
+
+                  <Link to="/docs/#letter-builder" className="w-full sm:w-auto">
+                    <Button variant="outline" className="px-8 py-3 text-lg">
+                      {t`Get Help`}
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -42,7 +42,10 @@ import {
   CrownOutlined,
   RocketOutlined,
   CheckCircleOutlined,
-  EditOutlined
+  EditOutlined,
+   LeftOutlined, 
+  RightOutlined, 
+
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import SafeJoditWrapper from '../../../../components/article-editor/SafeJoditWrapper';
@@ -56,6 +59,7 @@ import {
   uploadImage
 } from '../../../../services/article.service';
 import { RcFile } from 'antd/es/upload';
+import { useNavigate } from 'react-router';
 
 import { 
   TranslationOutlined, 
@@ -76,6 +80,9 @@ import {
   updateTranslation,
   regenerateTranslation 
 } from '../../../../services/article.service';
+
+import { useUser } from '@/client/services/user'; 
+import { useAuthStore } from '@/client/stores/auth'; 
 
 const { TabPane } = Tabs;
 
@@ -325,6 +332,8 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
 };
 
 
+
+
   return (
     <Card>
 
@@ -534,10 +543,6 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
   );
 };
 
-// Navigation helper functions
-const navigateTo = (path: string) => {
-  window.location.href = path;
-};
 
 const getArticleIdFromUrl = (): string | null => {
   const path = window.location.pathname;
@@ -570,6 +575,7 @@ const getArticleIdFromUrl = (): string | null => {
 };
 
 const ArticleForm: React.FC = () => {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
@@ -587,7 +593,13 @@ const ArticleForm: React.FC = () => {
   const [isEditingTranslation, setIsEditingTranslation] = useState(false);
 
   
+  const [tagInput, setTagInput] = useState('');
+  const { user, loading: userLoading, isAuthenticated } = useUser();
   
+  // Determine user role
+  const userRole = user?.role || 'ADMIN';
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+
   // Add this to track if we're in translation edit mode
   const [translationForm] = Form.useForm();
   
@@ -746,27 +758,100 @@ useEffect(() => {
   }, [form]);
 
   const fetchCategories = async () => {
-    try {
-      const categoriesData = await getCategories();
-      
-      if (!Array.isArray(categoriesData)) {
-        console.error('Categories is not an array:', categoriesData);
-        message.error(t`Invalid categories data format`);
-        setCategories([]);
-        return;
+  try {
+    const response = await getCategories();
+    
+    // Check if response is an object with data property
+    let categoriesData = response;
+    
+    if (response && typeof response === 'object') {
+      // If response has a 'data' property, use that
+      if ('data' in response && Array.isArray(response.data)) {
+        categoriesData = response.data;
       }
-      
-      setCategories(categoriesData || []);
-      
-      if (categoriesData.length === 0) {
-        message.warning(t`No categories found. Please create categories first.`);
+      // If response has a 'categories' property, use that
+      else if ('categories' in response && Array.isArray(response.categories)) {
+        categoriesData = response.categories;
       }
-    } catch (error: any) {
-      console.error('Error fetching categories:', error);
-      message.error(t`Failed to load categories`);
+    }
+    
+    if (!Array.isArray(categoriesData)) {
+      console.error('Categories is not an array:', categoriesData);
+      message.error(t`Invalid categories data format`);
       setCategories([]);
+      return;
+    }
+    
+    setCategories(categoriesData || []);
+    
+    if (categoriesData.length === 0) {
+      message.warning(t`No categories found. Please create categories first.`);
+    }
+  } catch (error: any) {
+    console.error('Error fetching categories:', error);
+    message.error(t`Failed to load categories`);
+    setCategories([]);
+  }
+};
+
+const TagsInputField = ({ value = [], onChange, disabled }: { 
+  value?: string[]; 
+  onChange?: (value: string[]) => void;
+  disabled?: boolean;
+}) => {
+  const [tagInput, setTagInput] = useState('');
+
+  const handleAddTag = () => {
+    const trimmed = tagInput.trim();
+    if (trimmed && !value.includes(trimmed)) {
+      onChange?.([...value, trimmed]);
+      setTagInput('');
     }
   };
+
+  return (
+    <div>
+      {/* Display tags above input */}
+      <div style={{ marginBottom: 8, minHeight: 32 }}>
+        {value.map((tag: string) => (
+          <Tag
+            key={tag}
+            closable={!disabled}
+            onClose={() => {
+              onChange?.(value.filter((t: string) => t !== tag));
+            }}
+            style={{ marginRight: 4, marginBottom: 4 }}
+          >
+            {tag}
+          </Tag>
+        ))}
+      </div>
+      
+      {/* Simple input for adding new tags */}
+      <Input
+        value={tagInput}
+        onChange={(e) => setTagInput(e.target.value)}
+        onPressEnter={(e) => {
+          e.preventDefault();
+          handleAddTag();
+        }}
+        onBlur={handleAddTag}
+        placeholder={t`Type and press Enter`}
+        disabled={disabled}
+        suffix={
+          <span style={{ 
+            color: tagInput ? '#1890ff' : '#d9d9d9',
+            fontSize: '12px',
+            cursor: 'pointer'
+          }} onClick={handleAddTag}>
+            ↵
+          </span>
+        }
+      />
+    </div>
+  );
+};
+
 
   const fetchArticle = async () => {
     if (!id) return;
@@ -1154,101 +1239,122 @@ const extractPlainText = (content: any): string => {
     }
   }, [currentStep, form, hasActualContent]);
 
-  const handleSubmit = useCallback(async (status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' = 'DRAFT') => {
-    try {
-      if (!formValues.title?.trim()) {
-        setCurrentStep(0);
-        message.error(t`Please enter article title`);
-        return;
-      }
-      
-      if (!formValues.excerpt?.trim()) {
-        setCurrentStep(0);
-        message.error(t`Please enter article excerpt`);
-        return;
-      }
-      
-      if (!formValues.categoryId) {
-        setCurrentStep(0);
-        message.error(t`Please select a category`);
-        return;
-      }
-      
-      if (!hasActualContent(formValues.content)) {
-        setCurrentStep(1);
-        message.error(t`Please add some content to the article`);
-        return;
-      }
-      
-      const contentForBackend = typeof formValues.content === 'string' 
-        ? formValues.content 
-        : String(formValues.content || '');
-      
-      const articleData = {
-        title: formValues.title.trim(),
-        excerpt: formValues.excerpt.trim(),
-        content: contentForBackend,
-        categoryId: formValues.categoryId,
-        tags: formValues.tags || [],
-        accessType: formValues.accessType || 'FREE',
-        coinPrice: formValues.accessType === 'PREMIUM' ? formValues.coinPrice : 0,
-        coverImage: formValues.coverImage || '',
-        metaTitle: formValues.metaTitle?.trim(),
-        metaDescription: formValues.metaDescription?.trim(),
-        autoTranslate: formValues.autoTranslate ?? true,
-        targetLanguages: formValues.autoTranslate ? (formValues.targetLanguages || ['fr']) : [],
-        
-        isFeatured: formValues.isFeatured || false,
-        isTrending: formValues.isTrending || false,
-        isEditorPick: formValues.isEditorPick || false,
-        isPopular: formValues.isPopular || false,
-        featuredRanking: formValues.featuredRanking || 3,
-        trendingScore: formValues.trendingScore || 50,
-        contentType: formValues.contentType || 'STANDARD',
-        readingLevel: formValues.readingLevel || 'INTERMEDIATE',
-        
-        timeToRead: Number(formValues.timeToRead) || 5,
-        
-        status,
-        publishedAt: status === 'PUBLISHED' ? new Date() : undefined,
-        scheduledFor: status === 'SCHEDULED' ? formValues.scheduledFor : undefined,
-      };
-      
-      setLoading(true);
-      
-      let savedArticle;
-      
-      if (isEditMode && id) {
-        savedArticle = await updateArticle(id, articleData);
-        message.success(t`Article updated successfully`);
-      } else {
-        savedArticle = await createArticle(articleData);
-        message.success(t`Article created successfully`);
-      }
-      
-      navigateTo('/dashboard/article-admin/articles');
-    } catch (error: any) {
-      console.error('Submit error:', error);
-      
-      let errorMessage = t`Failed to save article`;
-      if (error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(', ')
-          : error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      message.error(t`Error: ${errorMessage}`);
-    } finally {
-      setLoading(false);
+ const handleSubmit = useCallback(async (desiredStatus: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' = 'DRAFT') => {
+  try {
+    if (!formValues.title?.trim()) {
+      setCurrentStep(0);
+      message.error(t`Please enter article title`);
+      return;
     }
-  }, [formValues, hasActualContent, isEditMode, id]);
+    
+    if (!formValues.excerpt?.trim()) {
+      setCurrentStep(0);
+      message.error(t`Please enter article excerpt`);
+      return;
+    }
+    
+    if (!formValues.categoryId) {
+      setCurrentStep(0);
+      message.error(t`Please select a category`);
+      return;
+    }
+    
+    if (!hasActualContent(formValues.content)) {
+      setCurrentStep(1);
+      message.error(t`Please add some content to the article`);
+      return;
+    }
+    
+    const contentForBackend = typeof formValues.content === 'string' 
+      ? formValues.content 
+      : String(formValues.content || '');
+    
+    const articleData = {
+      title: formValues.title.trim(),
+      excerpt: formValues.excerpt.trim(),
+      content: contentForBackend,
+      categoryId: formValues.categoryId,
+      tags: formValues.tags || [],
+      accessType: formValues.accessType || 'FREE',
+      coinPrice: formValues.accessType === 'PREMIUM' ? formValues.coinPrice : 0,
+      coverImage: formValues.coverImage || '',
+      metaTitle: formValues.metaTitle?.trim(),
+      metaDescription: formValues.metaDescription?.trim(),
+      autoTranslate: formValues.autoTranslate ?? true,
+      targetLanguages: formValues.autoTranslate ? (formValues.targetLanguages || ['fr']) : [],
+      
+      isFeatured: formValues.isFeatured || false,
+      isTrending: formValues.isTrending || false,
+      isEditorPick: formValues.isEditorPick || false,
+      isPopular: formValues.isPopular || false,
+      featuredRanking: formValues.featuredRanking || 3,
+      trendingScore: formValues.trendingScore || 50,
+      contentType: formValues.contentType || 'STANDARD',
+      readingLevel: formValues.readingLevel || 'INTERMEDIATE',
+      
+      timeToRead: Number(formValues.timeToRead) || 5,
+      
+      // FIX: Explicitly set status from the function parameter
+      status: desiredStatus, // Changed from 'status' to 'desiredStatus' for clarity
+      publishedAt: desiredStatus === 'PUBLISHED' ? new Date() : undefined,
+      scheduledFor: desiredStatus === 'SCHEDULED' ? formValues.scheduledFor : undefined,
+    };
+    
+    console.log('DEBUG - Submitting article with:', {
+      status: desiredStatus,
+      title: articleData.title,
+      scheduledFor: articleData.scheduledFor,
+      publishedAt: articleData.publishedAt
+    });
+    
+    setLoading(true);
+    
+    let savedArticle;
+    
+    if (isEditMode && id) {
+      savedArticle = await updateArticle(id, articleData);
+      message.success(t`Article updated successfully as ${desiredStatus.toLowerCase()}`);
+    } else {
+      savedArticle = await createArticle(articleData);
+      message.success(t`Article created successfully as ${desiredStatus.toLowerCase()}`);
+    }
+    
+    navigate('/dashboard/article-admin/articles');
+    
+  } catch (error: any) {
+    console.error('Submit error:', error);
+    
+    let errorMessage = t`Failed to save article`;
+    if (error.response?.data?.message) {
+      errorMessage = Array.isArray(error.response.data.message)
+        ? error.response.data.message.join(', ')
+        : error.response.data.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    message.error(t`Error: ${errorMessage}`);
+  } finally {
+    setLoading(false);
+  }
+}, [formValues, hasActualContent, isEditMode, id, navigate]);
 
-  const handleSaveDraft = () => handleSubmit('DRAFT');
-  const handlePublish = () => handleSubmit('PUBLISHED');
-  const handleSchedule = () => handleSubmit('SCHEDULED');
-  const handleCancel = () => navigateTo('/dashboard/article-admin/articles');
+
+  const handleSaveDraft = () => {
+    console.log('DEBUG: Save Draft clicked - sending DRAFT status');
+    handleSubmit('DRAFT');
+  };
+
+  const handlePublish = () => {
+    console.log('DEBUG: Publish clicked - sending PUBLISHED status');
+    handleSubmit('PUBLISHED');
+  };
+
+  const handleSchedule = () => {
+    console.log('DEBUG: Schedule clicked - sending SCHEDULED status');
+    handleSubmit('SCHEDULED');
+  };
+  const handleCancel = () => navigate('/dashboard/article-admin/articles');
 
   const steps = [
     {
@@ -1349,7 +1455,7 @@ const extractPlainText = (content: any): string => {
               action={
                 <Button 
                   size="small" 
-                  onClick={() => navigateTo('/dashboard/article-admin/categories')}
+                  onClick={() => navigate('/dashboard/article-admin/categories')}
                 >
                   {t`Go to Categories`}
                 </Button>
@@ -1357,18 +1463,13 @@ const extractPlainText = (content: any): string => {
             />
           )}
 
-          <Form.Item
-            label={t`Tags`}
-            name="tags"
-            extra={t`Press Enter to add tags`}
-          >
-            <Select
-              mode="tags"
-              placeholder={t`Add relevant tags`}
-              style={{ width: '100%' }}
-              disabled={initialLoading}
-            />
-          </Form.Item>
+         <Form.Item
+  label={t`Tags`}
+  name="tags"
+  extra={t`Press Enter to add tags`}
+>
+  <TagsInputField disabled={initialLoading} />
+</Form.Item>
         </>
       ),
     },
@@ -1460,7 +1561,17 @@ const extractPlainText = (content: any): string => {
           <Form.Item
             label={t`Meta Title`}
             name="metaTitle"
-            extra={t`For SEO. If empty, article title will be used.`}
+            extra={
+              <div className="text-gray-500">
+                {t`For SEO. If empty, article title will be used.`}
+                <span className="text-xs italic ml-2">
+                "(recomended)"
+                </span>
+                <span className="text-red-500/80 text-xs italic ml-2">
+                  ({t`Optional if title is SEO-friendly`})
+                </span>
+              </div>
+            }
           >
             <Input 
               placeholder={t`SEO title (60-70 characters)`} 
@@ -1471,7 +1582,18 @@ const extractPlainText = (content: any): string => {
           <Form.Item
             label={t`Meta Description`}
             name="metaDescription"
-            extra={t`For SEO. If empty, excerpt will be used.`}
+            extra={
+              <div className="text-gray-500">
+                {t`For SEO. If empty, excerpt will be used.`}
+                <span className="text-xs italic ml-2">
+                "(recomended)"
+                </span>
+                <span className="text-red-500/80 text-xs italic ml-2">
+                  ({t`Optional if excerpt is best descriptive`})
+                </span>
+                
+              </div>
+            }
           >
             <TextArea
               rows={3}
@@ -1800,34 +1922,34 @@ const extractPlainText = (content: any): string => {
     },
 
     
-     // Add a new step for translations
-  {
-  title: t`Translations`,
-  content: (
-    <TranslationTab 
-      isEditMode={isEditMode}
-      articleId={id}
-      translations={translations}
-      availableLanguages={availableLanguages}
-      loading={translationLoading}
-      activeTab={activeTranslationTab}
-      onTabChange={setActiveTranslationTab}
-      onEditTranslation={handleEditTranslation} // This is the correct prop name
-      onGenerateTranslation={handleGenerateTranslation}
-      onRegenerateTranslation={handleRegenerateTranslation}
-      onMarkReviewed={handleMarkReviewed}
-      formValues={formValues}
-      isEditingTranslation={isEditingTranslation}
-      editingLanguage={activeTranslationTab}
-      translationForm={translationForm}
-      onSaveTranslation={handleSaveTranslation}
-      onCancelTranslation={() => setIsEditingTranslation(false)} // Use setIsEditingTranslation
-      getLanguageFlag={getLanguageFlag}
-      onRefreshTranslations={fetchTranslations}
-    />
-  ),
-}
-];
+     // new step for translations
+      {
+      title: t`Translations`,
+      content: (
+        <TranslationTab 
+          isEditMode={isEditMode}
+          articleId={id}
+          translations={translations}
+          availableLanguages={availableLanguages}
+          loading={translationLoading}
+          activeTab={activeTranslationTab}
+          onTabChange={setActiveTranslationTab}
+          onEditTranslation={handleEditTranslation} // This is the correct prop name
+          onGenerateTranslation={handleGenerateTranslation}
+          onRegenerateTranslation={handleRegenerateTranslation}
+          onMarkReviewed={handleMarkReviewed}
+          formValues={formValues}
+          isEditingTranslation={isEditingTranslation}
+          editingLanguage={activeTranslationTab}
+          translationForm={translationForm}
+          onSaveTranslation={handleSaveTranslation}
+          onCancelTranslation={() => setIsEditingTranslation(false)} // Use setIsEditingTranslation
+          getLanguageFlag={getLanguageFlag}
+          onRefreshTranslations={fetchTranslations}
+        />
+      ),
+    }
+    ];
 
 
 
@@ -1857,6 +1979,7 @@ const extractPlainText = (content: any): string => {
     );
   }
 
+
   return (
     <div>
       <ArticleAdminNavbar 
@@ -1869,15 +1992,15 @@ const extractPlainText = (content: any): string => {
         items={[
           { 
             title: t`Dashboard`, 
-            onClick: () => navigateTo('/dashboard') 
+            onClick: () => navigate('/dashboard') 
           },
           { 
             title: t`Article Admin`, 
-            onClick: () => navigateTo('/dashboard/article-admin') 
+            onClick: () => navigate('/dashboard/article-admin') 
           },
           { 
             title: t`Articles`, 
-            onClick: () => navigateTo('/dashboard/article-admin/articles') 
+            onClick: () => navigate('/dashboard/article-admin/articles') 
           },
           { 
             title: isEditMode ? t`Edit Article` : t`Create New Article` 
@@ -1969,78 +2092,86 @@ const extractPlainText = (content: any): string => {
 
           <Divider />
 
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            flexWrap: 'wrap', 
-            gap: '16px' 
-          }}>
-            <Space>
-              <Button 
-                onClick={handleCancel}
-                disabled={loading}
-              >
-                {t`Cancel`}
-              </Button>
-              {currentStep > 0 && (
-                <Button 
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  disabled={loading || initialLoading}
-                >
-                  {t`Previous`}
-                </Button>
-              )}
-            </Space>
+ <div style={{ 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'center', 
+  flexWrap: 'wrap', 
+  gap: '16px' 
+}}>
+  {/* Left side: Cancel, Previous & Next */}
+  <Space>
+    <Button 
+      onClick={handleCancel}
+      disabled={loading}
+    >
+      {t`Cancel`}
+    </Button>
+    {currentStep > 0 && (
+  <Button 
+    onClick={() => setCurrentStep(currentStep - 1)}
+    disabled={loading || initialLoading}
+    icon={<LeftOutlined />}
+  >
+    {t`Previous`}
+  </Button>
+)}
+{currentStep < steps.length - 1 && (
+  <Button 
+    type="primary" 
+    onClick={async () => {
+      const isValid = await validateCurrentStep();
+      if (isValid) {
+        setCurrentStep(currentStep + 1);
+      }
+    }}
+    disabled={loading || initialLoading}
+    icon={<RightOutlined />}
+  >
+    {t`Next`}
+  </Button>
+)}
+  </Space>
 
-            <Space>
-              {currentStep < steps.length - 1 && (
-                <Button 
-                  type="primary" 
-                  onClick={async () => {
-                    const isValid = await validateCurrentStep();
-                    if (isValid) {
-                      setCurrentStep(currentStep + 1);
-                    }
-                  }}
-                  disabled={loading || initialLoading}
-                >
-                  {t`Next`}
-                </Button>
-              )}
-            </Space>
+  {/* Right side: Save Draft, Publish & Schedule */}
+  <Space>
+    {/* Save Draft button */}
+    <Button
+      onClick={handleSaveDraft}
+      loading={loading}
+      icon={<SaveOutlined />}
+      disabled={initialLoading}
+    >
+      {t`Save Draft`}
+    </Button>
+    
+    {/* Publish button (only for SUPER_ADMIN) */}
+    {isSuperAdmin && (
+      <Button
+        type="primary"
+        onClick={handlePublish}
+        loading={loading}
+        icon={<SendOutlined />}
+        disabled={initialLoading}
+      >
+        {t`Publish Now`}
+      </Button>
+    )}
+    
+    {/* Schedule button */}
+    <Button
+      type="dashed"
+      onClick={handleSchedule}
+      loading={loading}
+      icon={<ClockCircleOutlined />}
+      disabled={initialLoading}
+    >
+      {t`Schedule`}
+    </Button>
+  </Space>
+</div>
 
-            <Space>
-              <Button
-                onClick={handleSaveDraft}
-                loading={loading}
-                icon={<SaveOutlined />}
-                disabled={initialLoading}
-              >
-                {t`Save Draft`}
-              </Button>
-              <Button
-                type="primary"
-                onClick={handlePublish}
-                loading={loading}
-                icon={<SendOutlined />}
-                disabled={initialLoading}
-              >
-                {t`Publish Now`}
-              </Button>
-              <Button
-                type="dashed"
-                onClick={handleSchedule}
-                loading={loading}
-                icon={<ClockCircleOutlined />}
-                disabled={initialLoading}
-              >
-                {t`Schedule`}
-              </Button>
-            </Space>
-          </div>
-
-          <Form.Item name="status" noStyle />
+          {/* <Form.Item name="status" noStyle /> */}
           <Form.Item name="publishedAt" noStyle />
         </Form>
       </Card>

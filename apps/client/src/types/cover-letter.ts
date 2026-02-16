@@ -24,6 +24,7 @@ export interface CreateCoverLetterData {
     academicAchievements?: string[];
     negotiationPoints?: string[];
     keyPoints?: string[];
+    [key: string]: any; // Allow for additional fields
   };
   jobData: {
     position: string;
@@ -37,6 +38,7 @@ export interface CreateCoverLetterData {
     department?: string;
     negotiationPoints?: string[];
     keyPoints?: string[];
+    [key: string]: any; // Allow for additional fields
   };
   customInstructions?: string;
 }
@@ -45,4 +47,5 @@ export interface UpdateCoverLetterData {
   style?: any;
   layout?: string;
   content?: any;
+  [key: string]: any; // Allow for additional fields
 }

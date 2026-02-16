@@ -935,81 +935,192 @@ export class ResumeService {
     return resume;
   }
 
-  // async update(userId: string, id: string, updateResumeDto: UpdateResumeDto) {
-  //   try {
-  //     const { locked } = await this.prisma.resume.findUniqueOrThrow({
-  //       where: { id },
-  //       select: { locked: true },
-  //     });
+  
+ normalizeResumeDataForStorage(aiData: any) {
+  const buildSection = (id: string, name: string, items: any[] = []) => ({
+    id,
+    name,
+    columns: 1,
+    separateLinks: false,
+    visible: true,
+    items: Array.isArray(items)
+      ? items.map((item, index) => ({
+          id: item.id ?? `${id}-${index}`,
+          name: item.name ?? "",
+          date: item.date ?? "",
+          location: item.location ?? "",
+          url: item.url ?? { label: "", href: "" },
+          visible: true,
+          summary: item.summary ?? "",
+          keywords: item.keywords ?? [],
+          description: item.description ?? "",
+        }))
+      : [],
+  });
 
-  //     if (locked) throw new BadRequestException(ErrorMessage.ResumeLocked);
+  return {
+    metadata: {
+      template: "modern",
+      layout: [] as string[][][],
+      css: { value: "", visible: true },
+      page: {
+        options: { breakLine: true, pageNumbers: true },
+        margin: 20,
+        format: "a4" as "a4" | "letter",
+      },
+      theme: {
+        background: "#ffffff",
+        text: "#000000",
+        primary: "#2563eb",
+      },
+      typography: {
+        font: {
+          size: 12,
+          family: "Inter",
+          subset: "latin",
+          variants: ["regular", "bold"],
+        },
+        lineHeight: 1.5,
+        hideIcons: false,
+        underlineLinks: false,
+      },
+      notes: "",
+      aiGenerated: true,
+      aiGeneratedAt: new Date().toISOString(),
+    },
 
-  //     // Clean and normalize data before saving
-  //     let cleanedData = updateResumeDto.data;
-  //     if (cleanedData) {
-  //       cleanedData = this.prepareDataForSave(cleanedData);
-  //     }
+    basics: {
+      name: aiData?.basics?.name ?? "",
+      email: aiData?.basics?.email ?? "",
+      phone: aiData?.basics?.phone ?? "",
+      headline: aiData?.basics?.headline ?? "",
+      location: aiData?.basics?.location ?? "",
+      url: aiData?.basics?.url ?? { label: "", href: "" },
+      picture: {
+        url: aiData?.basics?.picture?.url ?? "",
+        size: 120,
+        aspectRatio: 1,
+        borderRadius: 0,
+        effects: { hidden: false, border: false, grayscale: false },
+      },
+      customFields: [],
+    },
 
-  //     return await this.prisma.resume.update({
-  //       data: {
-  //         title: updateResumeDto.title,
-  //         slug: updateResumeDto.slug,
-  //         visibility: updateResumeDto.visibility,
-  //         data: cleanedData as Prisma.JsonObject,
-  //       },
-  //       where: { userId_id: { userId, id } },
-  //     });
-  //   } catch (error) {
-  //     if (error.code === "P2025") {
-  //       Logger.error(error);
-  //       throw new InternalServerErrorException(error);
-  //     }
-  //     throw error;
-  //   }
-  // }
+    sections: {
+      // summary MUST have content string
+      summary: {
+  id: "summary" as const,   // <-- cast to literal
+  name: "Summary",
+  columns: 1,
+  separateLinks: false,
+  visible: true,
+  content: aiData?.summary?.content ?? aiData?.summary ?? "",
+},
+
+      experience: buildSection("experience", "Experience", aiData?.work),
+      education: buildSection("education", "Education", aiData?.education),
+      skills: buildSection("skills", "Skills", aiData?.skills),
+      volunteer: buildSection("volunteer", "Volunteer", aiData?.volunteer),
+      projects: buildSection("projects", "Projects", aiData?.projects),
+      awards: buildSection("awards", "Awards", aiData?.awards),
+      certifications: buildSection("certifications", "Certifications", aiData?.certifications),
+      languages: buildSection("languages", "Languages", aiData?.languages),
+      interests: buildSection("interests", "Interests", aiData?.interests),
+      references: buildSection("references", "References", aiData?.references),
+      profiles: buildSection("profiles", "Profiles", aiData?.profiles),
+      publications: buildSection("publications", "Publications", aiData?.publications),
+      custom: {}, // required by DTO
+    },
+  };
+}
+
+
+
+// async update(userId: string, id: string, updateResumeDto: UpdateResumeDto) {
+//   try {
+//     const { locked, data: existingData } = await this.prisma.resume.findUniqueOrThrow({
+//       where: { id },
+//       select: { locked: true, data: true },
+//     });
+
+//     if (locked) throw new BadRequestException(ErrorMessage.ResumeLocked);
+
+//     // Check if it's an AI resume
+//     const isAIResume = (existingData as any)?.metadata?.aiGenerated;
+    
+//     let cleanedData = updateResumeDto.data;
+    
+//     if (cleanedData) {
+//       if (isAIResume) {
+//         // For AI resumes, accept the data as-is (or with minimal cleaning)
+//         cleanedData = this.prepareAIResumeData(cleanedData, existingData as any);
+//       } else {
+//         // For regular resumes, use normal validation
+//         // Parse the data to ensure it's valid JSON
+//         cleanedData = this.parseAndCleanData(cleanedData);
+//       }
+//     }
+
+//     return await this.prisma.resume.update({
+//       data: {
+//         title: updateResumeDto.title,
+//         slug: updateResumeDto.slug,
+//         visibility: updateResumeDto.visibility,
+//         data: cleanedData as Prisma.JsonObject,
+//       },
+//       where: { userId_id: { userId, id } },
+//     });
+//   } catch (error) {
+//     if (error.code === "P2025") {
+//       Logger.error(error);
+//       throw new InternalServerErrorException(error);
+//     }
+//     throw error;
+//   }
+// }
+
 
 async update(userId: string, id: string, updateResumeDto: UpdateResumeDto) {
   try {
-    const { locked, data: existingData } = await this.prisma.resume.findUniqueOrThrow({
-      where: { id },
-      select: { locked: true, data: true },
+    const resume = await this.prisma.resume.findUniqueOrThrow({
+      where: { userId_id: { userId, id } },
+      select: {
+        locked: true,
+        data: true,
+      },
     });
 
-    if (locked) throw new BadRequestException(ErrorMessage.ResumeLocked);
+    if (resume.locked) {
+      throw new BadRequestException(ErrorMessage.ResumeLocked);
+    }
 
-    // Check if it's an AI resume
-    const isAIResume = (existingData as any)?.metadata?.aiGenerated;
-    
-    let cleanedData = updateResumeDto.data;
-    
-    if (cleanedData) {
-      if (isAIResume) {
-        // For AI resumes, accept the data as-is (or with minimal cleaning)
-        cleanedData = this.prepareAIResumeData(cleanedData, existingData as any);
-      } else {
-        // For regular resumes, use normal validation
-        // Parse the data to ensure it's valid JSON
-        cleanedData = this.parseAndCleanData(cleanedData);
-      }
+    let preparedData: Prisma.JsonObject | undefined = undefined;
+
+    if (updateResumeDto.data !== undefined) {
+      preparedData = this.prepareDataForSave(
+        updateResumeDto.data
+      ) as Prisma.JsonObject;
     }
 
     return await this.prisma.resume.update({
+      where: { userId_id: { userId, id } },
       data: {
         title: updateResumeDto.title,
         slug: updateResumeDto.slug,
         visibility: updateResumeDto.visibility,
-        data: cleanedData as Prisma.JsonObject,
+        ...(preparedData && { data: preparedData }),
       },
-      where: { userId_id: { userId, id } },
     });
-  } catch (error) {
-    if (error.code === "P2025") {
-      Logger.error(error);
-      throw new InternalServerErrorException(error);
+  } catch (error: any) {
+    if (error?.code === "P2025") {
+      throw new NotFoundException("Resume not found");
     }
-    throw error;
+
+    Logger.error(error);
+    throw new InternalServerErrorException("Failed to update resume");
   }
 }
+
 
 // Add these helper methods
 private parseAndCleanData(data: any): any {

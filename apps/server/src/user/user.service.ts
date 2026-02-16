@@ -1,5 +1,5 @@
-// src/user/user.service.ts - OPTIMIZED WITH MINIMAL CACHE HITS
-import { Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
+
+import { Injectable, InternalServerErrorException, Logger, BadRequestException } from "@nestjs/common";
 import { Prisma, User } from "@prisma/client";
 import { UserWithSecrets } from "@reactive-resume/dto";
 import { ErrorMessage } from "@reactive-resume/utils";
@@ -283,7 +283,7 @@ export class UserService {
   }
 
   // Clear cache (no logging)
-  private clearPersistentCache(key?: string): void {
+  public clearPersistentCache(key?: string): void {
     if (key) {
       this.cache.delete(key);
     } else {
@@ -300,11 +300,26 @@ export class UserService {
     return user;
   }
 
-  create(data: Prisma.UserCreateInput): Promise<UserWithSecrets> {
-    const email = data.email as string;
-    this.clearPersistentCache(`user:email:${email}`);
-    return this.prisma.user.create({ data, include: { secrets: true } });
-  }
+  // create(data: Prisma.UserCreateInput): Promise<UserWithSecrets> {
+  //   const email = data.email as string;
+  //   this.clearPersistentCache(`user:email:${email}`);
+  //   return this.prisma.user.create({ data, include: { secrets: true } });
+  // }
+
+
+  
+  // When user signs up, detect language from browser
+async create(data: Prisma.UserCreateInput): Promise<UserWithSecrets> {
+  // If user is from French-speaking country or browser language is French
+  const browserLanguage = data.locale || 'en-US'; // This should come from frontend
+  
+  const userData = {
+    ...data,
+    locale: browserLanguage.startsWith('fr') ? 'fr-FR' : 'en-US'
+  };
+  
+  return this.prisma.user.create({ data: userData, include: { secrets: true } });
+}
 
   updateByEmail(email: string, data: Prisma.UserUpdateArgs["data"]): Promise<User> {
     this.clearPersistentCache(`user:email:${email}`);
@@ -388,6 +403,73 @@ export class UserService {
 
     return result.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
   }
+
+
+
+
+  async updateUserLocale(userId: string, locale: string): Promise<void> {
+  // Validate locale is supported
+  const supportedLocales = ['en', 'en-US', 'fr', 'fr-FR', 'fr-CA'];
+  
+  if (!supportedLocales.includes(locale)) {
+    throw new BadRequestException(`Unsupported locale: ${locale}`);
+  }
+
+  // Update in database
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { locale }
+  });
+
+  // Clear all user caches - IMPORTANT!
+  this.clearPersistentCache(`user:${userId}`);
+  
+  // Also clear from any other cache entries
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, username: true }
+  });
+  
+  if (user?.email) this.clearPersistentCache(`user:email:${user.email}`);
+  if (user?.username) this.clearPersistentCache(`user:username:${user.username}`);
+  
+  // Clear request cache too
+  this.requestCache.clear();
+  
+  // Log for debugging
+  Logger.debug(`[UserService] Updated locale for user ${userId} to ${locale}`);
+}
+
+
+// Public method to clear user cache (for locale updates)
+  public clearUserCache(userId: string): void {
+    // Clear from persistent cache
+    this.clearPersistentCache(`user:${userId}`);
+    
+    // Try to get email and username to clear those too
+    // You might want to store this info in a separate cache
+    this.clearPersistentCache(`user-basic:${userId}`);
+    
+    // Clear from request cache
+    this.clearRequestCacheForUser(userId);
+  }
+
+  // Helper to clear request cache for specific user
+  private clearRequestCacheForUser(userId: string): void {
+    const keysToDelete: string[] = [];
+    
+    for (const key of this.requestCache.keys()) {
+      if (key.includes(`:user:${userId}`) || key.includes(`user:${userId}`)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    for (const key of keysToDelete) {
+      this.requestCache.delete(key);
+    }
+  }
+
+  
 }
 
 

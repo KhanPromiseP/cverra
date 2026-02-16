@@ -327,11 +327,12 @@
 
 
 
+// dashboard-layout.tsx (updated)
 import { t, Trans } from "@lingui/macro";
 import { SidebarSimple, SignOut, Warning, User, SignIn, Question, BookOpen, Envelope } from "@phosphor-icons/react";
 import { Button, Sheet, SheetClose, SheetContent, SheetTrigger, SheetTitle, SheetDescription, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@reactive-resume/ui";
-import { useState, Fragment, useEffect } from "react"; // Add useEffect import
-import { Outlet, useLocation } from "react-router"; // Add useLocation import
+import { useState, Fragment, useEffect } from "react";
+import { Outlet, useLocation } from "react-router";
 import { LocaleSwitch } from "@/client/components/locale-switch";
 import { Logo } from "@/client/components/logo";
 import { ThemeSwitch } from "@/client/components/theme-switch";
@@ -350,6 +351,9 @@ import { UserAvatar } from "@/client/components/user-avatar";
 import { WelcomePopup } from '@/client/components/WelcomePopup';
 import { BonusFlag } from './BonusFlag';
 
+// Import the AssistantDashboard
+import AssistantDashboard from "./assistant/assistantdashboard";
+
 export const DashboardLayout: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -360,12 +364,11 @@ export const DashboardLayout: React.FC = () => {
   const isLoggedIn = useAuthStore((state) => !!state.user);
   
   const headerHeight = 20; 
-  const location = useLocation(); // Get the current location
+  const location = useLocation();
 
-  // Add this useEffect to scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]); // Trigger when the pathname changes
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -375,6 +378,9 @@ export const DashboardLayout: React.FC = () => {
   const confirmLogout = () => {
     setShowLogoutConfirm(true);
   };
+
+  // Check if current route is the assistant dashboard
+  const isAssistantRoute = location.pathname === "/dashboard/assistant";
 
   return (
     <div className="min-h-screen bg-background">
@@ -441,9 +447,7 @@ export const DashboardLayout: React.FC = () => {
                       {t`Main navigation menu for the application`}
                     </SheetDescription>
 
-                    {/* Mobile Sidebar Container - FULL HEIGHT */}
                     <div className="flex flex-col h-full">
-                      {/* Close button header */}
                       <div className="flex items-center justify-between p-4 border-b border-border bg-background">
                         <Link to="/" className="flex items-center" onClick={() => setOpen(false)}>
                           <Logo size={40} className="sm:size-48" />
@@ -460,7 +464,6 @@ export const DashboardLayout: React.FC = () => {
                         </SheetClose>
                       </div>
 
-                      {/* Sidebar Content - Takes remaining height */}
                       <div className="flex-1 overflow-hidden">
                         <Sidebar setOpen={setOpen} forceExpanded={true} />
                       </div>
@@ -478,7 +481,6 @@ export const DashboardLayout: React.FC = () => {
 
             {/* Controls */}
             <div className="flex items-center gap-2 sm:gap-3">
-
               <Menu as="div" className="relative inline-block text-left">
                 <Menu.Button className="flex items-center justify-center w-8 h-8 rounded-full text-gray-900 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400">
                   <Question className="w-5 h-5" />
@@ -506,7 +508,7 @@ export const DashboardLayout: React.FC = () => {
                             } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
                           >
                             <BookOpen className="mr-2 w-4 h-4" />
-                            Documentation
+                            {t`Documentation`}
                           </a>
                         )}
                       </Menu.Item>
@@ -519,7 +521,7 @@ export const DashboardLayout: React.FC = () => {
                             } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
                           >
                             <Envelope className="mr-2 w-4 h-4" />
-                            Contact Us
+                            {t`Contact Us`}
                           </Link>
                         )}
                       </Menu.Item>
@@ -596,7 +598,7 @@ export const DashboardLayout: React.FC = () => {
                     leaveFrom="transform opacity-100 scale-100"
                     leaveTo="transform opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-60">
                       <div className="py-1">
                         <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -606,6 +608,35 @@ export const DashboardLayout: React.FC = () => {
                             {user.email}
                           </p>
                         </div>
+
+                        {/* Assistant button */}
+                        <Menu.Item>
+                          {({ active }: any) => (
+                            <Link
+                              to="/dashboard/assistant"
+                              className={`${
+                                active ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20" : ""
+                              } flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 group`}
+                            >
+                              {/* Bot icon */}
+                              <div className="mr-2 w-8 h-8 relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                <img 
+                                  src="/assets/assistant.jpeg" 
+                                  alt="Assistant"
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                                </div>
+                                {/* Online indicator */}
+                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                              </div>
+                              <span>My Assistant</span>
+                              <span className="ml-auto text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-1.5 py-0.5 rounded-full">
+                                New
+                              </span>
+                            </Link>
+                          )}
+                        </Menu.Item>
                         
                         <Menu.Item>
                           {({ active }: any) => (
@@ -637,7 +668,6 @@ export const DashboardLayout: React.FC = () => {
                           )}
                         </Menu.Item>
                         
-                        {/* Add divider before logout */}
                         <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                         
                         <Menu.Item>
@@ -683,11 +713,13 @@ export const DashboardLayout: React.FC = () => {
             transition-all duration-300 ease-in-out
             lg:ml-80
             ${sidebarCollapsed ? "lg:!ml-20" : ""}
+            ${isAssistantRoute ? "bg-background" : ""}
           `}
         >
           <div className="w-full px-4 py-4 sm:px-6 sm:py-6 lg:container lg:mx-auto lg:px-8 lg:py-8">
             <div className="animate-in fade-in duration-500">
-              <Outlet />
+              {/* Render the AssistantDashboard when on assistant route */}
+              {isAssistantRoute ? <AssistantDashboard /> : <Outlet />}
             </div>
           </div>
           <div className="mt-[10px] mb-0">

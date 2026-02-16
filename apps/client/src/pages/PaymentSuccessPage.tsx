@@ -23,74 +23,106 @@ export const PaymentSuccessPage = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const requestId = searchParams.get('requestId');
-  const transactionId = searchParams.get('transactionId');
-  const success = searchParams.get('success');
-  const mock = searchParams.get('mock');
+   // Get parameters for both providers
+  const sessionId = searchParams.get('session_id');  // Stripe
+  const requestId = searchParams.get('requestId');    // Tranzak
+  const transactionId = searchParams.get('transactionId'); // Tranzak
+  const mock = searchParams.get('mock');              // Tranzak mock
 
   useEffect(() => {
     const verifyPayment = async () => {
       try {
         setLoading(true);
         
-        // If it's a mock payment, show success immediately
+        // Handle Stripe payment
+        if (sessionId) {
+          const response = await api.get('/payments/verify', {
+            params: {
+              provider: 'STRIPE',
+              ref: sessionId
+            }
+          });
+          
+          const paymentData = response.data;
+          
+          if (paymentData.status === 'SUCCESS') {
+            setPaymentStatus({
+              status: 'success',
+              paymentId: paymentData.paymentId,
+              amount: paymentData.amount,
+              coins: paymentData.coinsGranted,
+              transactionId: sessionId,
+              message: t`Payment completed successfully!`
+            });
+            toast.success(t`Payment completed successfully!`);
+            
+            setTimeout(() => {
+              if (paymentData.paymentId) {
+                navigate(`/payments/invoice/${paymentData.paymentId}`);
+              }
+            }, 5000);
+          } else {
+            handlePaymentFailure(paymentData);
+          }
+          return;
+        }
+        
+        // Handle Tranzak mock payment
         if (mock === 'true') {
           setPaymentStatus({
             status: 'success',
             transactionId: transactionId || 'MOCK_TX',
-            amount: 100, // Default amount for mock
-            coins: 50, // Default coins for mock
+            amount: 100,
+            coins: 50,
             message: t`Mock payment completed successfully`
           });
           setLoading(false);
           return;
         }
 
-        // Verify real payment with backend
-        const response = await api.get('/payments/verify', {
-          params: {
-            provider: 'TRANZAK',
-            ref: requestId || transactionId
-          }
-        });
-
-        const paymentData = response.data;
-
-        if (paymentData.status === 'SUCCESS') {
-          // FIX: Use nullish coalescing and provide fallback values
-          const effectiveTransactionId = requestId || transactionId || paymentData.transactionId || 'Unknown';
-          
-          setPaymentStatus({
-            status: 'success',
-            paymentId: paymentData.paymentId,
-            amount: paymentData.amount,
-            coins: paymentData.coinsGranted,
-            transactionId: effectiveTransactionId, // Now this is always a string
-            message: t`Payment completed successfully!`
-          });
-          
-          toast.success(t`Payment completed successfully!`);
-          
-          // Redirect to invoice after 5 seconds
-          setTimeout(() => {
-            if (paymentData.paymentId) {
-              navigate(`/payments/invoice/${paymentData.paymentId}`);
+        // Handle Tranzak real payment
+        if (requestId || transactionId) {
+          const response = await api.get('/payments/verify', {
+            params: {
+              provider: 'TRANZAK',
+              ref: requestId || transactionId
             }
-          }, 5000);
+          });
           
-        } else if (paymentData.status === 'FAILED') {
-          setPaymentStatus({
-            status: 'failed',
-            message: paymentData.error || t`Payment failed. Please try again.`
-          });
-          toast.error(t`Payment failed. Please try again.`);
-        } else {
-          setPaymentStatus({
-            status: 'pending',
-            message: t`Payment is being processed...`
-          });
+          const paymentData = response.data;
+          
+          if (paymentData.status === 'SUCCESS') {
+            const effectiveTransactionId = requestId || transactionId || paymentData.transactionId || 'Unknown';
+            
+            setPaymentStatus({
+              status: 'success',
+              paymentId: paymentData.paymentId,
+              amount: paymentData.amount,
+              coins: paymentData.coinsGranted,
+              transactionId: effectiveTransactionId,
+              message: t`Payment completed successfully!`
+            });
+            
+            toast.success(t`Payment completed successfully!`);
+            
+            setTimeout(() => {
+              if (paymentData.paymentId) {
+                navigate(`/payments/invoice/${paymentData.paymentId}`);
+              }
+            }, 5000);
+          } else {
+            handlePaymentFailure(paymentData);
+          }
+          return;
         }
 
+        // No valid parameters found
+        setPaymentStatus({
+          status: 'failed',
+          message: t`Invalid payment response. Missing transaction details.`
+        });
+        setLoading(false);
+        
       } catch (error: any) {
         console.error('Payment verification failed:', error);
         setPaymentStatus({
@@ -103,7 +135,24 @@ export const PaymentSuccessPage = () => {
       }
     };
 
-    if (requestId || transactionId || mock === 'true') {
+    const handlePaymentFailure = (paymentData: any) => {
+      if (paymentData.status === 'FAILED') {
+        setPaymentStatus({
+          status: 'failed',
+          message: paymentData.error || t`Payment failed. Please try again.`
+        });
+        toast.error(t`Payment failed. Please try again.`);
+      } else {
+        setPaymentStatus({
+          status: 'pending',
+          message: t`Payment is being processed...`
+        });
+      }
+      setLoading(false);
+    };
+
+    // Only verify if we have valid parameters
+    if (sessionId || requestId || transactionId || mock === 'true') {
       verifyPayment();
     } else {
       setPaymentStatus({
@@ -112,7 +161,7 @@ export const PaymentSuccessPage = () => {
       });
       setLoading(false);
     }
-  }, [requestId, transactionId, mock, navigate]);
+  }, [sessionId, requestId, transactionId, mock, navigate]);
 
   if (loading) {
     return (
@@ -215,7 +264,7 @@ export const PaymentSuccessPage = () => {
                   {t`Try Again`}
                 </button>
                 <button
-                  onClick={() => navigate('/support')}
+                  onClick={() => navigate('/contact')}
                   className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 py-3 px-4 rounded-lg font-semibold transition-colors"
                 >
                   {t`Contact Support`}
@@ -254,7 +303,7 @@ export const PaymentSuccessPage = () => {
         {/* Trust Indicators */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t`Need help?`} <a href="/support" className="text-blue-600 dark:text-blue-400 hover:underline">{t`Contact Support`}</a>
+            {t`Need help?`} <a href="/contact" className="text-blue-600 dark:text-blue-400 hover:underline">{t`Contact Support`}</a>
           </p>
         </div>
       </div>

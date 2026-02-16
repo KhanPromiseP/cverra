@@ -9,9 +9,7 @@ import { NotificationCenter } from "@/client/components/notifications/Notificati
 import { Menu, Transition } from "@headlessui/react";
 import { useUser } from "@/client/services/user";
 import { SignOut, Warning, SignIn } from "@phosphor-icons/react"; 
-
 import { ArrowLeft, ChevronUp } from "lucide-react";
-
 import {
   PlatformOverviewSection,
   GettingStartedSection,
@@ -39,7 +37,6 @@ import {
   Sparkles,
   Award,
   Smartphone,
-  // Add these letter-specific icons
   Target,
   Building,
   Type,
@@ -66,7 +63,6 @@ import {
   Workflow,
   Edit3,
   Eye,
-
   ArrowRight,
   Compass,
   Users,
@@ -79,12 +75,12 @@ import {
   TrendingUp,
   Calculator,
   BarChart,
-
   Calendar,
   Lock
 } from "lucide-react";
-import { Button } from "@reactive-resume/ui";
-
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@reactive-resume/ui";
+import { useLogout } from "@/client/services/auth";
+import { UserAvatar } from "@/client/components/user-avatar";
 
 // Complete updated sections array
 const sections = [
@@ -141,7 +137,7 @@ const sections = [
   { id: "security-trust", title: t`Security & Trust`, icon: <Shield className="w-4 h-4" />, level: 2 },
   { id: "faq", title: t`FAQ`, icon: <HelpCircle className="w-4 h-4" />, level: 2 },
 ];
-// Update the TOCItem interface
+
 interface TOCItemProps {
   id: string;
   title: string;
@@ -158,131 +154,126 @@ export const DocumentationPage = () => {
   const { user, loading } = useUser();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const headerHeight = 120;
-  
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { logout } = useLogout()
   const scrollInProgress = useRef(false);
   const lastScrollToSection = useRef<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
 
   const scrollToSection = (sectionId: string) => {
-  if (scrollInProgress.current) return;
-
-  scrollInProgress.current = true;
-  lastScrollToSection.current = sectionId;
-  setIsScrolling(true);
-  setActiveSection(sectionId);
-  
-  window.history.replaceState(null, "", `/docs/#${sectionId}`);
-
-  const element = document.getElementById(sectionId);
-  if (element) {
-    const offsetPosition = element.offsetTop - headerHeight;
-    
-    window.scrollTo({
-      top: offsetPosition,
-      behavior: 'smooth'
-    });
-
-    setTimeout(() => {
-      setIsScrolling(false);
-      scrollInProgress.current = false;
-    }, 800);
-  } else {
-    setIsScrolling(false);
-    scrollInProgress.current = false;
-  }
-};
-
-
-useEffect(() => {
-  // Function to handle scrolling to section on page load
-  const handleHashOnLoad = () => {
-    const hash = window.location.hash.replace("#", "");
-    if (hash && sections.some(s => s.id === hash)) {
-      // Wait for page to fully load and components to render
-      setTimeout(() => {
-        scrollToSection(hash);
-      }, 100); // Small delay to ensure DOM is ready
-    }
-  };
-
-
-  handleHashOnLoad();
-
-  const handleHashChange = () => {
-    handleHashOnLoad();
-  };
-
-  window.addEventListener('hashchange', handleHashChange);
-  
-  return () => {
-    window.removeEventListener('hashchange', handleHashChange);
-  };
-}, []); 
-
-
-useEffect(() => {
-  if (window.location.hash) {
-    const id = window.location.hash.replace("#", "");
-    if (sections.some(s => s.id === id)) {
-      setActiveSection(id);
-    }
-  }
-}, []);
-
-
-  // useEffect(() => {
-  //   if (window.location.hash) {
-  //     const id = window.location.hash.replace("#", "");
-  //     if (sections.some(s => s.id === id)) {
-  //       setActiveSection(id);
-  //     }
-  //   }
-  // }, []);
-
-  useEffect(() => {
-  let ticking = false;
-  let lastScrollY = window.scrollY;
-
-  const handleScroll = () => {
     if (scrollInProgress.current) return;
 
-    const currentScrollY = window.scrollY;
+    scrollInProgress.current = true;
+    lastScrollToSection.current = sectionId;
+    setIsScrolling(true);
+    setActiveSection(sectionId);
     
-    // Show back-to-top button when scrolled down more than 300px
-    setShowBackToTop(currentScrollY > 300);
-    
-    if (!ticking && Math.abs(currentScrollY - lastScrollY) > 10) {
-      window.requestAnimationFrame(() => {
-        const scrollY = currentScrollY + headerHeight;
-        
-        let currentSection = sections[0].id;
-        for (let i = sections.length - 1; i >= 0; i--) {
-          const section = sections[i];
-          const element = document.getElementById(section.id);
-          if (element && element.offsetTop <= scrollY) {
-            currentSection = section.id;
-            break;
-          }
-        }
+    window.history.replaceState(null, "", `/docs/#${sectionId}`);
 
-        if (currentSection !== activeSection) {
-          setActiveSection(currentSection);
-          window.history.replaceState(null, "", `/docs/#${currentSection}`);
-        }
-        
-        lastScrollY = currentScrollY;
-        ticking = false;
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offsetPosition = element.offsetTop - headerHeight;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
       });
-      ticking = true;
+
+      setTimeout(() => {
+        setIsScrolling(false);
+        scrollInProgress.current = false;
+      }, 800);
+    } else {
+      setIsScrolling(false);
+      scrollInProgress.current = false;
     }
   };
 
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  
-  // Initial check
-  setShowBackToTop(window.scrollY > 300);
-  
-  return () => window.removeEventListener('scroll', handleScroll);
-}, [activeSection, headerHeight]);
+  useEffect(() => {
+    const handleHashOnLoad = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash && sections.some(s => s.id === hash)) {
+        setTimeout(() => {
+          scrollToSection(hash);
+        }, 100);
+      }
+    };
+
+    handleHashOnLoad();
+
+    const handleHashChange = () => {
+      handleHashOnLoad();
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []); 
+
+  useEffect(() => {
+    if (window.location.hash) {
+      const id = window.location.hash.replace("#", "");
+      if (sections.some(s => s.id === id)) {
+        setActiveSection(id);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let ticking = false;
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      if (scrollInProgress.current) return;
+
+      const currentScrollY = window.scrollY;
+      
+      setShowBackToTop(currentScrollY > 300);
+      
+      if (!ticking && Math.abs(currentScrollY - lastScrollY) > 10) {
+        window.requestAnimationFrame(() => {
+          const scrollY = currentScrollY + headerHeight;
+          
+          let currentSection = sections[0].id;
+          for (let i = sections.length - 1; i >= 0; i--) {
+            const section = sections[i];
+            const element = document.getElementById(section.id);
+            if (element && element.offsetTop <= scrollY) {
+              currentSection = section.id;
+              break;
+            }
+          }
+
+          if (currentSection !== activeSection) {
+            setActiveSection(currentSection);
+            window.history.replaceState(null, "", `/docs/#${currentSection}`);
+          }
+          
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    setShowBackToTop(window.scrollY > 300);
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeSection, headerHeight]);
+
+  const handleLogout = () => {
+    logout();
+    setShowLogoutConfirm(false);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(true);
+  };
 
   const handleSidebarClick = (e: React.MouseEvent, sectionId: string) => {
     e.preventDefault();
@@ -291,7 +282,6 @@ useEffect(() => {
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // TOCItem component
   const TOCItem = ({ 
     id, 
     title, 
@@ -347,12 +337,89 @@ useEffect(() => {
     );
   };
 
+  // Function to calculate dropdown position
+  const calculateDropdownPosition = () => {
+    if (typeof window === 'undefined') return { top: 0, right: 0 };
+    
+    const button = document.querySelector('[data-dropdown-button]') as HTMLElement;
+    if (!button) return { top: 0, right: 0 };
+    
+    const rect = button.getBoundingClientRect();
+    return {
+      top: rect.bottom + window.scrollY + 8,
+      right: window.innerWidth - rect.right - window.scrollX
+    };
+  };
+
+  // Handle dropdown toggle
+  const handleDropdownToggle = () => {
+    if (!isDropdownOpen) {
+      const position = calculateDropdownPosition();
+      setDropdownPosition(position);
+    }
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isDropdownOpen) {
+        const dropdown = document.querySelector('[data-dropdown-menu]');
+        const button = document.querySelector('[data-dropdown-button]');
+        
+        if (dropdown && button && 
+            !dropdown.contains(event.target as Node) && 
+            !button.contains(event.target as Node)) {
+          setIsDropdownOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
+      {/* Logout Confirmation Dialog */}
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Warning className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <DialogTitle>{t`Confirm Logout`}</DialogTitle>
+                <DialogDescription>
+                  {t`Are you sure you want to logout?`}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+            >
+              {t`Cancel`}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors flex items-center gap-2"
+            >
+              <SignOut className="w-4 h-4" />
+              {t`Logout`}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Top Navigation */}
       <div className="sticky top-0 z-50">
         <header className="relative backdrop-blur-md bg-background/80 border-b border-border shadow-lg supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto flex items-center justify-between  px-2 py-2 sm:px-2 sm:py-2">
+          <div className="container mx-auto flex items-center justify-between px-2 py-2 sm:px-2 sm:py-2">
             <div className="flex items-center gap-3">
               {/* Mobile Menu Button */}
               <button
@@ -382,7 +449,6 @@ useEffect(() => {
 
               <LocaleSwitch />
               <ThemeSwitch />
-
 
               {/* Auth Buttons for Non-Logged In Users */}
               {!loading && !user && (
@@ -425,82 +491,27 @@ useEffect(() => {
                 </div>
               )}
 
-              {/* User Dropdown */}
+              {/* User Dropdown Trigger Button */}
               {!loading && user && (
-                <Menu as="div" className="relative inline-block text-left">
-                  <Menu.Button className="flex items-center w-10 h-10 rounded-full bg-blue-500 justify-center text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400">
-                    {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
-                  </Menu.Button>
-
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
-                  >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 dark:bg-gray-800">
-                      <div className="py-1">
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <Link
-                              to="/dashboard/profile"
-                              className={cn(
-                                "block px-4 py-2 text-sm",
-                                active ? "bg-gray-100 dark:bg-gray-700" : "",
-                                "text-gray-700 dark:text-gray-200"
-                              )}
-                            >
-                              {t`Profile`}
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <Link
-                              to="/dashboard/settings"
-                              className={cn(
-                                "block px-4 py-2 text-sm",
-                                active ? "bg-gray-100 dark:bg-gray-700" : "",
-                                "text-gray-700 dark:text-gray-200"
-                              )}
-                            >
-                              {t`Settings`}
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }: any) => (
-                            <Link
-                              to="/logout"
-                              className={cn(
-                                "block px-4 py-2 text-sm",
-                                active ? "bg-gray-100 dark:bg-gray-700" : "",
-                                "text-gray-700 dark:text-gray-200"
-                              )}
-                            >
-                              {t`Logout`}
-                            </Link>
-                          )}
-                        </Menu.Item>
-                      </div>
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
+                <button
+                  data-dropdown-button
+                  onClick={handleDropdownToggle}
+                  className="flex items-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 justify-center text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-transform hover:scale-105"
+                >
+                  <UserAvatar
+                    className="flex-shrink-0 border-2 border-white/20"
+                  />
+                </button>
               )}
             </div>
           </div>
         </header>
 
-        {/* Secondary Navigation Bar */}
-        <div className="sticky top-[64px] z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm h-14">
+        {/* Secondary Navigation Bar - Lower z-index */}
+        <div className="sticky top-[64px] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border shadow-sm h-14 z-10">
           <div className="container mx-auto h-full">
             <div className="flex items-center justify-between px-2 py-2 sm:px-2 sm:py-2 h-full">
-              {/* Left side: Back button and Back to Home */}
               <div className="flex items-center gap-2">
-                {/* Back button (navigates to previous page) */}
                 <button
                   onClick={() => navigate(-1)}
                   className={cn(
@@ -515,10 +526,9 @@ useEffect(() => {
                   title={t`Go back`}
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span >{t`Back`}</span>
+                  <span>{t`Back`}</span>
                 </button>
 
-                {/* Back to Home button */}
                 <button
                   onClick={() => navigate("/")}
                   className={cn(
@@ -539,7 +549,6 @@ useEffect(() => {
                 </button>
               </div>
 
-              {/* Right side: Dashboard button */}
               <Link
                 to="/dashboard"
                 className={cn(
@@ -559,6 +568,89 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      {/* Dropdown Menu - Fixed positioning outside the header */}
+      {isDropdownOpen && !loading && user && (
+        <div className="fixed inset-0 z-[9999]" style={{ pointerEvents: 'none' }}>
+          <div 
+            data-dropdown-menu
+            className="fixed w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none transform-gpu animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              right: `${dropdownPosition.right}px`,
+              pointerEvents: 'auto',
+              transform: 'translateZ(0)'
+            }}
+          >
+            <div className="py-1">
+              <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user.name || user.email}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user.email}
+                </p>
+              </div>
+
+              {/* Assistant button */}
+              <Link
+                to="/dashboard/assistant"
+                className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r from-blue-50 to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-colors"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                <div className="mr-2 w-8 h-8 relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <img 
+                      src="/assets/assistant.jpeg" 
+                      alt="Assistant"
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                </div>
+                <span>My Assistant</span>
+                <span className="ml-auto text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-1.5 py-0.5 rounded-full">
+                  New
+                </span>
+              </Link>
+              
+              <Link
+                to="/dashboard/profile"
+                className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                <User className="mr-2 w-4 h-4" />
+                {t`Profile`}
+              </Link>
+              
+              <Link
+                to="/dashboard/settings"
+                className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                <svg className="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {t`Settings`}
+              </Link>
+              
+              <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+              
+              <button
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  confirmLogout();
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+              >
+                <SignOut className="mr-2 w-4 h-4" />
+                {t`Logout`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 min-h-[calc(100vh-120px)]">
         {/* Desktop Sidebar */}
@@ -582,48 +674,47 @@ useEffect(() => {
 
         {/* Mobile Sidebar Overlay */}
         {isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div 
-            className="fixed inset-0 bg-black/50" 
-            onClick={() => setIsMobileSidebarOpen(false)}
-          />
-          <aside className="fixed left-0 top-[120px] h-[calc(100vh-120px)] w-64 bg-background border-r border-border p-6 shadow-xl z-50 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-foreground">{t`Documentation`}</h2>
-              <button
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-2 hover:bg-accent/20 rounded-md text-foreground/70"
-                aria-label={t`Close menu`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div 
+              className="fixed inset-0 bg-black/50" 
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            <aside className="fixed left-0 top-[120px] h-[calc(100vh-120px)] w-64 bg-background border-r border-border p-6 shadow-xl z-50 overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-foreground">{t`Documentation`}</h2>
+                <button
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-2 hover:bg-accent/20 rounded-md text-foreground/70"
+                  aria-label={t`Close menu`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-            <nav className="flex flex-col space-y-1">
-              {sections.map((section) => (
-                <TOCItem
-                  key={section.id}
-                  id={section.id}
-                  title={section.title}
-                  icon={section.icon}
-                  level={section.level}
-                  onClick={() => {
-                    scrollToSection(section.id);
-                    setIsMobileSidebarOpen(false);
-                  }}
-                  isActive={activeSection === section.id}
-                />
-              ))}
-            </nav>
-          </aside>
-        </div>
-      )}
+              <nav className="flex flex-col space-y-1">
+                {sections.map((section) => (
+                  <TOCItem
+                    key={section.id}
+                    id={section.id}
+                    title={section.title}
+                    icon={section.icon}
+                    level={section.level}
+                    onClick={() => {
+                      scrollToSection(section.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    isActive={activeSection === section.id}
+                  />
+                ))}
+              </nav>
+            </aside>
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto flex-1 px-4 py-6 md:px-6 md:py-8">
-          {/* Documentation Sections */}
           <div className="space-y-16 md:space-y-20">
             <section id="platform-overview" className="scroll-mt-24">
               <PlatformOverviewSection />
@@ -632,60 +723,12 @@ useEffect(() => {
               <GettingStartedSection />
             </section>
             
-            {/* Resume Builder Sections */}
             <section id="resume-builder" className="scroll-mt-24">
               <ResumeBuilderSection />
             </section>
             
-            {/* Resume Subsections - These should be rendered by ResumeBuilderSection internally */}
-            <section id="resume-getting-started" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-interface" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-sections" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-design" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-export" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-ai-features" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            <section id="resume-best-practices" className="scroll-mt-24">
-              {/* This content should come from ResumeBuilderSection */}
-            </section>
-            
-            {/* Letter Builder Sections */}
             <section id="letter-builder" className="scroll-mt-24">
               <LetterBuilderSection />
-            </section>
-            
-            {/* Letter Subsections - These should be rendered by LetterBuilderSection internally */}
-            <section id="letter-getting-started" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-categories" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-features" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-creating" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-ai-features" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-export" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
-            </section>
-            <section id="letter-best-practices" className="scroll-mt-24">
-              {/* This content should come from LetterBuilderSection */}
             </section>
             
             <section id="articles-knowledge-center" className="scroll-mt-24">
@@ -696,7 +739,7 @@ useEffect(() => {
             </section>
           </div>
 
-          {/* Floating Back to Top Button (Mobile & Desktop) */}
+          {/* Floating Back to Top Button */}
           {showBackToTop && (
             <div className="fixed bottom-6 right-6 z-30 animate-fadeIn">
               <button

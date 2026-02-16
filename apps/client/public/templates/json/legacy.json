@@ -297,7 +297,7 @@
     "custom": {}
   },
   "metadata": {
-    "template": "nosepass",
+    "template": "legacy",
     "layout": [
       [
         ["profiles", "summary", "experience", "education"],

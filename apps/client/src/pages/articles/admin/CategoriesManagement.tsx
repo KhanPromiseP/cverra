@@ -49,14 +49,16 @@ import {
   GlobalOutlined,
   EditFilled,
   CheckOutlined,
+  ArrowLeftOutlined, // Changed from phosphor icon
+  CrownOutlined, // Added for SUPER_ADMIN indicator
+  WarningOutlined,
 } from '@ant-design/icons';
-
-import { ArrowLeft} from '@phosphor-icons/react';
 
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import ArticleAdminNavbar from './ArticleAdminSidebar';
 import { 
   getCategories, 
   createCategory, 
@@ -67,17 +69,14 @@ import {
   updateCategoryTranslation,
   regenerateCategoryTranslation,
   generateCategoryTranslations,
-  type CategoryTranslation // Imported from service
+  type CategoryTranslation
 } from '../../../services/article.service';
-
 
 const { Column } = Table;
 const { Option } = Select;
 const { TabPane } = Tabs;
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = AntdInput;
-
-
 
 interface Category {
   id: string;
@@ -92,7 +91,7 @@ interface Category {
   autoTranslate?: boolean;
   targetLanguages?: string[];
   availableLanguages?: string[];
-  translations?: CategoryTranslation[]; // Now uses imported type
+  translations?: CategoryTranslation[];
 }
 
 const SortableRow = ({ children, ...props }: any) => {
@@ -113,7 +112,9 @@ const SortableRow = ({ children, ...props }: any) => {
     transform: CSS.Transform.toString(transform),
     transition,
     cursor: 'move',
-    ...(isDragging ? { zIndex: 999, background: '#fafafa' } : {}),
+    ...(isDragging ? { zIndex: 999, background: '#fafafa', 
+      dark: { background: '#1f2937' } // Dark mode dragging
+    } : {}),
   };
 
   return (
@@ -125,6 +126,7 @@ const SortableRow = ({ children, ...props }: any) => {
               <div
                 ref={setActivatorNodeRef}
                 style={{ cursor: 'grab', padding: '8px' }}
+                className="dark:text-gray-400 dark:hover:text-gray-200"
                 {...listeners}
               >
                 <DragOutlined />
@@ -155,59 +157,94 @@ const CategoriesManagement: React.FC = () => {
   const [editTranslationModal, setEditTranslationModal] = useState(false);
   const [editForm] = Form.useForm();
 
-  // Fetch categories on component mount
+  // User role state
+  const [userRole, setUserRole] = useState<string>('ADMIN');
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  // Check user role on component mount
   useEffect(() => {
-    fetchCategories();
+    const role = localStorage.getItem('userRole') || 'ADMIN';
+    setUserRole(role);
+    
+    if (role !== 'SUPER_ADMIN') {
+      setAccessDenied(true);
+      message.error(t`Only Super Admins can access Categories Management`);
+    } else {
+      fetchCategories();
+    }
   }, []);
 
   const fetchCategories = async () => {
-  setLoading(true);
-  try {
-    const data = await getCategories();
-    
-    let categoriesData: Category[] = [];
-    
-    if (Array.isArray(data)) {
-      categoriesData = data;
-    } else if (data && typeof data === 'object') {
-      const dataObj = data as any;
-      if (Array.isArray(dataObj.data)) {
-        categoriesData = dataObj.data;
-      }
-    }
-    
-    // Fetch translation counts for each category
-    const categoriesWithTranslationCounts = await Promise.all(
-      categoriesData.map(async (category) => {
-        try {
-          const translations = await getCategoryTranslations(category.id);
-          return {
-            ...category,
-            translationCount: translations.length,
-            translations: translations, // Optional: store translations if you want
-          };
-        } catch (error) {
-          console.error(`Failed to fetch translations for category ${category.id}:`, error);
-          return {
-            ...category,
-            translationCount: 0,
-            translations: [],
-          };
+    setLoading(true);
+    try {
+      const data = await getCategories();
+      
+      let categoriesData: Category[] = [];
+      
+      if (Array.isArray(data)) {
+        categoriesData = data;
+      } else if (data && typeof data === 'object') {
+        const dataObj = data as any;
+        if (Array.isArray(dataObj.data)) {
+          categoriesData = dataObj.data;
         }
-      })
-    );
-    
-    setCategories(categoriesWithTranslationCounts);
-    
-  } catch (error: any) {
-    console.error('Error fetching categories:', error);
-    message.error(t`Failed to load categories: ${error.message || 'Unknown error'}`);
-  } finally {
-    setLoading(false);
-  }
-};
+      }
+      
+      // Fetch translation counts for each category
+      const categoriesWithTranslationCounts = await Promise.all(
+        categoriesData.map(async (category) => {
+          try {
+            const translations = await getCategoryTranslations(category.id);
+            return {
+              ...category,
+              translationCount: translations.length,
+              translations: translations,
+            };
+          } catch (error) {
+            console.error(`Failed to fetch translations for category ${category.id}:`, error);
+            return {
+              ...category,
+              translationCount: 0,
+              translations: [],
+            };
+          }
+        })
+      );
+      
+      setCategories(categoriesWithTranslationCounts);
+      
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      message.error(t`Failed to load categories: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ========== MISSING FUNCTIONS ==========
+  // If not SUPER_ADMIN, show access denied message
+  if (accessDenied) {
+    return (
+      <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div className="text-center py-12">
+          <CloseCircleOutlined className="text-red-500 dark:text-red-400 text-5xl mb-4" />
+          <Title level={3} className="dark:text-white mb-2">
+            {t`Access Denied`}
+          </Title>
+          <Paragraph className="dark:text-gray-400 mb-6">
+            {t`Only Super Administrators can access Categories Management.`}
+          </Paragraph>
+          <Button 
+            type="primary" 
+            icon={<ArrowLeftOutlined />}
+            onClick={() => window.history.back()}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            {t`Go Back`}
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -248,35 +285,34 @@ const CategoriesManagement: React.FC = () => {
   };
 
   const handleGenerateTranslations = async (categoryId: string) => {
-  setTranslationLoading(true);
-  try {
-    await generateCategoryTranslations(categoryId);
-    
-    message.success(t`Translation generation started. This may take a moment.`);
-    
-    // Refresh translations after a short delay
-    setTimeout(async () => {
-      try {
-        const updatedTranslations = await getCategoryTranslations(categoryId);
-        setTranslations(updatedTranslations || []);
-        
-        if (updatedTranslations && updatedTranslations.length > 0) {
-          message.success(t`${updatedTranslations.length} translations generated successfully!`);
-        } else {
-          message.info(t`Translations are still processing. Check back in a moment.`);
+    setTranslationLoading(true);
+    try {
+      await generateCategoryTranslations(categoryId);
+      
+      message.success(t`Translation generation started. This may take a moment.`);
+      
+      setTimeout(async () => {
+        try {
+          const updatedTranslations = await getCategoryTranslations(categoryId);
+          setTranslations(updatedTranslations || []);
+          
+          if (updatedTranslations && updatedTranslations.length > 0) {
+            message.success(t`${updatedTranslations.length} translations generated successfully!`);
+          } else {
+            message.info(t`Translations are still processing. Check back in a moment.`);
+          }
+        } catch (error) {
+          console.error('Error checking translations:', error);
+        } finally {
+          setTranslationLoading(false);
         }
-      } catch (error) {
-        console.error('Error checking translations:', error);
-      } finally {
-        setTranslationLoading(false);
-      }
-    }, 2000);
-  } catch (error: any) {
-    console.error('Generate translations error:', error);
-    message.error(t`Failed to generate translations: ${error.message || 'Unknown error'}`);
-    setTranslationLoading(false);
-  }
-};
+      }, 2000);
+    } catch (error: any) {
+      console.error('Generate translations error:', error);
+      message.error(t`Failed to generate translations: ${error.message || 'Unknown error'}`);
+      setTranslationLoading(false);
+    }
+  };
 
   const saveCategoryOrder = async (orderedCategories: Category[]) => {
     try {
@@ -296,70 +332,48 @@ const CategoriesManagement: React.FC = () => {
     window.open(`/articles?category=${slug}`, '_blank');
   };
 
-  // Filter categories based on search text
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchText.toLowerCase()) ||
     category.description?.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  // ========== TRANSLATION FUNCTIONS ==========
-
   const handleViewTranslations = async (category: Category) => {
-  setSelectedCategory(category);
-  setTranslationLoading(true);
-  
-  console.log('📋 Category data for translations:', {
-    id: category.id,
-    name: category.name,
-    autoTranslate: category.autoTranslate,
-    targetLanguages: category.targetLanguages,
-    availableLanguages: category.availableLanguages,
-  });
-  
-  try {
-    const translationsData = await getCategoryTranslations(category.id);
+    setSelectedCategory(category);
+    setTranslationLoading(true);
     
-    console.log('📦 Translations data from API:', {
-      rawResponse: translationsData,
-      isArray: Array.isArray(translationsData),
-      length: Array.isArray(translationsData) ? translationsData.length : 0,
-      firstItem: Array.isArray(translationsData) && translationsData.length > 0 ? translationsData[0] : null,
-    });
-    
-    if (Array.isArray(translationsData) && translationsData.length > 0) {
-      setTranslations(translationsData);
-      console.log(`✅ Loaded ${translationsData.length} translations`);
-    } else {
-      console.log('ℹ️ No translations found or empty array returned');
-      setTranslations([]);
+    try {
+      const translationsData = await getCategoryTranslations(category.id);
       
-      // Show helpful message
-      if (category.autoTranslate && category.targetLanguages && category.targetLanguages.length > 0) {
-        message.info(
-          `No translations found yet. This category is set to auto-translate to: ${category.targetLanguages.join(', ')}. ` +
-          `You can generate translations manually.`
-        );
+      if (Array.isArray(translationsData) && translationsData.length > 0) {
+        setTranslations(translationsData);
       } else {
-        message.warning(
-          'No translations found. Enable auto-translation and set target languages to generate translations.'
-        );
+        setTranslations([]);
+        
+        if (category.autoTranslate && category.targetLanguages && category.targetLanguages.length > 0) {
+          message.info(
+            `No translations found yet. This category is set to auto-translate to: ${category.targetLanguages.join(', ')}. ` +
+            `You can generate translations manually.`
+          );
+        } else {
+          message.warning(
+            'No translations found. Enable auto-translation and set target languages to generate translations.'
+          );
+        }
       }
+      
+      setTranslationsDrawerVisible(true);
+    } catch (error: any) {
+      console.error('❌ Error loading translations:', error);
+      message.error(`Failed to load translations: ${error.message}`);
+    } finally {
+      setTranslationLoading(false);
     }
-    
-    setTranslationsDrawerVisible(true);
-  } catch (error: any) {
-    console.error('❌ Error loading translations:', error);
-    message.error(`Failed to load translations: ${error.message}`);
-  } finally {
-    setTranslationLoading(false);
-  }
-};
+  };
 
   const handleRegenerateTranslation = async (translationId: string) => {
     try {
       await regenerateCategoryTranslation(translationId);
       message.success(t`Translation regeneration started`);
-      // Refresh translations
       if (selectedCategory) {
         const updatedTranslations = await getCategoryTranslations(selectedCategory.id);
         setTranslations(updatedTranslations || []);
@@ -392,7 +406,6 @@ const CategoriesManagement: React.FC = () => {
       message.success(t`Translation updated successfully`);
       setEditTranslationModal(false);
       
-      // Refresh translations
       if (selectedCategory) {
         const updatedTranslations = await getCategoryTranslations(selectedCategory.id);
         setTranslations(updatedTranslations || []);
@@ -402,7 +415,6 @@ const CategoriesManagement: React.FC = () => {
     }
   };
 
-  // Update your existing handleEdit function
   const handleEdit = (category: Category) => {
     setEditingCategory(category);
     form.setFieldsValue({
@@ -417,7 +429,6 @@ const CategoriesManagement: React.FC = () => {
     setModalVisible(true);
   };
 
-  // Update handleSubmit to include translation settings
   const handleSubmit = async (values: any) => {
     console.log('Raw form values:', values);
     
@@ -459,23 +470,21 @@ const CategoriesManagement: React.FC = () => {
     }
   };
 
-  // Add translation status badge
   const getTranslationStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <Badge status="success" text={t`Completed`} />;
+        return <Badge status="success" text={t`Completed`} className="dark:[&_.ant-badge-status-dot]:bg-green-500" />;
       case 'PENDING':
-        return <Badge status="default" text={t`Pending`} />;
+        return <Badge status="default" text={t`Pending`} className="dark:[&_.ant-badge-status-dot]:bg-gray-500" />;
       case 'PROCESSING':
-        return <Badge status="processing" text={t`Processing`} />;
+        return <Badge status="processing" text={t`Processing`} className="dark:[&_.ant-badge-status-dot]:bg-blue-500" />;
       case 'FAILED':
-        return <Badge status="error" text={t`Failed`} />;
+        return <Badge status="error" text={t`Failed`} className="dark:[&_.ant-badge-status-dot]:bg-red-500" />;
       default:
-        return <Badge status="default" text={status} />;
+        return <Badge status="default" text={status} className="dark:[&_.ant-badge-status-dot]:bg-gray-500" />;
     }
   };
 
-  // Get language flag/emoji
   const getLanguageFlag = (language: string) => {
     const flags: Record<string, string> = {
       'en': '🇺🇸',
@@ -490,7 +499,6 @@ const CategoriesManagement: React.FC = () => {
     return flags[language] || '🌐';
   };
 
-  // Update your table columns to include translation actions
   const translationActionsMenu = (record: CategoryTranslation): MenuProps => ({
     items: [
       {
@@ -529,225 +537,289 @@ const CategoriesManagement: React.FC = () => {
   });
 
   return (
-
-    <Card
-    
-      title={t`Categories Management`}
-      extra={
-        <Space>
-          <div className="mr-4">
-            <Button
-              type="default"
-              icon={<ArrowLeft className="w-4 h-4" />}
-              onClick={() => window.history.back()}
-              className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-200 hover:-translate-x-1 shadow-sm hover:shadow"
-              style={{ 
-                padding: '10px 20px', 
-                borderRadius: '8px',
-                fontWeight: 500 
-              }}
-            >
-              <span className="font-medium text-base">{t`Back`}</span>
-            </Button>
+    <div>
+      {/* Article Admin Navbar */}
+        <ArticleAdminNavbar 
+          currentPath={window.location.pathname}
+          title={userRole === 'SUPER_ADMIN' ? t`Super Admin Dashboard` : t`Article Dashboard`}
+        />
+        
+      {/* Header Card */}
+      <Card className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col gap-4">
+          {/* Title Row */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2 dark:text-white">
+              <Button 
+                type="text"
+                icon={<ArrowLeftOutlined />} 
+                onClick={() => window.history.back()}
+                className="
+                  !text-gray-600 
+                  hover:!text-blue-600 
+                  dark:!text-gray-200 
+                  dark:hover:!text-blue-300
+                  hover:!bg-gray-100 
+                  dark:hover:!bg-gray-700
+                  !transition-colors 
+                  !duration-200
+                  rounded
+                "
+              >
+                {t`Back`}
+              </Button>
+              <div>
+                <div className="font-semibold text-lg flex items-center gap-2">
+                  {t`Categories Management`}
+                  <Tag icon={<CrownOutlined />} color="purple" className="dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700">
+                    {t`Super Admin`}
+                  </Tag>
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {t`Manage article categories and translations`}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Tag color="blue" className="dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700">
+                {categories.length} {t`categories`}
+              </Tag>
+            </div>
           </div>
 
-          <Input
-            placeholder={t`Search categories...`}
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 200 }}
-            allowClear
-          />
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={handleAdd}
-            disabled={loading}
-          >
-            {t`New Category`}
-          </Button>
-        </Space>
-      }
-    >
+          {/* Filters Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Input
+              placeholder={t`Search categories...`}
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="dark:[&_.ant-input]:bg-gray-700 dark:[&_.ant-input]:border-gray-600 dark:[&_.ant-input]:text-white"
+              allowClear
+            />
+            
+            <div className="col-span-2 md:col-span-1 lg:col-span-2"></div> {/* Spacer */}
+            
+            <div className="flex gap-2">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAdd}
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border-0"
+              >
+                {t`New Category`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
-     
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={filteredCategories.map((c: any) => c.id)} strategy={verticalListSortingStrategy}>
-          <Table
-            dataSource={filteredCategories}
-            rowKey="id"
-            loading={loading}
-            components={{
-              body: {
-                row: SortableRow,
-              },
-            }}
-            pagination={false}
-            scroll={{ x: true }}
-          >
-            <Column
-              key="sort"
-              width={60}
-              render={() => <DragOutlined style={{ cursor: 'grab' }} />}
-            />
-            <Column
-              title={t`Category`}
-              dataIndex="name"
-              key="name"
-              render={(text, record: Category) => (
-                <Space>
-                  {record.color && (
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      backgroundColor: record.color,
-                      borderRadius: '50%',
-                    }} />
-                  )}
-                  <span style={{ fontWeight: '500' }}>{text}</span>
-                  <Tag color={record.isActive ? 'success' : 'default'}>
-                    {record.isActive ? t`Active` : t`Inactive`}
-                  </Tag>
-                  {record.autoTranslate && (
-                    <Tooltip title={t`Auto-translation enabled`}>
-                      <GlobalOutlined style={{ color: '#1890ff' }} />
-                    </Tooltip>
-                  )}
-                </Space>
-              )}
-            />
-            <Column
-              title={t`Slug`}
-              dataIndex="slug"
-              key="slug"
-              render={(text) => <code>{text}</code>}
-            />
-            <Column
-              title={t`Description`}
-              dataIndex="description"
-              key="description"
-              ellipsis
-            />
-            <Column
-              title={t`Articles`}
-              dataIndex="articleCount"
-              key="articleCount"
-              width={100}
-              render={(count) => (
-                <Tag color="blue">{count || 0}</Tag>
-              )}
-            />
-            <Column
-              title={t`Translations`}
-              key="translations"
-              width={140}
-              render={(_: any, record: Category) => {
-                const targetLanguages = record.targetLanguages || [];
-                const hasTranslations = record.translations && record.translations.length > 0;
-                const translationCount = hasTranslations ? record.translations!.length : 0;
-                
-                return (
+      {/* Table Card */}
+      <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filteredCategories.map((c: any) => c.id)} strategy={verticalListSortingStrategy}>
+            <Table
+              dataSource={filteredCategories}
+              rowKey="id"
+              loading={loading}
+              components={{
+                body: {
+                  row: SortableRow,
+                },
+              }}
+              pagination={false}
+              scroll={{ x: true }}
+              className="
+                [&_.ant-table-thead]:bg-gray-50 
+                dark:[&_.ant-table-thead]:bg-gray-800 
+                [&_.ant-table-cell]:dark:bg-gray-800 
+                [&_.ant-table-cell]:dark:text-gray-200
+                [&_.ant-table-tbody_>_tr:hover]:dark:bg-gray-700
+              "
+            >
+              <Column
+                key="sort"
+                width={60}
+                render={() => <DragOutlined style={{ cursor: 'grab' }} className="dark:text-gray-400" />}
+              />
+              <Column
+                title={t`Category`}
+                dataIndex="name"
+                key="name"
+                render={(text, record: Category) => (
                   <Space>
-                    <Tooltip 
-                      title={
-                        <div>
-                          <p><strong>Base:</strong> English (en)</p>
-                          <p><strong>Targets:</strong> {targetLanguages.join(', ') || 'None'}</p>
-                          <p><strong>Translations:</strong> {translationCount} created</p>
-                          <p><strong>Auto-translate:</strong> {record.autoTranslate ? 'Enabled' : 'Disabled'}</p>
-                        </div>
-                      }
+                    {record.color && (
+                      <div style={{
+                        width: 16,
+                        height: 16,
+                        backgroundColor: record.color,
+                        borderRadius: '50%',
+                      }} />
+                    )}
+                    <span className="font-medium dark:text-gray-100">{text}</span>
+                    <Tag color={record.isActive ? 'success' : 'default'} 
+                      className={`
+                        ${record.isActive ? 'dark:bg-green-900 dark:text-green-200 dark:border-green-700' : 
+                          'dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'}
+                      `}
                     >
-                      <Tag 
-                        color={
-                          !record.autoTranslate ? "default" :
-                          translationCount === 0 ? "orange" :
-                          translationCount === targetLanguages.length ? "green" : "blue"
+                      {record.isActive ? t`Active` : t`Inactive`}
+                    </Tag>
+                    {record.autoTranslate && (
+                      <Tooltip title={t`Auto-translation enabled`}>
+                        <GlobalOutlined className="text-blue-500 dark:text-blue-400" />
+                      </Tooltip>
+                    )}
+                  </Space>
+                )}
+              />
+              <Column
+                title={t`Slug`}
+                dataIndex="slug"
+                key="slug"
+                render={(text) => <code className="dark:text-gray-300">{text}</code>}
+              />
+              <Column
+                title={t`Description`}
+                dataIndex="description"
+                key="description"
+                ellipsis
+                className="dark:text-gray-300"
+              />
+              <Column
+                title={t`Articles`}
+                dataIndex="articleCount"
+                key="articleCount"
+                width={100}
+                render={(count) => (
+                  <Tag color="blue" className="dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700">
+                    {count || 0}
+                  </Tag>
+                )}
+              />
+              <Column
+                title={t`Translations`}
+                key="translations"
+                width={140}
+                render={(_: any, record: Category) => {
+                  const targetLanguages = record.targetLanguages || [];
+                  const hasTranslations = record.translations && record.translations.length > 0;
+                  const translationCount = hasTranslations ? record.translations!.length : 0;
+                  
+                  return (
+                    <Space>
+                      <Tooltip 
+                        title={
+                          <div className="dark:text-gray-200">
+                            <p><strong>Base:</strong> English (en)</p>
+                            <p><strong>Targets:</strong> {targetLanguages.join(', ') || 'None'}</p>
+                            <p><strong>Translations:</strong> {translationCount} created</p>
+                            <p><strong>Auto-translate:</strong> {record.autoTranslate ? 'Enabled' : 'Disabled'}</p>
+                          </div>
                         }
                       >
-                        {record.autoTranslate ? (
-                          <>
-                            {translationCount}/{targetLanguages.length}
-                            {translationCount === 0 && ' ⏳'}
-                          </>
-                        ) : (
-                          'Manual'
-                        )}
-                      </Tag>
-                    </Tooltip>
-                    <Tooltip title={t`Manage Translations`}>
+                        <Tag 
+                          color={
+                            !record.autoTranslate ? "default" :
+                            translationCount === 0 ? "orange" :
+                            translationCount === targetLanguages.length ? "green" : "blue"
+                          }
+                          className={`
+                            ${!record.autoTranslate ? 'dark:bg-gray-700 dark:text-gray-300' : ''}
+                            ${translationCount === 0 ? 'dark:bg-orange-900 dark:text-orange-200' : ''}
+                            ${translationCount === targetLanguages.length ? 'dark:bg-green-900 dark:text-green-200' : ''}
+                            ${translationCount > 0 && translationCount < targetLanguages.length ? 'dark:bg-blue-900 dark:text-blue-200' : ''}
+                          `}
+                        >
+                          {record.autoTranslate ? (
+                            <>
+                              {translationCount}/{targetLanguages.length}
+                              {translationCount === 0 && ' ⏳'}
+                            </>
+                          ) : (
+                            'Manual'
+                          )}
+                        </Tag>
+                      </Tooltip>
+                      <Tooltip title={t`Manage Translations`}>
+                        <Button
+                          type="text"
+                          icon={<TranslationOutlined />}
+                          onClick={() => handleViewTranslations(record)}
+                          size="small"
+                          disabled={!record.autoTranslate && translationCount === 0}
+                          className="dark:text-gray-400 hover:dark:text-blue-400"
+                        />
+                      </Tooltip>
+                    </Space>
+                  );
+                }}
+              />
+              <Column
+                title={t`Order`}
+                dataIndex="order"
+                key="order"
+                width={80}
+                render={(order) => <Tag className="dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">#{order}</Tag>}
+              />
+              <Column
+                title={t`Actions`}
+                key="actions"
+                width={150}
+                fixed="right"
+                render={(_: any, record: Category) => (
+                  <Space>
+                    <Tooltip title={t`View Translations`}>
                       <Button
                         type="text"
                         icon={<TranslationOutlined />}
                         onClick={() => handleViewTranslations(record)}
                         size="small"
-                        disabled={!record.autoTranslate && translationCount === 0}
+                        className="dark:text-gray-400 hover:dark:text-blue-400"
                       />
                     </Tooltip>
-                  </Space>
-                );
-              }}
-            />
-            <Column
-              title={t`Order`}
-              dataIndex="order"
-              key="order"
-              width={80}
-              render={(order) => <Tag>#{order}</Tag>}
-            />
-            <Column
-              title={t`Actions`}
-              key="actions"
-              width={150}
-              fixed="right"
-              render={(_: any, record: Category) => (
-                <Space>
-                  
-                  <Tooltip title={t`View Translations`}>
-                    <Button
-                      type="text"
-                      icon={<TranslationOutlined />}
-                      onClick={() => handleViewTranslations(record)}
-                      size="small"
-                    />
-                  </Tooltip>
-                  <Tooltip title={t`Edit`}>
-                    <Button
-                      type="text"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEdit(record)}
-                      size="small"
-                    />
-                  </Tooltip>
-                  <Tooltip title={t`Delete`}>
-                    <Popconfirm
-                      title={t`Delete Category`}
-                      description={t`Are you sure? Articles in this category will become uncategorized.`}
-                      onConfirm={() => handleDelete(record.id)}
-                      okText={t`Yes`}
-                      cancelText={t`No`}
-                      icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
-                    >
+                    <Tooltip title={t`Edit`}>
                       <Button
                         type="text"
-                        danger
-                        icon={<DeleteOutlined />}
+                        icon={<EditOutlined />}
+                        onClick={() => handleEdit(record)}
                         size="small"
+                        className="dark:text-gray-400 hover:dark:text-blue-400"
                       />
-                    </Popconfirm>
-                  </Tooltip>
-                </Space>
-              )}
-            />
-          </Table>
-        </SortableContext>
-      </DndContext>
+                    </Tooltip>
+                    <Tooltip title={t`Delete`}>
+                      <Popconfirm
+                        title={t`Delete Category`}
+                        description={t`Are you sure? Articles in this category will become uncategorized.`}
+                        onConfirm={() => handleDelete(record.id)}
+                        okText={t`Yes`}
+                        cancelText={t`No`}
+                        icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+                        className="dark:[&_.ant-popconfirm-message]:text-gray-200"
+                      >
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          size="small"
+                          className="hover:dark:text-red-400"
+                        />
+                      </Popconfirm>
+                    </Tooltip>
+                  </Space>
+                )}
+              />
+            </Table>
+          </SortableContext>
+        </DndContext>
+      </Card>
 
       {/* Translations Drawer */}
       <Drawer
         title={
-          <Space>
+          <Space className="dark:text-white">
             <TranslationOutlined />
             <span>
               {t`Translations for`} "{selectedCategory?.name}"
@@ -764,43 +836,41 @@ const CategoriesManagement: React.FC = () => {
               type="primary"
               icon={<SyncOutlined />}
               onClick={() => {
-                // Trigger retry for failed translations
                 const failedTranslations = translations.filter(t => t.status === 'FAILED');
                 if (failedTranslations.length > 0) {
                   failedTranslations.forEach(t => handleRegenerateTranslation(t.id));
                 }
               }}
               disabled={!translations.some(t => t.status === 'FAILED')}
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border-0"
             >
               {t`Retry Failed`}
             </Button>
           </Space>
         }
+        className="dark:bg-gray-800 [&_.ant-drawer-header]:dark:bg-gray-800 [&_.ant-drawer-header]:dark:border-gray-700 [&_.ant-drawer-body]:dark:bg-gray-800"
       >
         {translationLoading ? (
-          <div style={{ textAlign: 'center', padding: 50 }}>
-            <SyncOutlined spin style={{ fontSize: 24 }} />
+          <div className="text-center py-12 dark:text-gray-300">
+            <SyncOutlined spin className="text-2xl text-blue-500 dark:text-blue-400" />
             <div>{t`Loading translations...`}</div>
           </div>
         ) : translations.length === 0 ? (
           <Empty
             description={t`No translations available`}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
+            className="dark:text-gray-400"
           >
             <Button 
               type="primary"
-              onClick={() => {
-                if (selectedCategory?.autoTranslate && selectedCategory.targetLanguages) {
-                  // Trigger translations
-                  message.info(t`Translations will be processed in the background`);
-                }
-              }}
+              onClick={() => selectedCategory && handleGenerateTranslations(selectedCategory.id)}
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border-0"
             >
               {t`Generate Translations`}
             </Button>
           </Empty>
         ) : (
-          <Tabs defaultActiveKey="all">
+          <Tabs defaultActiveKey="all" className="[&_.ant-tabs-tab]:dark:text-gray-300 [&_.ant-tabs-tab-active]:dark:text-blue-400">
             <TabPane tab={t`All Translations`} key="all">
               <Table
                 dataSource={translations}
@@ -808,6 +878,13 @@ const CategoriesManagement: React.FC = () => {
                 pagination={false}
                 size="small"
                 scroll={{ x: true }}
+                className="
+                  [&_.ant-table-thead]:bg-gray-50 
+                  dark:[&_.ant-table-thead]:bg-gray-800 
+                  [&_.ant-table-cell]:dark:bg-gray-800 
+                  [&_.ant-table-cell]:dark:text-gray-200
+                  [&_.ant-table-tbody_>_tr:hover]:dark:bg-gray-700
+                "
               >
                 <Column
                   title={t`Language`}
@@ -817,7 +894,7 @@ const CategoriesManagement: React.FC = () => {
                   render={(language) => (
                     <Space>
                       <span style={{ fontSize: '18px' }}>{getLanguageFlag(language)}</span>
-                      <Tag>{language.toUpperCase()}</Tag>
+                      <Tag className="dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">{language.toUpperCase()}</Tag>
                     </Space>
                   )}
                 />
@@ -826,6 +903,7 @@ const CategoriesManagement: React.FC = () => {
                   dataIndex="name"
                   key="name"
                   ellipsis
+                  className="dark:text-gray-200"
                 />
                 <Column
                   title={t`Status`}
@@ -844,6 +922,7 @@ const CategoriesManagement: React.FC = () => {
                       value={record.qualityScore} 
                       count={5} 
                       style={{ fontSize: 14 }}
+                      className="[&_.ant-rate-star]:dark:text-yellow-500"
                     />
                   )}
                 />
@@ -854,9 +933,9 @@ const CategoriesManagement: React.FC = () => {
                   width={100}
                   render={(needsReview) => (
                     needsReview ? (
-                      <Badge status="warning" text={t`Needs Review`} />
+                      <Badge status="warning" text={t`Needs Review`} className="dark:[&_.ant-badge-status-dot]:bg-yellow-500" />
                     ) : (
-                      <Badge status="success" text={t`Reviewed`} />
+                      <Badge status="success" text={t`Reviewed`} className="dark:[&_.ant-badge-status-dot]:bg-green-500" />
                     )
                   )}
                 />
@@ -865,7 +944,7 @@ const CategoriesManagement: React.FC = () => {
                   dataIndex="updatedAt"
                   key="updatedAt"
                   width={120}
-                  render={(date) => new Date(date).toLocaleDateString()}
+                  render={(date) => <span className="dark:text-gray-300">{new Date(date).toLocaleDateString()}</span>}
                 />
                 <Column
                   title={t`Actions`}
@@ -873,8 +952,17 @@ const CategoriesManagement: React.FC = () => {
                   width={100}
                   fixed="right"
                   render={(_: any, record: CategoryTranslation) => (
-                    <Dropdown menu={translationActionsMenu(record)} trigger={['click']}>
-                      <Button type="text" icon={<MoreOutlined />} size="small" />
+                    <Dropdown 
+                      menu={translationActionsMenu(record)} 
+                      trigger={['click']}
+                      className="dark:[&_.ant-dropdown-menu]:bg-gray-800 dark:[&_.ant-dropdown-menu-item]:text-gray-200"
+                    >
+                      <Button 
+                        type="text" 
+                        icon={<MoreOutlined />} 
+                        size="small"
+                        className="dark:text-gray-400 hover:dark:text-blue-400"
+                      />
                     </Dropdown>
                   )}
                 />
@@ -887,8 +975,9 @@ const CategoriesManagement: React.FC = () => {
                   message={t`No translations need review`}
                   type="success"
                   showIcon
+                  className="dark:bg-green-900/50 dark:border-green-800 dark:text-green-200"
                   action={
-                    <Button size="small" type="text">
+                    <Button size="small" type="text" className="dark:text-green-300">
                       {t`View All`}
                     </Button>
                   }
@@ -899,6 +988,7 @@ const CategoriesManagement: React.FC = () => {
                   rowKey="id"
                   pagination={false}
                   size="small"
+                  className="dark:[&_.ant-table]:bg-gray-800"
                 >
                   <Column
                     title={t`Language`}
@@ -907,7 +997,7 @@ const CategoriesManagement: React.FC = () => {
                     render={(language) => (
                       <Space>
                         <span style={{ fontSize: '18px' }}>{getLanguageFlag(language)}</span>
-                        <Text strong>{language.toUpperCase()}</Text>
+                        <Text strong className="dark:text-white">{language.toUpperCase()}</Text>
                       </Space>
                     )}
                   />
@@ -915,10 +1005,10 @@ const CategoriesManagement: React.FC = () => {
                     title={t`Current Translation`}
                     key="content"
                     render={(_: any, record: CategoryTranslation) => (
-                      <div>
+                      <div className="dark:text-gray-200">
                         <Paragraph strong>{record.name}</Paragraph>
                         {record.description && (
-                          <Paragraph type="secondary">
+                          <Paragraph className="dark:text-gray-400">
                             {record.description}
                           </Paragraph>
                         )}
@@ -939,6 +1029,7 @@ const CategoriesManagement: React.FC = () => {
                             needsReview: false,
                           })}
                           size="small"
+                          className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 border-0"
                         >
                           {t`Approve`}
                         </Button>
@@ -946,6 +1037,7 @@ const CategoriesManagement: React.FC = () => {
                           icon={<EditFilled />}
                           onClick={() => handleEditTranslation(record)}
                           size="small"
+                          className="dark:text-blue-400 hover:dark:text-blue-300 dark:border-gray-600"
                         >
                           {t`Edit`}
                         </Button>
@@ -962,6 +1054,7 @@ const CategoriesManagement: React.FC = () => {
                   message={t`No failed translations`}
                   type="success"
                   showIcon
+                  className="dark:bg-green-900/50 dark:border-green-800 dark:text-green-200"
                 />
               ) : (
                 <Table
@@ -969,20 +1062,21 @@ const CategoriesManagement: React.FC = () => {
                   rowKey="id"
                   pagination={false}
                   size="small"
+                  className="dark:[&_.ant-table]:bg-gray-800"
                 >
                   <Column
                     title={t`Language`}
                     dataIndex="language"
                     key="language"
                     render={(language) => (
-                      <Tag color="red">{language.toUpperCase()}</Tag>
+                      <Tag color="red" className="dark:bg-red-900 dark:text-red-200 dark:border-red-700">{language.toUpperCase()}</Tag>
                     )}
                   />
                   <Column
                     title={t`Last Attempt`}
                     dataIndex="updatedAt"
                     key="updatedAt"
-                    render={(date) => new Date(date).toLocaleString()}
+                    render={(date) => <span className="dark:text-gray-300">{new Date(date).toLocaleString()}</span>}
                   />
                   <Column
                     title={t`Actions`}
@@ -994,6 +1088,7 @@ const CategoriesManagement: React.FC = () => {
                         icon={<SyncOutlined />}
                         onClick={() => handleRegenerateTranslation(record.id)}
                         size="small"
+                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border-0"
                       >
                         {t`Retry`}
                       </Button>
@@ -1007,37 +1102,50 @@ const CategoriesManagement: React.FC = () => {
         
         {/* Summary Stats */}
         {translations.length > 0 && (
-          <Card size="small" style={{ marginTop: 20 }}>
+          <Card size="small" style={{ marginTop: 20 }} className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
             <Row gutter={16}>
               <Col span={6}>
                 <AntdStatistic
                   title={t`Total`}
                   value={translations.length}
                   prefix={<GlobalOutlined />}
+                  className="dark:[&_.ant-statistic-title]:text-gray-300 dark:[&_.ant-statistic-content]:text-gray-200"
                 />
               </Col>
               <Col span={6}>
                 <AntdStatistic
                   title={t`Completed`}
                   value={translations.filter(t => t.status === 'COMPLETED').length}
-                  valueStyle={{ color: '#3f8600' }}
                   prefix={<CheckCircleOutlined />}
+                  className="
+                    [&_.ant-statistic-content]:text-green-600 
+                    dark:[&_.ant-statistic-title]:text-gray-300 
+                    dark:[&_.ant-statistic-content]:text-green-400
+                  "
                 />
               </Col>
               <Col span={6}>
                 <AntdStatistic
                   title={t`Needs Review`}
                   value={translations.filter(t => t.needsReview).length}
-                  valueStyle={{ color: '#faad14' }}
-                  prefix={<ExclamationCircleOutlined />}
+                  prefix={<WarningOutlined />}
+                  className="
+                    [&_.ant-statistic-content]:text-yellow-600 
+                    dark:[&_.ant-statistic-title]:text-gray-300 
+                    dark:[&_.ant-statistic-content]:text-yellow-400
+                  "
                 />
               </Col>
               <Col span={6}>
                 <AntdStatistic
                   title={t`Failed`}
                   value={translations.filter(t => t.status === 'FAILED').length}
-                  valueStyle={{ color: '#cf1322' }}
                   prefix={<CloseCircleOutlined />}
+                  className="
+                    [&_.ant-statistic-content]:text-red-600 
+                    dark:[&_.ant-statistic-title]:text-gray-300 
+                    dark:[&_.ant-statistic-content]:text-red-400
+                  "
                 />
               </Col>
             </Row>
@@ -1048,7 +1156,7 @@ const CategoriesManagement: React.FC = () => {
       {/* Edit Translation Modal */}
       <Modal
         title={
-          <Space>
+          <Space className="dark:text-white">
             <EditOutlined />
             <span>
               {t`Edit Translation`} ({editingTranslation?.language?.toUpperCase()})
@@ -1065,6 +1173,7 @@ const CategoriesManagement: React.FC = () => {
         okText={t`Save Changes`}
         cancelText={t`Cancel`}
         destroyOnClose
+        className="dark:[&_.ant-modal-content]:bg-gray-800 dark:[&_.ant-modal-header]:bg-gray-800"
       >
         <Form
           form={editForm}
@@ -1080,6 +1189,7 @@ const CategoriesManagement: React.FC = () => {
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
+            className="dark:bg-blue-900/50 dark:border-blue-800 dark:text-blue-200"
           />
           
           <Form.Item
@@ -1093,6 +1203,7 @@ const CategoriesManagement: React.FC = () => {
             <Input 
               placeholder={t`Enter translated category name`}
               disabled={translationLoading}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </Form.Item>
           
@@ -1109,6 +1220,7 @@ const CategoriesManagement: React.FC = () => {
               showCount
               maxLength={500}
               disabled={translationLoading}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </Form.Item>
           
@@ -1121,18 +1233,19 @@ const CategoriesManagement: React.FC = () => {
               checkedChildren={t`Reviewed`} 
               unCheckedChildren={t`Needs Review`}
               disabled={translationLoading}
+              className="dark:[&_.ant-switch-inner]:text-gray-800"
             />
           </Form.Item>
           
-          <Divider />
+          <Divider className="dark:border-gray-700" />
           
           <Alert
             message={t`Original English`}
             description={
-              <div>
+              <div className="dark:text-gray-300">
                 <Paragraph strong>{selectedCategory?.name}</Paragraph>
                 {selectedCategory?.description && (
-                  <Paragraph type="secondary">
+                  <Paragraph className="dark:text-gray-400">
                     {selectedCategory.description}
                   </Paragraph>
                 )}
@@ -1140,11 +1253,13 @@ const CategoriesManagement: React.FC = () => {
             }
             type="info"
             showIcon
+            className="dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200"
           />
         </Form>
       </Modal>
 
-     <Modal
+      {/* Category Modal */}
+      <Modal
         title={editingCategory ? t`Edit Category` : t`Create New Category`}
         open={modalVisible}
         onCancel={() => {
@@ -1156,6 +1271,7 @@ const CategoriesManagement: React.FC = () => {
         destroyOnHidden={false}
         okText={editingCategory ? t`Update` : t`Create`}
         cancelText={t`Cancel`}
+        className="dark:[&_.ant-modal-content]:bg-gray-800 dark:[&_.ant-modal-header]:bg-gray-800"
       >
         <Form
           form={form}
@@ -1164,8 +1280,8 @@ const CategoriesManagement: React.FC = () => {
           initialValues={{
             color: '#1890ff',
             isActive: true,
-            autoTranslate: editingCategory?.autoTranslate !== false, // Add this
-            targetLanguages: editingCategory?.targetLanguages || ['fr'], // Add this
+            autoTranslate: editingCategory?.autoTranslate !== false,
+            targetLanguages: editingCategory?.targetLanguages || ['fr'],
           }}
         >
           <Form.Item
@@ -1180,6 +1296,7 @@ const CategoriesManagement: React.FC = () => {
             <Input 
               placeholder={t`e.g., Career Growth, Productivity, etc.`} 
               disabled={loading}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </Form.Item>
 
@@ -1196,6 +1313,7 @@ const CategoriesManagement: React.FC = () => {
               showCount
               maxLength={200}
               disabled={loading}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </Form.Item>
 
@@ -1222,6 +1340,7 @@ const CategoriesManagement: React.FC = () => {
                   ],
                 },
               ]}
+              className="dark:[&_.ant-color-picker-trigger]:border-gray-600"
             />
           </Form.Item>
 
@@ -1236,6 +1355,7 @@ const CategoriesManagement: React.FC = () => {
             <Input 
               placeholder={t`e.g., 📈 or rocket`} 
               disabled={loading}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </Form.Item>
 
@@ -1244,10 +1364,9 @@ const CategoriesManagement: React.FC = () => {
             name="autoTranslate"
             valuePropName="checked"
           >
-            <Switch disabled={loading} />
+            <Switch disabled={loading} className="dark:[&_.ant-switch-inner]:text-gray-800" />
           </Form.Item>
 
-          {/* Use conditional rendering instead of direct form.getFieldValue */}
           <Form.Item
             noStyle
             shouldUpdate={(prevValues, currentValues) => 
@@ -1272,6 +1391,8 @@ const CategoriesManagement: React.FC = () => {
                     placeholder={t`Select target languages`}
                     disabled={loading}
                     style={{ width: '100%' }}
+                    className="dark:[&_.ant-select-selector]:bg-gray-700 dark:[&_.ant-select-selector]:border-gray-600 dark:[&_.ant-select-selection-item]:text-white"
+                    dropdownClassName="dark:bg-gray-800 dark:border-gray-700"
                   >
                     <Option value="fr">🇫🇷 {t`French`}</Option>
                     <Option value="es">🇪🇸 {t`Spanish`}</Option>
@@ -1291,11 +1412,11 @@ const CategoriesManagement: React.FC = () => {
             name="isActive"
             valuePropName="checked"
           >
-            <Switch disabled={loading} />
+            <Switch disabled={loading} className="dark:[&_.ant-switch-inner]:text-gray-800" />
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </div>
   );
 };
 

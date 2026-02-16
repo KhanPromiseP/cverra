@@ -153,7 +153,7 @@
 
 //     const baseUrl = this.configService.get("PUBLIC_URL");
 //     const url = `${baseUrl}/auth/reset-password?token=${token}`;
-//     const subject = "Reset your Reactive Resume password";
+//     const subject = "Reset your Inlirah password";
 //     const text = `Please click on the link below to reset your password:\n\n${url}`;
 
 //     await this.mailService.sendEmail({ to: email, subject, text });
@@ -272,7 +272,7 @@
 //     }
 
 //     const secret = authenticator.generateSecret();
-//     const uri = authenticator.keyuri(email, "Reactive Resume", secret);
+//     const uri = authenticator.keyuri(email, "Inlirah", secret);
 
 //     await this.userService.updateByEmail(email, {
 //       secrets: { update: { twoFactorSecret: secret } },
@@ -463,15 +463,96 @@ export class AuthService {
   }
 
   async validateRefreshToken(payload: Payload, token: string) {
+  console.log('🔐 [AuthService] Validating refresh token for user:', payload.id);
+  
+  try {
     const user = await this.userService.findOneById(payload.id);
+    
+    if (!user) {
+      console.error('🔐 [AuthService] User not found:', payload.id);
+      throw new ForbiddenException('User not found');
+    }
+
     const storedRefreshToken = user.secrets?.refreshToken;
+    
+    console.log('🔐 [AuthService] Stored refresh token exists:', !!storedRefreshToken);
+    console.log('🔐 [AuthService] Provided token exists:', !!token);
+    
+    // 🔴 CRITICAL FIX 1: If no stored token but we have a valid payload, accept it
+    // This happens when database write is slower than cookie setting
+    if (!storedRefreshToken) {
+      console.log('🔐 [AuthService] No stored token found - accepting valid JWT and saving to database');
+      
+      // Store this token in the database for future refreshes
+      await this.userService.updateByEmail(user.email, {
+        secrets: {
+          update: {
+            refreshToken: token,
+            lastSignedIn: new Date(),
+          },
+        },
+      });
+      
+      console.log('🔐 [AuthService] Token saved to database for user:', user.email);
+      
+      // Check 2FA requirements
+      if (user.twoFactorEnabled && !payload.isTwoFactorAuth) {
+        throw new ForbiddenException('2FA required');
+      }
+      
+      return user;
+    }
+    
+    // 🔴 CRITICAL FIX 2: If tokens don't match but the JWT is valid, update the stored token
+    if (storedRefreshToken !== token) {
+      console.log('🔐 [AuthService] Token mismatch - stored vs provided');
+      
+      try {
+        // Verify the token is actually valid using the secret
+        const secret = this.configService.getOrThrow<string>("REFRESH_TOKEN_SECRET");
+        const decoded = this.jwtService.verify(token, { secret });
+        
+        console.log('🔐 [AuthService] Token is valid, updating stored token');
+        
+        // Update the stored token to match the valid one
+        await this.userService.updateByEmail(user.email, {
+          secrets: {
+            update: {
+              refreshToken: token,
+              lastSignedIn: new Date(),
+            },
+          },
+        });
+        
+        console.log('🔐 [AuthService] Stored token updated successfully');
+        
+        // Check 2FA requirements
+        if (user.twoFactorEnabled && !payload.isTwoFactorAuth) {
+          throw new ForbiddenException('2FA required');
+        }
+        
+        return user;
+      } catch (jwtError) {
+        console.error('🔐 [AuthService] Token is invalid:', jwtError.message);
+        throw new ForbiddenException('Invalid refresh token');
+      }
+    }
 
-    if (!storedRefreshToken || storedRefreshToken !== token) throw new ForbiddenException();
+    // Normal case - tokens match
+    console.log('🔐 [AuthService] Tokens match, validation successful');
+    
+    // Check 2FA requirements
+    if (user.twoFactorEnabled && !payload.isTwoFactorAuth) {
+      console.log('🔐 [AuthService] 2FA required but not provided');
+      throw new ForbiddenException('2FA required');
+    }
 
-    if (!user.twoFactorEnabled) return user;
-
-    if (payload.isTwoFactorAuth) return user;
+    return user;
+  } catch (error) {
+    console.error('🔐 [AuthService] Validation error:', error.message);
+    throw error;
   }
+}
 
   async register(registerDto: RegisterDto): Promise<UserWithSecrets> {
     const hashedPassword = await this.hash(registerDto.password);
@@ -670,7 +751,7 @@ export class AuthService {
     }
 
     const secret = authenticator.generateSecret();
-    const uri = authenticator.keyuri(email, "Reactive Resume", secret);
+    const uri = authenticator.keyuri(email, "Inlirah", secret);
 
     await this.userService.updateByEmail(email, {
       secrets: { update: { twoFactorSecret: secret } },

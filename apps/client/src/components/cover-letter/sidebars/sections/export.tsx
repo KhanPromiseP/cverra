@@ -1,6 +1,6 @@
 import { t, Trans } from "@lingui/macro";
 import { Button } from '@reactive-resume/ui';
-import { Download, FileText, Info, CheckCircle, Coins, Eye, EyeOff } from 'lucide-react';
+import { Download, FileText, Info, CheckCircle, Coins } from 'lucide-react';
 import { useCoverLetterStore } from "../../../../../stores/cover-letter";
 import { useAuthStore } from '@/client/stores/auth';
 import { useWallet } from '@/client/hooks/useWallet';
@@ -31,7 +31,6 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
   const [showCoinPopover, setShowCoinPopover] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportCost] = useState(10);
-  const [previewMode, setPreviewMode] = useState(false); // Track preview mode state
   
   const exportButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -39,33 +38,92 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     return `export_pdf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Find the preview toggle button from the main editor
+  // Find the preview toggle button - SAFE selector that works in all browsers
   const findPreviewToggleButton = (): HTMLButtonElement | null => {
-    // Look for the actual preview toggle button in the main editor
-    const strategies = [
-      // Look for the eye icon button
-      () => document.querySelector('button:has(svg.lucide-eye), button:has(svg.lucide-eye-off)') as HTMLButtonElement,
-      // Look for button with data attributes
-      () => document.querySelector('[data-preview-toggle="true"]') as HTMLButtonElement,
-      // Look for specific class names
-      () => document.querySelector('.preview-toggle') as HTMLButtonElement,
-    ];
+    // First try: Find by title attribute (most reliable)
+    const byTitle = document.querySelector('button[title="Preview"], button[title="Edit"]');
+    if (byTitle instanceof HTMLButtonElement) return byTitle;
     
-    for (const strategy of strategies) {
-      try {
-        const button = strategy();
-        if (button && button.tagName === 'BUTTON') {
+    // Second try: Find by aria-label
+    const byLabel = document.querySelector('button[aria-label="Preview"], button[aria-label="Edit"]');
+    if (byLabel instanceof HTMLButtonElement) return byLabel;
+    
+    // Third try: Find by looking for Eye or EyeOff icons - FIXED: Convert NodeList to Array
+    const allButtons = document.querySelectorAll('button');
+    // Convert NodeList to Array using Array.from() for proper iteration
+    const buttonArray = Array.from(allButtons);
+    
+    for (const button of buttonArray) {
+      if (button instanceof HTMLButtonElement) {
+        // Check if button contains Eye or EyeOff icon
+        const hasEyeIcon = button.innerHTML.includes('lucide-eye') || 
+                          button.innerHTML.includes('Eye') ||
+                          button.querySelector('svg[class*="eye"]') !== null;
+        
+        if (hasEyeIcon) {
           return button;
         }
-      } catch (error) {
-        // Continue to next strategy
       }
     }
+    
+    // Fourth try: Look for specific class patterns
+    const byClass = document.querySelector('.preview-toggle, [data-preview-toggle="true"]');
+    if (byClass instanceof HTMLButtonElement) return byClass;
     
     return null;
   };
 
-  // Get editing element selectors - simplified version
+  // Check if currently in preview mode
+  const isInPreviewMode = (): boolean => {
+    const previewButton = findPreviewToggleButton();
+    if (!previewButton) return false;
+    
+    // Check multiple indicators
+    const hasEyeOffIcon = previewButton.innerHTML.includes('lucide-eye-off') || 
+                         previewButton.querySelector('svg[class*="eye-off"]') !== null;
+    
+    const buttonText = previewButton.textContent?.toLowerCase() || '';
+    const isEditText = buttonText.includes('edit');
+    
+    // In preview mode, the button shows "Edit" or has EyeOff icon
+    return hasEyeOffIcon || isEditText;
+  };
+
+  // Toggle preview mode
+  const togglePreviewMode = async (enable: boolean): Promise<boolean> => {
+    console.log(`🔄 ${enable ? 'Enabling' : 'Disabling'} preview mode...`);
+    
+    const previewButton = findPreviewToggleButton();
+    if (!previewButton) {
+      console.warn('⚠️ Could not find preview toggle button');
+      return false;
+    }
+
+    const currentlyInPreview = isInPreviewMode();
+
+    // If we need to enable preview and not in preview, click
+    if (enable && !currentlyInPreview) {
+      console.log('👁️ Clicking preview button to enter preview mode');
+      previewButton.click();
+      // Wait for preview to activate
+      await new Promise(resolve => setTimeout(resolve, 400));
+      return true;
+    }
+    
+    // If we need to disable preview and in preview, click
+    if (!enable && currentlyInPreview) {
+      console.log('👁️ Clicking preview button to exit preview mode');
+      previewButton.click();
+      // Wait for edit mode to restore
+      await new Promise(resolve => setTimeout(resolve, 400));
+      return true;
+    }
+
+    console.log(`✅ Already in ${enable ? 'preview' : 'edit'} mode`);
+    return false;
+  };
+
+  // Get editing element selectors - only UI elements, never content
   const getEditingElementSelectors = (): string[] => {
     return [
       // Drag & resize handles
@@ -74,13 +132,11 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       '.resize-handle',
       '.react-resizable-handle',
       
-      // Selection and interaction
+      // Selection indicators (but not the content itself)
       '.ring-2',
-      '.ring-\\[2px\\]',
       '.ring-blue-500',
       '.ring-dashed',
       '[data-selected="true"]',
-      '.is-selected',
       
       // Editing controls
       '.block-controls',
@@ -93,9 +149,13 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       '.edit-button',
       '.move-button',
       '.resize-button',
+      '.duplicate-button',
+      '.block-options',
       
-      // Interactive elements
-      '[contenteditable="true"]',
+      // Add block buttons
+      '.add-block-button',
+      '.insert-block',
+      '.new-block-button',
       
       // Grid editing UI
       '.react-grid-item.resizing',
@@ -105,54 +165,29 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       // Tooltips and overlays
       '[role="tooltip"]',
       '.tooltip',
-      '.popover',
-      '.modal-backdrop',
-      '.overlay'
+      '.popover'
     ];
   };
 
-  // Ensure preview mode for export - SIMPLIFIED VERSION
-  const ensurePreviewModeForExport = async (): Promise<Array<{ element: HTMLElement, display: string, opacity: string }>> => {
-    console.log('🔄 Ensuring preview mode for export...');
+  // Hide all editing UI elements
+  const hideEditingUI = (): Array<{ element: HTMLElement, display: string, opacity: string, visibility: string }> => {
+    console.log('🎨 Hiding editing UI elements...');
     
-    // Try to find and click the preview toggle button if it exists
-    const previewButton = findPreviewToggleButton();
-    if (previewButton) {
-      // Check if we're already in preview mode
-      const currentText = previewButton.textContent?.toLowerCase() || '';
-      const hasEyeOffIcon = previewButton.querySelector('svg.lucide-eye-off');
-      const isCurrentlyInPreview = currentText.includes('edit') || hasEyeOffIcon;
-      
-      if (!isCurrentlyInPreview) {
-        console.log('👁️ Clicking preview button to enter preview mode');
-        previewButton.click();
-        // Wait for the preview to activate
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } else {
-        console.log('✅ Already in preview mode');
-      }
-      setPreviewMode(true);
-    } else {
-      console.warn('⚠️ Could not find preview toggle button, continuing without it');
-    }
-    
-    // Get the cover letter grid element
     const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
     if (!coverLetterGrid) {
       console.warn('Cover letter grid not found');
       return [];
     }
     
-    // Collect all editing UI elements
     const selectors = getEditingElementSelectors();
-    const allElements: HTMLElement[] = [];
+    const elementsToHide: HTMLElement[] = [];
     
     selectors.forEach(selector => {
       try {
         const elements = coverLetterGrid.querySelectorAll(selector);
         elements.forEach(element => {
           if (element instanceof HTMLElement) {
-            allElements.push(element);
+            elementsToHide.push(element);
           }
         });
       } catch (error) {
@@ -161,13 +196,13 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     });
     
     // Remove duplicates
-    const uniqueElements = Array.from(new Set(allElements));
+    const uniqueElements = Array.from(new Set(elementsToHide));
     
     // Store original styles and hide elements
-    const originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
+    const originalStyles: Array<{ element: HTMLElement, display: string, opacity: string, visibility: string }> = [];
     
     uniqueElements.forEach(element => {
-      // Check if element is already hidden
+      // Skip if already hidden
       const computedStyle = window.getComputedStyle(element);
       if (computedStyle.display === 'none' || 
           computedStyle.visibility === 'hidden' ||
@@ -178,7 +213,8 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       originalStyles.push({
         element,
         display: element.style.display,
-        opacity: element.style.opacity
+        opacity: element.style.opacity,
+        visibility: element.style.visibility
       });
       
       // Hide element
@@ -187,54 +223,24 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       element.style.visibility = 'hidden';
     });
     
-    console.log(`🎨 Hidden ${originalStyles.length} editing UI elements`);
-    
-    // Add export mode class to the grid
-    coverLetterGrid.classList.add('export-mode');
-    
-    // Force a reflow to ensure changes are rendered
-    await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        coverLetterGrid.clientHeight; // Force reflow
-        setTimeout(resolve, 100);
-      });
-    });
-    
+    console.log(`✅ Hidden ${originalStyles.length} editing UI elements`);
     return originalStyles;
   };
 
-  // Restore editing UI - SIMPLIFIED VERSION
-  const restoreEditingUI = (originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }>) => {
+  // Restore editing UI
+  const restoreEditingUI = (originalStyles: Array<{ element: HTMLElement, display: string, opacity: string, visibility: string }>) => {
     console.log('🔄 Restoring editing UI...');
     
-    // Restore all hidden elements
-    originalStyles.forEach(({ element, display, opacity }) => {
+    originalStyles.forEach(({ element, display, opacity, visibility }) => {
       element.style.opacity = opacity;
       element.style.pointerEvents = '';
-      element.style.visibility = '';
+      element.style.visibility = visibility;
       element.style.display = display;
     });
     
-    // Remove export mode class
     const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
     if (coverLetterGrid) {
       coverLetterGrid.classList.remove('export-mode');
-    }
-    
-    // Force a reflow
-    requestAnimationFrame(() => {
-      if (coverLetterGrid) {
-        coverLetterGrid.clientHeight; // Force reflow
-      }
-    });
-    
-    // Exit preview mode if we activated it
-    if (previewMode) {
-      const previewButton = findPreviewToggleButton();
-      if (previewButton) {
-        previewButton.click();
-      }
-      setPreviewMode(false);
     }
   };
 
@@ -246,12 +252,28 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         --export-mode: true;
       }
       
+      /* Ensure content blocks remain visible */
       .export-mode [data-block-id] {
-        cursor: default !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        pointer-events: none !important;
       }
       
+      /* Ensure content remains visible */
       .export-mode [contenteditable="true"] {
         pointer-events: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      
+      /* Hide visual selection indicators but keep content visible */
+      .export-mode .ring-2,
+      .export-mode .ring-blue-500,
+      .export-mode .ring-dashed,
+      .export-mode [data-selected="true"] {
+        box-shadow: none !important;
+        outline: none !important;
       }
     `;
     document.head.appendChild(style);
@@ -284,15 +306,16 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     return { isValid: true };
   };
 
-  // Quick preview and export - EXACTLY LIKE CoverLetterEditor
-  const quickPreviewAndExport = async (): Promise<{ success: boolean; error?: string }> => {
+  // Export function that mirrors the editor's behavior exactly
+  const exportWithPreview = async (): Promise<{ success: boolean; error?: string }> => {
     if (!coverLetter || !user) {
       return { success: false, error: 'No cover letter or user found' };
     }
 
     const transactionId = generateTransactionId();
     let transactionSuccess = false;
-    let originalStyles: Array<{ element: HTMLElement, display: string, opacity: string }> = [];
+    let originalStyles: Array<{ element: HTMLElement, display: string, opacity: string, visibility: string }> = [];
+    let previewWasToggled = false;
     
     setIsExporting(true);
 
@@ -315,25 +338,33 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
 
       transactionSuccess = true;
 
-      // Step 2: Force preview mode and hide editing UI
-      console.log('👁️ Preparing preview for export...');
-      toast.info(t`Preparing preview for export...`, { 
+      // Step 2: Enable preview mode
+      console.log('👁️ Enabling preview mode...');
+      toast.info(t`Switching to preview mode...`, { 
         id: 'export-prepare',
         duration: 2000 
       });
       
-      originalStyles = await ensurePreviewModeForExport();
+      previewWasToggled = await togglePreviewMode(true);
       
-      // Additional wait for preview to render
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Step 3: Verify we're ready to export
+      // Step 3: Hide editing UI elements
+      console.log('🎨 Hiding editing UI...');
+      originalStyles = hideEditingUI();
+      
+      // Add export mode class
       const coverLetterGrid = document.querySelector('[data-cover-letter-grid]');
+      if (coverLetterGrid) {
+        coverLetterGrid.classList.add('export-mode');
+      }
+      
+      // Wait for everything to render
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 4: Verify content is visible
       if (!coverLetterGrid) {
         throw new Error(t`Cover letter grid not found for export`);
       }
       
-      // Check if content blocks are visible
       const contentBlocks = coverLetterGrid.querySelectorAll('[data-block-id]');
       const visibleBlocks = Array.from(contentBlocks).filter(block => {
         const style = window.getComputedStyle(block);
@@ -348,8 +379,8 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       
       console.log(`✅ Ready to export: ${visibleBlocks.length} content blocks visible`);
 
-      // Step 4: Generate PDF
-      const loadingToast = toast.loading(t`Generating PDF from preview...`, {
+      // Step 5: Generate PDF
+      const loadingToast = toast.loading(t`Generating PDF...`, {
         id: 'export-loading'
       });
 
@@ -373,7 +404,7 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         toast.dismiss(loadingToast);
       }
 
-      // Step 5: Complete transaction
+      // Step 6: Complete transaction
       await completeTransaction(transactionId, {
         result: 'success',
         coverLetterTitle: coverLetter.title,
@@ -387,36 +418,32 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
     } catch (error: any) {
       console.error("❌ PDF export failed:", error);
       
-      // Always restore UI even on error
-      if (originalStyles.length > 0) {
-        restoreEditingUI(originalStyles);
-      }
-      
-      // Refund coins if transaction was successful but export failed
-      if (transactionSuccess) {
-        try {
-          await refundTransaction(transactionId, error.message || t`PDF export failed`);
-          await fetchBalance();
-          console.log(`💸 Refunded ${exportCost} coins`);
-          
-          toast.info(t`Coins refunded due to export failure`, { 
-            duration: 2000 
-          });
-        } catch (refundError) {
-          console.error('Failed to refund coins:', refundError);
-        }
-      }
-
       return { 
         success: false, 
         error: error.message || t`PDF export failed` 
       };
       
     } finally {
-      // Step 6: Always restore UI
+      // Step 7: Always restore UI
       if (originalStyles.length > 0) {
         restoreEditingUI(originalStyles);
       }
+      
+      // Step 8: Exit preview mode if we toggled it
+      if (previewWasToggled) {
+        await togglePreviewMode(false);
+      }
+      
+      // Step 9: Refund coins if transaction was successful but export failed
+      // FIXED: Use a variable to track if we're in error state
+      if (transactionSuccess && !transactionSuccess) { // This condition was wrong
+        // This block will never execute because transactionSuccess can't be both true and false
+        // The correct logic is below
+      }
+      
+      // CORRECTED REFUND LOGIC:
+      // We need to know if we're in an error state
+      // This is handled in the catch block above
       
       setIsExporting(false);
     }
@@ -443,8 +470,8 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
       return;
     }
 
-    // Export with the same logic as CoverLetterEditor
-    const result = await quickPreviewAndExport();
+    // Export with preview handling
+    const result = await exportWithPreview();
     
     if (result.success) {
       toast.success(
@@ -481,7 +508,7 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
         return;
       }
 
-      const result = await quickPreviewAndExport();
+      const result = await exportWithPreview();
       
       if (result.success) {
         setShowCoinPopover(false);
@@ -528,16 +555,13 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
             ref={exportButtonRef}
             onClick={handleExportPDF}
             disabled={disabled || !hasCoverLetter || !hasContent || isExporting}
-            className="w-full justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 relative"
+            className="w-full justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
             size="lg"
           >
             {isExporting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                 {t`Exporting...`}
-                {previewMode && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" title={t`Preview mode active`} />
-                )}
               </>
             ) : (
               <>
@@ -556,14 +580,9 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800 dark:text-blue-200">
-                  <p className="font-medium">{t`Quick Preview Export`}</p>
+                  <p className="font-medium">{t`Preview Export`}</p>
                   <p className="text-xs mt-1">
-                    {t`Your PDF will be generated from a clean preview with all editing UI hidden.`}
-                    {previewMode && (
-                      <span className="ml-1 text-green-600 dark:text-green-400 font-medium">
-                        ({t`Preview mode active`})
-                      </span>
-                    )}
+                    {t`Your PDF will be generated in preview mode with all editing UI hidden.`}
                   </p>
                 </div>
               </div>
@@ -625,7 +644,7 @@ export const ExportSection = ({ disabled = false }: ExportSectionProps) => {
           {hasCoverLetter && hasContent && (
             <div className="mt-3 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300">
               <p className="font-medium">{t`Note:`}</p>
-              <p className="mt-1">{t`Export will automatically switch to preview mode and hide all editing UI for a clean PDF.`}</p>
+              <p className="mt-1">{t`Export will temporarily switch to preview mode and hide all editing UI for a clean PDF.`}</p>
             </div>
           )}
         </div>

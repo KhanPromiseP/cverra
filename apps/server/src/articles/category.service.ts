@@ -3,7 +3,18 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { PrismaService } from '../../../../tools/prisma/prisma.service';
 import { slugify } from '../auth/utils/slugify';
 import { TranslationService } from './translation.service';
-import { ArticleStatus, CategoryTranslationStatus } from '@prisma/client';
+import { CategoryTranslationStatus } from '@prisma/client';
+
+enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
 
 @Injectable()
 export class CategoryService {

@@ -46,6 +46,7 @@ export class PaymentsController {
       provider?: string; 
       currency?: string;
       metadata?: any;
+      returnUrl?: string;
     }
   ) {
     this.logger.log('Payment initiation request:', {

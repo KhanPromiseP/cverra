@@ -269,6 +269,9 @@ export function CoinConfirmPopover({
     }
 
     setIsProcessing(true);
+
+     // store current URL before payment
+    localStorage.setItem('pre_payment_url', window.location.href);
     
     try {
       const response = await api.post('/payments/initiate', {

@@ -40,7 +40,7 @@
 //     <div className="space-y-6">
 //       <Helmet>
 //         <title>
-//           {t`Verify your email address`} - {t`Inrah`}
+//           {t`Verify your email address`} - {t`Inlirah`}
 //         </title>
 //       </Helmet>
 
@@ -48,7 +48,7 @@
 //         <h2 className="text-2xl font-semibold tracking-tight">{t`Verify your email address`}</h2>
 //         <p className="leading-relaxed opacity-75">
 //           <Trans>
-//             You should have received an email from <strong>Inrah</strong> with a link to
+//             You should have received an email from <strong>Inlirah</strong> with a link to
 //             verify your account.
 //           </Trans>
 //         </p>
@@ -72,7 +72,6 @@
 //   );
 // };
 
-
 import { t, Trans } from "@lingui/macro";
 import { ArrowRight, Info, SealCheck, EnvelopeSimple, WarningCircle } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertTitle, Button } from "@reactive-resume/ui";
@@ -83,7 +82,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useToast } from "@/client/hooks/use-toast";
 import { queryClient } from "@/client/libs/query-client";
 import { useVerifyEmail } from "@/client/services/auth";
-import { useResendVerificationEmail } from "@/client/services/auth"; // Add this import
+import { useResendVerificationEmail } from "@/client/services/auth";
 
 export const VerifyEmailPage = () => {
   const { toast } = useToast();
@@ -133,7 +132,7 @@ export const VerifyEmailPage = () => {
     if (!token) return;
 
     void handleVerifyEmail(token);
-  }, [token, navigate, verifyEmail]);
+  }, [token, navigate, verifyEmail, toast]);
 
   const handleResendEmail = async () => {
     try {
@@ -201,9 +200,21 @@ export const VerifyEmailPage = () => {
             </p>
           </div>
           <div className="flex flex-col gap-3">
-            <Button onClick={handleResendEmail} loading={resendLoading} disabled={resendLoading}>
-              <EnvelopeSimple className="mr-2" size={16} />
-              {t`Resend Verification Email`}
+            <Button 
+              onClick={handleResendEmail} 
+              disabled={resendLoading}
+            >
+              {resendLoading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  {t`Sending...`}
+                </>
+              ) : (
+                <>
+                  <EnvelopeSimple className="mr-2" size={16} />
+                  {t`Resend Verification Email`}
+                </>
+              )}
             </Button>
             <Button asChild variant="outline">
               <Link to="/dashboard">
@@ -241,12 +252,20 @@ export const VerifyEmailPage = () => {
         <div className="space-y-3">
           <Button 
             onClick={handleResendEmail} 
-            loading={resendLoading} 
             disabled={resendLoading}
             className="w-full"
           >
-            <EnvelopeSimple className="mr-2" size={16} />
-            {t`Resend Verification Email`}
+            {resendLoading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {t`Sending...`}
+              </>
+            ) : (
+              <>
+                <EnvelopeSimple className="mr-2" size={16} />
+                {t`Resend Verification Email`}
+              </>
+            )}
           </Button>
           
           <Alert variant="warning">
@@ -254,7 +273,7 @@ export const VerifyEmailPage = () => {
             <AlertTitle>{t`Note`}</AlertTitle>
             <AlertDescription>
               <Trans>
-                You can access Inrah features without verification, but email verification is required for password recovery and important notifications!
+                You can access Inlirah features without verification, but email verification is required for password recovery and important notifications!
               </Trans>
             </AlertDescription>
           </Alert>
@@ -275,7 +294,7 @@ export const VerifyEmailPage = () => {
       <div className="space-y-6 p-6 bg-card rounded-lg border shadow-sm">
         <Helmet>
           <title>
-            {t`Verify your email address`} - {t`Inrah`}
+            {t`Verify your email address`} - {t`Inlirah`}
           </title>
         </Helmet>
 

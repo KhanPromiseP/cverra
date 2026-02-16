@@ -1,4 +1,3 @@
-// client/components/modals/ai-resume-upload-modal.tsx
 import { useState, useRef } from "react";
 import {
   Dialog,
@@ -20,6 +19,8 @@ import {
   CheckCircle,
   MagicWand,
   ArrowRight,
+  Check,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import { Loader2 } from 'lucide-react';
 import { t, Trans } from "@lingui/macro";
@@ -30,6 +31,7 @@ import { useNavigate } from "react-router";
 import { useAuthStore } from "@/client/stores/auth";
 import { useWallet } from "@/client/hooks/useWallet";
 import { CoinConfirmPopover } from "@/client/components/modals/coin-confirm-modal";
+import { InstructionManual } from "@/client/components/modals/instruction-manual";
 
 interface AIResumeUploadModalProps {
   open: boolean;
@@ -40,6 +42,7 @@ export const AIResumeUploadModal = ({
   open,
   onClose,
 }: AIResumeUploadModalProps) => {
+  const [showInstructions, setShowInstructions] = useState(false);
   const [activeTab, setActiveTab] = useState<'text' | 'pdf' | 'doc'>('text');
   const [textContent, setTextContent] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,6 +51,9 @@ export const AIResumeUploadModal = ({
   const [enhanceWithAI, setEnhanceWithAI] = useState(true);
   const [includeSuggestions, setIncludeSuggestions] = useState(true);
   const [resumeTitle, setResumeTitle] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [fileSize, setFileSize] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processButtonRef = useRef<HTMLButtonElement>(null);
@@ -61,7 +67,6 @@ export const AIResumeUploadModal = ({
       const text = await navigator.clipboard.readText();
       setTextContent(text);
       
-      // Update estimated cost based on text length
       const newCost = calculateCost(text.length);
       setEstimatedCost(newCost);
       
@@ -80,25 +85,16 @@ export const AIResumeUploadModal = ({
 
   const calculateCost = (textLength: number): number => {
     let cost = 30; // Base cost
-    
-    // Source type costs
-    // if (activeTab === 'pdf') cost += 10;
-    // if (activeTab === 'doc') cost += 10;
-    
-    // Text length adjustment
-    // if (textLength > 5000) cost += 5;
-    // if (textLength > 10000) cost += 10;
-    
-    // Enhancement options
-    // if (enhanceWithAI) cost += 25;
-    // if (includeSuggestions) cost += 15;
-    
     return cost;
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    setUploadedFile(file);
+    setFileName(file.name);
+    setFileSize(formatFileSize(file.size));
 
     // Preview file content for cost estimation
     const reader = new FileReader();
@@ -119,6 +115,23 @@ export const AIResumeUploadModal = ({
     }
   };
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const removeUploadedFile = () => {
+    setUploadedFile(null);
+    setFileName('');
+    setFileSize('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleProcessWithAI = async () => {
     if (!user) {
       toast({
@@ -129,7 +142,6 @@ export const AIResumeUploadModal = ({
       return;
     }
 
-    // Check if user can afford
     const affordable = await canAfford(estimatedCost);
     
     if (!affordable) {
@@ -141,88 +153,83 @@ export const AIResumeUploadModal = ({
   };
 
   const startAIProcessing = async () => {
-  setIsProcessing(true);
+    setIsProcessing(true);
 
-  try {
-    const token = localStorage.getItem('token');
-    const endpoint = '/api/resume/ai-builder/build';
-    
-    let payload;
-    let headers = {
-      'Authorization': `Bearer ${token}`,
-    };
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = '/api/resume/ai-builder/build';
+      
+      let payload;
+      const headers: HeadersInit = {
+        'Authorization': `Bearer ${token}`,
+      };
 
-    if (activeTab === 'text') {
-      // Send as JSON
-      payload = JSON.stringify({
-        source: 'text',
-        sourceData: textContent,
-        title: resumeTitle || t`AI Generated Resume`,
-        // enhanceWithAI,
-        // includeSuggestions,
-      });
-      headers['Content-Type'] = 'application/json';
-    } else {
-      // For files, use FormData
-      const file = fileInputRef.current?.files?.[0];
-      if (!file) {
-        throw new Error(t`Please select a file`);
+      if (activeTab === 'text') {
+        // Send as JSON
+        payload = JSON.stringify({
+          source: 'text',
+          sourceData: textContent,
+          title: resumeTitle || t`AI Generated Resume`,
+        });
+        headers['Content-Type'] = 'application/json';
+      } else {
+        // For files, use FormData
+        const file = uploadedFile;
+        if (!file) {
+          throw new Error(t`Please select a file`);
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('source', activeTab);
+        formData.append('title', resumeTitle || t`AI Generated Resume`);
+        
+        payload = formData;
+        // Don't set Content-Type for FormData, browser will set it with boundary
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('source', activeTab); // 'pdf' or 'doc'
-      formData.append('title', resumeTitle || t`AI Generated Resume`);
-      // formData.append('enhanceWithAI', enhanceWithAI.toString());
-      // formData.append('includeSuggestions', includeSuggestions.toString());
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: payload,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: t`AI Resume Created!`,
+          description: t`Your resume has been built and is ready to edit`,
+          variant: "success",
+        });
+
+        const redirectPath = data.redirectTo || `/builder/${data.resumeId || data.resume?.id}`;
+        navigate(redirectPath);
+        
+        onClose();
+      } else {
+        throw new Error(data.error || data.message || t`AI processing failed`);
+      }
+    } catch (error) {
+      console.error('AI processing error:', error);
       
-      payload = formData;
-      // Don't set Content-Type for FormData
-    }
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: payload,
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      toast({
-        title: t`AI Resume Created!`,
-        description: t`Your resume has been built and is ready to edit`,
-        variant: "success",
-      });
-
-      // Always use redirectTo if provided, otherwise use resumeId
-      const redirectPath = data.redirectTo || `/builder/${data.resumeId || data.resume?.id}`;
-      navigate(redirectPath);
+      if (error instanceof Error) {
+        toast({
+          title: t`AI Processing Failed`,
+          description: error.message || t`Please try again`,
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: t`AI Processing Failed`,
+          description: t`An unknown error occurred`,
+          variant: "error",
+        });
+      }
       
-      onClose();
-    } else {
-      throw new Error(data.error || data.message || t`AI processing failed`);
+      setIsProcessing(false);
     }
-  } catch (error) {
-    console.error('AI processing error:', error);
-    
-    if (error instanceof Error) {
-      toast({
-        title: t`AI Processing Failed`,
-        description: error.message || t`Please try again`,
-        variant: "error",
-      });
-    } else {
-      toast({
-        title: t`AI Processing Failed`,
-        description: t`An unknown error occurred`,
-        variant: "error",
-      });
-    }
-    
-    setIsProcessing(false);
-  }
-};
+  };
 
   const confirmAIProcessing = async () => {
     try {
@@ -260,42 +267,61 @@ export const AIResumeUploadModal = ({
     }
   };
 
+  const getFileIcon = () => {
+    if (activeTab === 'pdf') return <FilePdf className="h-10 w-10 text-red-500" />;
+    return <FileDoc className="h-10 w-10 text-blue-500" />;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-1">
               <Sparkle className="text-purple-500" />
               <Trans>AI Resume Builder</Trans>
             </DialogTitle>
             <DialogDescription>
               <Trans>
-                Upload your information as pdf/doc or paste text and build, editable version for you
+                Upload your information as pdf/doc or paste text and build, editable version for you.
               </Trans>
+              <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
+                <Trans>Click the yellow button below for detailed instructions.</Trans>
+              </span>
             </DialogDescription>
           </DialogHeader>
 
+         <div className="mb-0">
+  <Button
+    variant="outline"
+    onClick={() => setShowInstructions(true)}
+    className="w-full py-0.5 px-1 min-h-0 text-xs leading-tight border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
+  >
+    <WarningCircle size={10} className="mr-1" />
+    <Trans>⚠️ READ FIRST: Best Results</Trans>
+  </Button>
+</div>
+
           {/* User Balance */}
           {user && (
-            <div className="mb-2 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+            <div className="mb-1 p-1 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-xl border border-yellow-200 dark:border-yellow-800/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-                    <Coins size={16} className="text-yellow-600 dark:text-yellow-400" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40">
+                    <Coins size={12} className="text-yellow-600 dark:text-yellow-300" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
                       <Trans>Your Balance</Trans>
                     </p>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      <Trans>Available coins for In wallet</Trans>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-300/80">
+                      <Trans>Available coins In wallet</Trans>
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{balance}</p>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  <p className="text-xs font-bold text-yellow-700 dark:text-yellow-200">{balance}</p>
+                  <p className="text-xs text-yellow-600 dark:text-yellow-300/80">
                     <Trans>coins</Trans>
                   </p>
                 </div>
@@ -304,14 +330,14 @@ export const AIResumeUploadModal = ({
           )}
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-2">
            <Button
               variant={activeTab === 'text' ? 'primary' : 'outline'}
               onClick={() => setActiveTab('text')}
               className="flex-1 gap-2"
             >
               <ClipboardText size={16} />
-              <Trans>Paste Text</Trans>
+              <Trans>Text</Trans>
             </Button>
             <Button
               variant={activeTab === 'pdf' ? 'primary' : 'outline'}
@@ -332,14 +358,14 @@ export const AIResumeUploadModal = ({
           </div>
 
           {/* Content based on active tab */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {activeTab === 'text' && (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     onClick={handleTextPaste}
-                    className="gap-2"
+                    className="gap-2 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                   >
                     <ClipboardText size={16} />
                     <Trans>Paste from Clipboard</Trans>
@@ -350,7 +376,7 @@ export const AIResumeUploadModal = ({
                       setTextContent('');
                       setEstimatedCost(30);
                     }}
-                    className="gap-2"
+                    className="gap-2 dark:text-gray-300 dark:hover:bg-gray-800"
                   >
                     <X size={16} />
                     <Trans>Clear</Trans>
@@ -363,9 +389,12 @@ export const AIResumeUploadModal = ({
                     setEstimatedCost(calculateCost(e.target.value.length));
                   }}
                   placeholder={t`Paste your resume text here, or type it manually...`}
-                  className="w-full h-48 p-3 border rounded-md resize-none"
+                  className="w-full h-48 p-2 border rounded-md resize-none 
+                    dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200 
+                    dark:placeholder-gray-500 focus:dark:border-purple-500 
+                    focus:dark:ring-1 focus:dark:ring-purple-500"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground dark:text-gray-400">
                   <Trans>
                     Transform your existing documents or text into a polished, customizable resume in seconds.
                   </Trans>
@@ -374,36 +403,72 @@ export const AIResumeUploadModal = ({
             )}
 
             {(activeTab === 'pdf' || activeTab === 'doc') && (
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="mb-4">
-                  <Trans>Upload your {activeTab.toUpperCase()} resume</Trans>
-                </p>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept={activeTab === 'pdf' ? '.pdf' : '.doc,.docx'}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="outline"
-                  className="gap-2 mb-2"
-                >
-                  <Trans>Choose File</Trans>
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  <Trans>
-                    Supported: {activeTab === 'pdf' ? 'PDF files' : 'Word documents'}
-                  </Trans>
-                </p>
+              <div className={`border-2 border-dashed rounded-lg p-4 text-center 
+                ${uploadedFile ? 'border-green-500 dark:border-green-500 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-gray-600'}`}>
+                {uploadedFile ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-3">
+                      {getFileIcon()}
+                      <div className="text-left">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{fileName}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{fileSize}</p>
+                      </div>
+                      <CheckCircle className="h-8 w-8 text-green-500" weight="fill" />
+                    </div>
+                    <div className="flex justify-center gap-2">
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 dark:border-gray-600 dark:text-gray-200"
+                      >
+                        <Upload size={14} />
+                        <Trans>Change File</Trans>
+                      </Button>
+                      <Button
+                        onClick={removeUploadedFile}
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 dark:text-gray-300"
+                      >
+                        <X size={14} />
+                        <Trans>Remove</Trans>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+                    <p className="mb-4 text-gray-700 dark:text-gray-300">
+                      <Trans>Upload your {activeTab.toUpperCase()} resume</Trans>
+                    </p>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept={activeTab === 'pdf' ? '.pdf' : '.doc,.docx'}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      variant="outline"
+                      className="gap-2 mb-2 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      <Trans>Choose File</Trans>
+                    </Button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <Trans>
+                        Supported: {activeTab === 'pdf' ? 'PDF files' : 'Word documents'}
+                      </Trans>
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
             {/* Resume Title */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label className="text-sm font-medium dark:text-gray-200">
                 <Trans>Resume Title</Trans>
               </label>
               <input
@@ -411,149 +476,46 @@ export const AIResumeUploadModal = ({
                 value={resumeTitle}
                 onChange={(e) => setResumeTitle(e.target.value)}
                 placeholder={t`e.g., John Doe - Software Engineer Resume`}
-                className="w-full p-3 border rounded-md"
+                className="w-full p-3 border rounded-md 
+                  dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200 
+                  dark:placeholder-gray-500 focus:dark:border-purple-500 
+                  focus:dark:ring-1 focus:dark:ring-purple-500"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground dark:text-gray-400">
                 <Trans>This will be the name of your new resume</Trans>
               </p>
             </div>
-
-            {/* AI Enhancement Options */}
-            {/* <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MagicWand size={18} className="text-purple-500" />
-                  <span className="font-medium">
-                    <Trans>AI Enhancement</Trans>
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={enhanceWithAI}
-                    onChange={(e) => {
-                      setEnhanceWithAI(e.target.checked);
-                      setEstimatedCost(calculateCost(textContent.length));
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                </label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <Trans>
-                  Enhance your resume with professional language, action verbs, and quantifiable achievements (+5 coins)
-                </Trans>
-              </p>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle size={18} className="text-blue-500" />
-                  <span className="font-medium">
-                    <Trans>AI Suggestions</Trans>
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={includeSuggestions}
-                    onChange={(e) => {
-                      setIncludeSuggestions(e.target.checked);
-                      setEstimatedCost(calculateCost(textContent.length));
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <Trans>
-                  Get AI suggestions for improving your resume content and structure (+5 coins)
-                </Trans>
-              </p>
-            </div> */}
-
-            {/* Cost Summary */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-4 rounded-lg border">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Coins size={20} className="text-yellow-600" />
-                  <span className="font-semibold">
-                    <Trans>Cost</Trans>
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                  {estimatedCost} <span className="text-sm">
-                    <Trans>coins</Trans>
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                {/* <div className="flex justify-between">
-                  <span>
-                    <Trans>Base AI Processing</Trans>
-                  </span>
-                  <span>30 coins</span>
-                </div>
-                {activeTab === 'pdf' && (
-                  <div className="flex justify-between">
-                    <span>
-                      <Trans>PDF Processing</Trans>
-                    </span>
-                    <span>+10 coins</span>
-                  </div>
-                )}
-                {activeTab === 'doc' && (
-                  <div className="flex justify-between">
-                    <span>
-                      <Trans>DOC Processing</Trans>
-                    </span>
-                    <span>+10 coins</span>
-                  </div>
-                )} */}
-                {/* {enhanceWithAI && (
-                  <div className="flex justify-between">
-                    <span>
-                      <Trans>AI Enhancement</Trans>
-                    </span>
-                    <span>+25 coins</span>
-                  </div>
-                )}
-                {includeSuggestions && (
-                  <div className="flex justify-between">
-                    <span>
-                      <Trans>AI Suggestions</Trans>
-                    </span>
-                    <span>+15 coins</span>
-                  </div>
-                )} */}
-                {/* {textContent.length > 5000 && (
-                  <div className="flex justify-between">
-                    <span>
-                      <Trans>Length Adjustment</Trans>
-                    </span>
-                    <span>+{textContent.length > 10000 ? 15 : 5} coins</span>
-                  </div>
-                )} */}
-              </div>
-            </div>
+            
           </div>
+          
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={isProcessing}
-              className="flex-1"
-            >
-              <Trans>Cancel</Trans>
-            </Button>
+         <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isProcessing}
+            className="flex-1 p-1 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+          >
+            <Trans>Cancel</Trans>
+          </Button>
+          <div className="flex-1 flex flex-col gap-1">
+            {/* Cost summary inline with button */}
+            <div className="flex items-center justify-end gap-1.5 px-1">
+              <Coins size={12} className="text-purple-500 dark:text-purple-400" />
+              <span className="text-xs text-purple-600 dark:text-purple-300 font-medium">
+                {estimatedCost}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                <Trans>coins</Trans>
+              </span>
+            </div>
             <Button
               ref={processButtonRef}
               onClick={handleProcessWithAI}
-              disabled={isProcessing || (!textContent.trim() && activeTab === 'text')}
-              className="flex-1 gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              disabled={isProcessing || 
+                (activeTab === 'text' && !textContent.trim()) || 
+                ((activeTab === 'pdf' || activeTab === 'doc') && !uploadedFile)}
+              className="w-full gap-2 p-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-700 dark:to-blue-700 dark:hover:from-purple-800 dark:hover:to-blue-800"
             >
               {isProcessing ? (
                 <>
@@ -567,15 +529,16 @@ export const AIResumeUploadModal = ({
                 </>
               )}
             </Button>
-          </DialogFooter>
+          </div>
+        </DialogFooter>
 
           {/* Processing Info */}
           {isProcessing && (
-            <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border">
+            <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
                 <div>
-                  <p className="font-medium">
+                  <p className="font-medium dark:text-gray-200">
                     <Trans>AI is building your resume...</Trans>
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -604,12 +567,20 @@ export const AIResumeUploadModal = ({
         triggerRef={processButtonRef}
         userId={user?.id}
         metadata={{
-          sourceType: activeTab,
+          template: `ai_resume_${activeTab}`, // Use template instead of sourceType
+          templateName: `AI Resume from ${activeTab.toUpperCase()}`,
+          templateCategory: "ai_generated",
           textLength: textContent.length,
-          enhanceWithAI,
-          includeSuggestions,
+          cost: estimatedCost,
           costBreakdown: t`Total: ${estimatedCost} coins`,
+          note: `Enhance with AI: ${enhanceWithAI}, Include suggestions: ${includeSuggestions}`
         }}
+      />
+
+      {/* Instruction Manual */}
+      <InstructionManual
+        open={showInstructions}
+        onClose={() => setShowInstructions(false)}
       />
     </>
   );

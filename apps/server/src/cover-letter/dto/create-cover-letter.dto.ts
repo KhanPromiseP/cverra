@@ -324,6 +324,51 @@ export class JobDataDto {
   @IsString()
   @IsOptional()
   keyInformation?: string;
+
+  // 🔥 NEW BUSINESS PARTNERSHIP FIELDS - ADD THESE
+  @IsString()
+  @IsOptional()
+  recipientCompany?: string;
+
+  @IsString()
+  @IsOptional()
+  recipientPosition?: string;
+
+  @IsString()
+  @IsOptional()
+  proposalPurpose?: string;
+
+  @IsString()
+  @IsOptional()
+  proposedBenefits?: string;
+
+  @IsString()
+  @IsOptional()
+  partnershipScope?: string;
+
+  @IsString()
+  @IsOptional()
+  proposedTimeline?: string;
+
+  @IsString()
+  @IsOptional()
+  rolesAndResponsibilities?: string;
+
+  @IsString()
+  @IsOptional()
+  financialTerms?: string;
+
+  @IsString()
+  @IsOptional()
+  confidentialityClause?: string;
+
+  @IsString()
+  @IsOptional()
+  disputeResolution?: string;
+
+  @IsString()
+  @IsOptional()
+  exitTerms?: string;
 }
 
 export class CreateCoverLetterDto {

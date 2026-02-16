@@ -1,0 +1,16 @@
+
+# 1. Start all services
+docker-compose up -d
+
+# 2. Check logs
+docker-compose logs -f app
+
+# 3. Check health
+curl http://localhost:3000/health
+curl http://localhost:3000/api/assistant/health
+
+# 4. Access services:
+# App: http://localhost:3000
+# Redis Insight: http://localhost:8001
+# MinIO Console: http://localhost:9001 (user: minioadmin, pass: minioadmin)
+# Adminer: http://localhost:8080 (database: postgres, user: rr_user, pass: rr_password_123)

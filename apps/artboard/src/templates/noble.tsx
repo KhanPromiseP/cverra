@@ -212,6 +212,13 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
+
+   // 🛡️ GUARD CLAUSE - Prevent crash
+  if (!section || !section.items || !Array.isArray(section.items)) {
+    console.warn(`Section "${section?.name || 'Unknown'}" has no items array`);
+    return null;
+  }
+  
   if (!section.visible || section.items.length === 0) return null;
 
   return (

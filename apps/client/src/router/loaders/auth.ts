@@ -20,9 +20,9 @@ export const authLoader: LoaderFunction<UserDto> = async ({ request }) => {
   }
 
   const user = await queryClient.fetchQuery({
-    queryKey: [USER_KEY],
-    queryFn: fetchUser,
-  });
+  queryKey: [USER_KEY],
+  queryFn: (context) => fetchUser(context), // This works!
+});
 
   if (!user) {
     return redirect("/auth/login");

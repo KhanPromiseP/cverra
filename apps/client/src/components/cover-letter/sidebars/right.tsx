@@ -38,7 +38,7 @@ export const RightSidebar = () => {
       {/* Content Area */}
       <div className="flex-1 flex flex-col">
         <ScrollArea orientation="vertical" className="flex-1">
-          <div ref={containterRef} className="grid gap-y-6 p-6 @container/right">
+          <div ref={containterRef} className="grid gap-y-6 p-6 pb-[100px]  @container/right">
             <TemplateSection />
             <Separator />
             <TypographySection />

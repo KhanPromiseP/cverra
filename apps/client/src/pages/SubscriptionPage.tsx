@@ -885,7 +885,7 @@ export const SubscriptionPage = () => {
           Subscription Plans
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Choose a subscription plan for best Inrah discount offer or buy coins directly
+          Choose a subscription plan for best Inlirah discount offer or buy coins directly
         </p>
       </div>
       
@@ -960,7 +960,7 @@ export const SubscriptionPage = () => {
         Subscription Plans
       </h1>
       <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-        Choose a subscription plan for best Inrah discount offer or buy coins directly
+        Choose a subscription plan for best Inlirah discount offer or buy coins directly
       </p>
       
       {/* Enhanced Wallet & Subscription Overview - Only for logged in users */}

@@ -99,15 +99,16 @@
 // export class AppModule {}
 
 
-
 import path from "node:path";
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common'; // ADD MiddlewareConsumer
 import { HttpModule } from '@nestjs/axios';
 import { APP_PIPE } from "@nestjs/core";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { ZodValidationPipe } from "nestjs-zod";
-import { EventEmitterModule } from '@nestjs/event-emitter'; // Add this
-import { ScheduleModule } from '@nestjs/schedule'; // Add this
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler'; // ADD THIS
+import { APP_GUARD } from '@nestjs/core'; // ADD THIS
 
 import { AuthModule } from "./auth/auth.module";
 import { ConfigModule } from "./config/config.module";
@@ -135,9 +136,15 @@ import { AdminModule } from './admin/admin.module';
 
 import { ArticleModule } from './articles/article.module';
 import { ResumeTranslationModule } from "./resume/resume-translation.module";
-import { NotificationModule } from './notification/notification.module'; // Add this
+import { NotificationModule } from './notification/notification.module';
 import { WelcomeModule } from './welcome/welcome.module';
 import { ContactModule } from './contact/contact.module';
+import { AssistantModule } from './assistant/assistant.module';
+
+// ADD THESE NEW IMPORTS
+import { RedisModule } from './redis/redis.module';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { PremiumAssistantMiddleware } from './middleware/premium-assistant.middleware';
 
 @Module({
   controllers: [OpenAiController], 
@@ -154,6 +161,16 @@ import { ContactModule } from './contact/contact.module';
       ignoreErrors: false,
     }),
     ScheduleModule.forRoot(),
+    
+    // ADD Rate Limiting Module
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 1 minute
+      limit: 100, // 100 requests per minute
+    }]),
+    
+    // ADD Redis Module BEFORE other modules that depend on it
+    RedisModule,
+    
     ConfigModule,
     DatabaseModule,
     HttpModule,
@@ -182,13 +199,17 @@ import { ContactModule } from './contact/contact.module';
     WalletModule,
     UsageModule,
     
-    // Notification System Module - Add this
+    // Notification System Module
     NotificationModule,
 
     // bonus
     WelcomeModule,
 
+    // contact
     ContactModule,
+
+    // assistant - This module depends on Redis, so it should come after RedisModule
+    AssistantModule,
     
     // Static File Serving (should be last)
     ServeStaticModule.forRoot({
@@ -209,6 +230,25 @@ import { ContactModule } from './contact/contact.module';
       provide: APP_PIPE,
       useClass: ZodValidationPipe,
     },
+    // ADD Global Rate Limiting Guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule { // ADD implements NestModule
+  configure(consumer: MiddlewareConsumer) {
+    // Apply PremiumAssistantMiddleware to all assistant routes
+    consumer
+      .apply(PremiumAssistantMiddleware)
+      .forRoutes('assistant'); // Apply to all /assistant/* routes
+      
+    //can also apply it more specifically:
+    // .forRoutes(
+    //   { path: 'assistant/message', method: RequestMethod.POST },
+    //   { path: 'assistant/conversations', method: RequestMethod.GET },
+    //   { path: 'assistant/memories', method: RequestMethod.GET },
+    // );
+  }
+}

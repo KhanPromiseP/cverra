@@ -3,33 +3,40 @@ export interface TemplateStructure {
   contactInfoPosition: 'left' | 'center' | 'right' | 'none'; 
   datePosition: 'left' | 'right' | 'none';
   greetingAlignment: 'left' | 'center' | 'right';
-  paragraphSpacing: 'compact' | 'generous' | 'creative' | 'minimal' | 'traditional' | 'balanced' | 'academic' | 'technical';
+  paragraphSpacing: 'compact' | 'balanced' | 'generous' | 'creative' | 'minimal' | 'traditional' | 'academic' | 'technical';
   signatureAlignment: 'left' | 'center' | 'right';
-  subjectLinePosition?: 'left' | 'center' | 'right' | 'none';
   
-  // Subject line styling options
+  // Make these optional since not all templates need them
+  recipientInfoPosition?: 'left' | 'center' | 'right' | 'none';  
+  subjectLinePosition?: 'left' | 'center' | 'right' | 'none';   
+  
+  includeAddress?: boolean;
+  showSubjectLine?: boolean;
+  includeAddresseeInfo?: boolean;
+  showCompanyLogo?: boolean;
+  lineHeight?: 'tight' | 'normal' | 'relaxed';
+  marginSize?: 'small' | 'medium' | 'large' | string;
+  fontStyle?: 'serif' | 'sans-serif' | 'modern' | 'classic';
+
   subjectLineStyle?: {
     textTransform?: 'uppercase' | 'capitalize' | 'lowercase' | 'none';
     textDecoration?: 'underline' | 'bold' | 'italic' | 'none';
     fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter';
-    fontSize?: 'small' | 'normal' | 'large' | 'x-large';
+     fontSize?: 'small' | 'normal' | 'large' | 'x-large' | 'huge' | string;
     textAlign?: 'left' | 'center' | 'right';
   };
-  
-  // Enhanced Border options with margin/padding
+
   borderStyle?: {
     enabled?: boolean;
     type?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
-    width?: 'thin' | 'medium' | 'thick' | 'custom';
+    width?: 'thin' | 'medium' | 'thick' | 'custom' | string;
     color?: string;
-    radius?: 'none' | 'small' | 'medium' | 'large';
+    radius?: 'none' | 'small' | 'medium' | 'large' | string;
     sides?: 'all' | 'top-bottom' | 'left-right' | 'top' | 'bottom';
-    // NEW: Margin from the edge of the page
-    margin?: number; // pixels from edge
-    padding?: number; // internal padding
+    margin?: number;
+    padding?: number;
   };
-  
-  // Background options
+
   backgroundStyle?: {
     type?: 'solid' | 'gradient' | 'pattern' | 'none';
     color?: string;
@@ -40,8 +47,23 @@ export interface TemplateStructure {
     };
     opacity?: number;
   };
+  
 }
 
+
+export type TemplateCategory = 
+  | 'Job Application'
+  | 'Internship Application'
+  | 'Scholarship/Academic Request'
+  | 'Complaint Letter'
+  | 'Recommendation Request'
+  | 'Business Partnership Proposal'
+  | 'Contract / Offer Negotiation'
+  | 'Apology Letter'
+  | 'Appreciation Letter'
+  | 'Letter to Parent/Relative'
+  | 'Visa Request / Embassy Letter'
+  | 'General Official Correspondence';
 export class TemplateLayoutGenerator {
   static generateLayout(structure: TemplateStructure, blocks: any[]): any[] {
     const layout: any[] = [];

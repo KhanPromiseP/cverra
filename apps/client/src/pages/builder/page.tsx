@@ -10,6 +10,25 @@ import { findResumeById } from "@/client/services/resume";
 import { useBuilderStore } from "@/client/stores/builder";
 import { useResumeStore } from "@/client/stores/resume";
 
+// Define section types
+interface Section {
+  id: string;
+  name: string;
+  columns: number;
+  separateLinks: boolean;
+  visible: boolean;
+  content?: string;
+  items?: any[];
+  [key: string]: any;
+}
+
+interface ResumeData {
+  basics: any;
+  sections: Record<string, Section>;
+  metadata: any;
+  [key: string]: any;
+}
+
 export const BuilderPage = () => {
   const frameRef = useBuilderStore((state) => state.frame.ref);
   const setFrameRef = useBuilderStore((state) => state.frame.setRef);
@@ -25,8 +44,6 @@ export const BuilderPage = () => {
     });
   }, [frameRef?.contentWindow, resume.data]);
 
-
-  
   // Send resume data to iframe on initial load
   useEffect(() => {
     if (!frameRef) return;
@@ -36,7 +53,7 @@ export const BuilderPage = () => {
     return () => {
       frameRef.removeEventListener("load", syncResumeToArtboard);
     };
-  }, [frameRef]);
+  }, [frameRef, syncResumeToArtboard]);
 
   // Persistently check if iframe has loaded using setInterval
   useEffect(() => {
@@ -50,16 +67,16 @@ export const BuilderPage = () => {
     return () => {
       clearInterval(interval);
     };
-  }, [frameRef]);
+  }, [frameRef, syncResumeToArtboard]);
 
   // Send resume data to iframe on change of resume data
-  useEffect(syncResumeToArtboard, [resume.data]);
+  useEffect(syncResumeToArtboard, [syncResumeToArtboard, resume.data]);
 
   return (
     <>
       <Helmet>
         <title>
-          {title} - {t`Inrah`}
+          {title} - {t`Inlirah`}
         </title>
       </Helmet>
 
@@ -73,26 +90,6 @@ export const BuilderPage = () => {
     </>
   );
 };
-
-// export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
-//   try {
-//     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-//     const id = params.id!;
-
-//     const resume = await queryClient.fetchQuery({
-//       queryKey: ["resume", { id }],
-//       queryFn: () => findResumeById({ id }),
-//     });
-
-//     useResumeStore.setState({ resume });
-//     useResumeStore.temporal.getState().clear();
-
-//     return resume;
-//   } catch {
-//     return redirect("/dashboard");
-//   }
-// };
-
 
 export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
   try {
@@ -160,13 +157,13 @@ export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
 
 // Add these helper functions:
 
-const fixAIResumeStructure = (data: any): any => {
+const fixAIResumeStructure = (data: any): ResumeData => {
   if (!data) return getDefaultResumeData();
   
   console.log('Fixing AI resume structure...');
   
   // Deep clone to avoid mutations
-  const fixed = JSON.parse(JSON.stringify(data));
+  const fixed = JSON.parse(JSON.stringify(data)) as ResumeData;
   
   // Ensure basics exists
   if (!fixed.basics || typeof fixed.basics !== 'object') {
@@ -194,7 +191,7 @@ const fixAIResumeStructure = (data: any): any => {
   }
   
   // Define all expected sections with their default structure
-  const sectionTemplates = {
+  const sectionTemplates: Record<string, Section> = {
     summary: {
       name: "Summary",
       columns: 1,
@@ -299,7 +296,7 @@ const fixAIResumeStructure = (data: any): any => {
       id: "skills",
       items: []
     },
-    custom: {}
+    custom: {} as Section
   };
   
   // Fix each section
@@ -318,24 +315,25 @@ const fixAIResumeStructure = (data: any): any => {
         ...template,
         items: currentSection,
         visible: currentSection.length > 0
-      };
+      } as Section;
     } else if (typeof currentSection === 'object') {
       // Ensure section has all required properties
       fixed.sections[sectionName] = {
         ...template,
         ...currentSection,
-        id: currentSection.id || sectionName,
-        name: currentSection.name,
-        columns: currentSection.columns,
-        visible: currentSection.visible !== undefined ? currentSection.visible : template.visible,
-        items: currentSection.items,
-        content: currentSection.content,
-      };
+        id: (currentSection as any).id || sectionName,
+        name: (currentSection as any).name,
+        columns: (currentSection as any).columns,
+        visible: (currentSection as any).visible !== undefined ? (currentSection as any).visible : template.visible,
+        items: (currentSection as any).items || [],
+        content: (currentSection as any).content,
+      } as Section;
     }
     
     // Ensure items array exists and has IDs
-    if (fixed.sections[sectionName].items && Array.isArray(fixed.sections[sectionName].items)) {
-      fixed.sections[sectionName].items = fixed.sections[sectionName].items.map((item: any, index: number) => {
+    const section = fixed.sections[sectionName] as Section;
+    if (section.items && Array.isArray(section.items)) {
+      section.items = section.items.map((item: any, index: number) => {
         if (!item || typeof item !== 'object') {
           return {
             id: generateCuid2(),
@@ -411,7 +409,7 @@ const fixAIResumeStructure = (data: any): any => {
   return fixed;
 };
 
-const validateResumeStructure = (data: any) => {
+const validateResumeStructure = (data: any): void => {
   if (!data) throw new Error('Resume data is null');
   
   // Check sections
@@ -424,8 +422,12 @@ const validateResumeStructure = (data: any) => {
     if (section === null) {
       throw new Error(`Section ${key} is null`);
     }
-    if (section && typeof section === 'object' && !section.id) {
-      console.warn(`Section ${key} missing id property`);
+    // Type guard to check if section is an object with an id property
+    if (section && typeof section === 'object' && section !== null) {
+      const sectionObj = section as Record<string, any>;
+      if (!sectionObj.id) {
+        console.warn(`Section ${key} missing id property`);
+      }
     }
   });
   
@@ -441,7 +443,7 @@ const generateCuid2 = (): string => {
   return result;
 };
 
-const getDefaultResumeData = () => {
+const getDefaultResumeData = (): ResumeData => {
   return {
     basics: {
       name: "",
@@ -564,7 +566,7 @@ const getDefaultResumeData = () => {
         id: "references",
         items: []
       },
-      custom: {}
+      custom: {} as Section
     },
     metadata: {
       template: "modern",

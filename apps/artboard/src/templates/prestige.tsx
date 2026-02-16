@@ -29,73 +29,38 @@ const Header = () => {
 
   return (
     <div className="relative grid grid-cols-3 gap-0 overflow-hidden bg-gradient-to-br from-primary to-primary/80">
-      {/* Floating organic shapes */}
-      <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
-      <div className="absolute right-20 top-10 h-32 w-32 rounded-full bg-white/5 blur-xl"></div>
-      <div className="absolute left-1/3 -bottom-8 h-24 w-24 rounded-full bg-white/15 blur-lg"></div>
-      
-      {/* Wave pattern background */}
-      <div className="absolute inset-0 opacity-10">
-        <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d="M0,30 Q20,10 40,30 T80,30 T120,30 T160,30 T200,30 T240,30 T280,30 T320,30 T360,30 T400,30 T440,30 T480,30 T520,30 T560,30 T600,30 T640,30 T680,30 T720,30 T760,30 T800,30 T840,30 T880,30 T920,30 T960,30 T1000,30 L1000,100 L0,100 Z" fill="white"/>
-        </svg>
-      </div>
-
+   
+  
       {/* Profile Picture Section with floating effect */}
-      <div className="relative z-10 flex items-center justify-center p-8">
+      <div className="relative z-10 flex items-center justify-center p-2">
         {/* Animated floating circles */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-52 w-52 animate-float-slow rounded-full bg-gradient-to-br from-white/20 to-white/5 blur-xl"></div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-44 w-44 animate-float rounded-full bg-white/10"></div>
-        </div>
-        
+       
         {/* Picture with elegant curved border and shadow */}
-        <div className="relative rounded-3xl border-4 border-white/80 p-2 shadow-2xl backdrop-blur-sm">
+        <div className="relative rounded-3xl border-4 border-white/80 p-2 shadow-xl backdrop-blur-sm">
           <div className="overflow-hidden rounded-2xl">
-            <Picture size={180} className="rounded-2xl" />
+            <Picture size={140} className="rounded-2xl" />
           </div>
-          {/* Decorative corner accents */}
-          <div className="absolute -top-2 -left-2 h-6 w-6 rounded-full bg-primary/30 blur-sm"></div>
-          <div className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full bg-primary/40 blur-sm"></div>
+         
         </div>
       </div>
 
       {/* Name and Title Section with curved glass morphism */}
-      <div className="relative col-span-2 flex flex-col justify-center space-y-4 bg-white/95 p-10 backdrop-blur-sm">
-        {/* Curved glass edge with gradient */}
-        <div className="absolute -left-6 top-0 h-full w-24">
-          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M0,0 C30,20 40,50 0,100 L100,100 L100,0 Z" fill="url(#glassGradient)" />
-            <defs>
-              <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="white" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="white" stopOpacity="0.8" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+      <div className="relative col-span-2 flex flex-col justify-center space-y-4 bg-white/95 p-2 backdrop-blur-sm">
+        
         
         <div className="relative z-10 space-y-3">
           <div className="space-y-2">
-            <h1 className="text-5xl font-black uppercase tracking-tight text-foreground drop-shadow-sm">
+            <h1 className="text-4xl font-black uppercase tracking-tight text-foreground drop-shadow-sm">
               {basics.name}
             </h1>
             <div className="inline-block rounded-full bg-primary px-6 py-2 shadow-lg">
-              <p className="text-lg font-semibold uppercase tracking-widest text-primary-foreground">
+              <p className="text-lg font-semibold tracking-widest text-primary-foreground">
                 {basics.headline}
               </p>
             </div>
           </div>
           
-          {/* Animated decorative waves */}
-          <div className="flex items-center gap-3">
-            <div className="h-1.5 w-16 rounded-full bg-primary/70 animate-pulse"></div>
-            <div className="h-2 w-2 rounded-full bg-primary animate-bounce"></div>
-            <div className="h-1 w-10 rounded-full bg-primary/60 animate-pulse delay-150"></div>
-            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-ping"></div>
-          </div>
+          
         </div>
       </div>
     </div>
@@ -110,7 +75,7 @@ const Summary = () => {
   return (
     <section id={section.id}>
       {/* Sidebar Style - Glass morphism with curved edges */}
-      <div className="mb-4 hidden items-center gap-x-4 rounded-2xl bg-muted/80 p-4 backdrop-blur-sm group-[.sidebar]:flex">
+      <div className="mb-4 hidden items-center gap-x-4 rounded-2xl bg-muted/80 px-4 backdrop-blur-sm group-[.sidebar]:flex">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg">
           <i className="ph ph-bold ph-user-circle text-2xl text-primary-foreground" />
         </div>
@@ -122,7 +87,7 @@ const Summary = () => {
         <div className="absolute inset-0 bg-primary opacity-20"></div>
         <div className="relative bg-background/80 backdrop-blur-sm">
           <div className="flex items-center gap-x-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-xl">
+            <div className="flex h-4 w-12 items-center justify-center rounded-2xl bg-primary shadow-xl">
               <i className="ph ph-bold ph-user-circle text-3xl text-primary-foreground" />
             </div>
             <h4 className="text-xl font-bold uppercase tracking-wide text-foreground">{section.name}</h4>
@@ -232,13 +197,15 @@ const Section = <T,>({
   sidebarIcon = "list",
   mainIcon = "list",
 }: SectionProps<T>) => {
+
+
   if (!section.visible || section.items.length === 0) return null;
 
   return (
     <section id={section.id} className="grid">
       {/* Sidebar Header Style - Glass morphism */}
       <div className="hidden items-center gap-x-4 rounded-2xl bg-muted/80 p-4 backdrop-blur-sm group-[.sidebar]:flex">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg">
           <i className={cn(`ph ph-bold ph-${sidebarIcon}`, "text-2xl text-primary-foreground")} />
         </div>
         <h4 className="text-base font-bold uppercase tracking-wide text-primary-foreground">{section.name}</h4>
@@ -249,7 +216,7 @@ const Section = <T,>({
         <div className="absolute inset-0 bg-primary opacity-20"></div>
         <div className="relative bg-background/80 backdrop-blur-sm">
           <div className="flex items-center gap-x-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-xl">
+            <div className="flex h-4 w-12 items-center justify-center rounded-2xl bg-primary shadow-xl">
               <i className={cn(`ph ph-bold ph-${mainIcon}`, "text-3xl text-primary-foreground")} />
             </div>
             <h4 className="text-xl font-bold uppercase tracking-wide text-foreground">{section.name}</h4>
@@ -258,7 +225,7 @@ const Section = <T,>({
       </div>
 
       <div
-        className="grid gap-x-6 gap-y-5"
+        className="grid gap-x-6 gap-y-2"
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
@@ -372,7 +339,7 @@ const ContactInfo = () => {
   return (
     <section className="space-y-1">
       <div className="flex items-center gap-x-4 rounded-2xl bg-muted/80 p-1 backdrop-blur-sm">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg">
           <i className="ph ph-bold ph-address-book text-2xl text-primary-foreground" />
         </div>
         <h3 className="text-base font-bold uppercase tracking-wide text-primary-foreground">Contact</h3>
@@ -442,44 +409,60 @@ const Experience = () => {
   return (
     <Section<Experience> section={section} urlKey="url" summaryKey="summary" mainIcon="briefcase" sidebarIcon="briefcase">
       {(item) => (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className={cn(
-            "flex items-start justify-between gap-x-4",
-            "group-[.sidebar]:flex-col group-[.sidebar]:gap-y-2"
+            "flex items-start justify-between gap-2",
+            "group-[.sidebar]:flex-col group-[.sidebar]:gap-1"
           )}>
-            <div className="flex-1 space-y-1">
-              <LinkedEntity
-                name={item.company}
-                url={item.url}
-                separateLinks={section.separateLinks}
-                className={cn(
-                  "text-lg font-bold",
-                  "group-[.main]:text-foreground",
-                  "group-[.sidebar]:text-base group-[.sidebar]:text-primary-foreground"
-                )}
-              />
-              <div className={cn(
-                "text-base font-semibold",
-                "group-[.main]:text-primary",
-                "group-[.sidebar]:text-sm group-[.sidebar]:text-primary/80"
-              )}>{item.position}</div>
-              {item.location && (
-                <div className={cn(
-                  "flex items-center gap-x-2 text-sm",
-                  "group-[.main]:text-muted-foreground",
-                  "group-[.sidebar]:text-xs group-[.sidebar]:text-muted"
-                )}>
-                  <i className="ph ph-bold ph-map-pin text-primary"></i>
-                  {item.location}
-                </div>
+            {/* Left Column - Company */}
+            <LinkedEntity
+              name={item.company}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className={cn(
+                "text-base font-bold",
+                "group-[.main]:text-foreground",
+                "group-[.sidebar]:text-sm group-[.sidebar]:text-primary-foreground"
               )}
-            </div>
+            />
+            
+            {/* Right Column - Date Badge */}
             <div className={cn(
-              "rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-lg",
-              "group-[.sidebar]:text-xs"
+              "shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-sm",
+              "group-[.sidebar]:text-[10px]"
             )}>
               {item.date}
             </div>
+          </div>
+
+          {/* Second Row - Position + Location (Same Line) */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn(
+                "text-sm font-semibold",
+                "group-[.main]:text-primary",
+                "group-[.sidebar]:text-xs group-[.sidebar]:text-primary/80"
+              )}>
+                {item.position}
+              </span>
+              
+              {item.location && (
+                <>
+                  <span className="text-gray-300 group-[.sidebar]:text-gray-500">•</span>
+                  <span className={cn(
+                    "flex items-center gap-1 text-xs",
+                    "group-[.main]:text-muted-foreground",
+                    "group-[.sidebar]:text-[10px] group-[.sidebar]:text-muted"
+                  )}>
+                    <i className="ph ph-map-pin text-xs" />
+                    {item.location}
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {/* Empty div for flex justification balance */}
+            <div className="w-[60px]"></div>
           </div>
         </div>
       )}
@@ -933,7 +916,7 @@ export const Prestige = ({ columns, isFirstPage = false }: TemplateProps) => {
 
         {/* Main Content - Light with subtle gradient */}
         <div className={cn(
-          "main group space-y-6 bg-background p-6 backdrop",
+          "main group space-y-6 bg-background px-6 backdrop",
           sidebar.length > 0 ? "col-span-2" : "col-span-3"
         )}>
           

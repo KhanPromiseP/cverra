@@ -55,13 +55,11 @@ export class PaymentsWebhookController {
         }
 
         // Verify signature
-        const isValid = driver.verifyWebhookSignature(rawBody, { 'stripe-signature': sig });
-        if (!isValid) {
-          this.logger.warn('Invalid Stripe signature');
-          return res.status(400).send('Invalid signature');
-        }
+        const event = driver.verifyWebhookSignature(
+          rawBody,
+          { 'stripe-signature': sig },
+        );
 
-        const event = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
         
         // Handle different Stripe events
         switch (event.type) {

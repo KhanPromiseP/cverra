@@ -1,6 +1,3 @@
-
-
-
 import { 
   Controller, 
   Get, 
@@ -18,13 +15,15 @@ import {
   Request,
   Req,
   Patch,
+  ForbiddenException,
+  Logger // Add this import
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CategoryService } from './category.service';
 import { RecommendationService } from './recommendation.service';
 import { EngagementService } from './engagement.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { AdminGuard, SuperAdminGuard } from '../auth/guards/admin.guard';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { PrismaService } from '../../../../tools/prisma/prisma.service';
 import { ContentAccess, TranslationStatus } from '@prisma/client';
@@ -45,10 +44,24 @@ import {
   UpdateReadingProfileDto,
   SearchArticlesDto 
 } from './dto/recommendation.dto';
-import { ArticleStatus } from '@prisma/client';
+
+// Define ArticleStatus locally since it's not being imported correctly
+enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  NEEDS_REVISION = 'NEEDS_REVISION',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  SCHEDULED = 'SCHEDULED'
+}
+
 
 @Controller('articles')
 export class ArticleController {
+  private readonly logger = new Logger(ArticleController.name); // Add logger
+  
   constructor(
     private readonly articleService: ArticleService,
     private readonly categoryService: CategoryService,
@@ -56,47 +69,101 @@ export class ArticleController {
     private readonly engagementService: EngagementService,
     private readonly prisma: PrismaService,
     private readonly translationService: TranslationService,
-
     private readonly articleResponseTransformer: ArticleResponseTransformer,
   ) {}
+
+  // Helper methods for content processing
+  private getWordCount(content: any): number {
+    if (!content) return 0;
+    const contentString = typeof content === 'string' ? content : JSON.stringify(content);
+    return contentString.split(/\s+/).length;
+  }
+
+  private getImageCount(content: any): number {
+    if (!content) return 0;
+    const contentString = typeof content === 'string' ? content : JSON.stringify(content);
+    return (contentString.match(/<img/g) || []).length;
+  }
+
+  private async getValidationMessagesWithRelations(articleId: string) {
+    return this.prisma.validationMessage.findMany({
+      where: { articleId },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            picture: true,
+          },
+        },
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  private async processTranslationsInBackground(articleId: string, targetLanguages: string[]) {
+    // Implement your translation logic here
+    this.logger.log(`Processing translations for article ${articleId} to languages: ${targetLanguages.join(', ')}`);
+    
+    // Example implementation:
+    for (const language of targetLanguages) {
+      try {
+        await this.prisma.translationJob.create({
+          data: {
+            articleId,
+            targetLanguage: language,
+            status: 'PENDING',
+          },
+        });
+      } catch (error) {
+        this.logger.error(`Failed to create translation job for language ${language}:`, error);
+      }
+    }
+  }
 
   // ========== PUBLIC ROUTES ==========
 
   @Get()
-async listArticles(
-  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-  @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-  @Query('category') category?: string,
-  @Query('tag') tag?: string,
-  @Query('status') status?: ArticleStatus,
-  @Query('accessType') accessType?: string,
-  @Query('featured') featured?: string,
-  @Query('trending') trending?: string,
-  @Query('language') language?: string,     // Primary parameter
-  @Query('lang') lang?: string,            // Alternative parameter
-  @Query('authorId') authorId?: string,
-  @Query('search') search?: string,
-): Promise<ArticleListDto> {
-  const featuredBool = featured ? featured === 'true' : undefined;
-  const trendingBool = trending ? trending === 'true' : undefined;
-  
-  // Use 'lang' if 'language' is not provided
-  const finalLanguage = language || lang;
-  
-  return this.articleService.listArticles({
-    page,
-    limit: Math.min(limit, 100),
-    category,
-    tag,
-    status,
-    accessType: accessType as any,
-    featured: featuredBool,
-    trending: trendingBool,
-    language: finalLanguage,  // ← Use whichever is provided
-    authorId,
-    search,
-  });
-}
+  async listArticles(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('category') category?: string,
+    @Query('tag') tag?: string,
+    @Query('status') status?: string, // Change from ArticleStatus to string
+    @Query('accessType') accessType?: string,
+    @Query('featured') featured?: string,
+    @Query('trending') trending?: string,
+    @Query('language') language?: string,
+    @Query('lang') lang?: string,
+    @Query('authorId') authorId?: string,
+    @Query('search') search?: string,
+  ): Promise<ArticleListDto> {
+    const featuredBool = featured ? featured === 'true' : undefined;
+    const trendingBool = trending ? trending === 'true' : undefined;
+    
+    const finalLanguage = language || lang;
+    
+    return this.articleService.listArticles({
+      page,
+      limit: Math.min(limit, 100),
+      category,
+      tag,
+      status: status as any, // Cast to any
+      accessType: accessType as any,
+      featured: featuredBool,
+      trending: trendingBool,
+      language: finalLanguage,
+      authorId,
+      search,
+    });
+  }
 
   // @Get(':slug')
   // async getArticle(
@@ -109,24 +176,94 @@ async listArticles(
   // }
 
 
+// In article.controller.ts
 
-  @Get('admin/dashboard/stats')
-  @UseGuards(JwtGuard, AdminGuard)
-  async getDashboardStats(@Query('timeRange') timeRange: string = '7days') {
-    return this.articleService.getDashboardStats(timeRange);
+// ADMIN endpoints (filtered to own content)
+@Get('admin/dashboard/stats')
+@UseGuards(JwtGuard, AdminGuard)
+async getAdminDashboardStats(
+  @Query('timeRange') timeRange: string = '7days',
+  @Request() req: any,
+) {
+  const user = req.user;
+  
+  // For ADMIN users, show only their stats
+  if (user.role === 'ADMIN') {
+    return this.articleService.getDashboardStats(timeRange, user.id);
   }
+  
+  // For SUPER_ADMIN, show all stats
+  return this.articleService.getDashboardStats(timeRange);
+}
 
-  @Get('admin/articles/recent')
-  @UseGuards(JwtGuard, AdminGuard)
-  async getRecentArticles() {
-    return this.articleService.getRecentArticles();
+@Get('admin/articles/recent')
+@UseGuards(JwtGuard, AdminGuard)
+async getAdminRecentArticles(@Request() req: any) {
+  const user = req.user;
+  
+  if (user.role === 'ADMIN') {
+    return this.articleService.getRecentArticles(user.id);
   }
+  
+  return this.articleService.getRecentArticles();
+}
 
-  @Get('admin/articles/top')
-  @UseGuards(JwtGuard, AdminGuard)
-  async getTopArticles() {
-    return this.articleService.getTopArticles();
+@Get('admin/articles/top')
+@UseGuards(JwtGuard, AdminGuard)
+async getAdminTopArticles(@Request() req: any) {
+  const user = req.user;
+  
+  if (user.role === 'ADMIN') {
+    return this.articleService.getTopArticles(user.id);
   }
+  
+  return this.articleService.getTopArticles();
+}
+
+// SUPER_ADMIN only endpoints
+@Get('admin/system/stats')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async getSystemStats() {
+  return this.articleService.getSystemStats();
+}
+
+@Get('admin/users/all')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async getAllUsers(
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+  @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
+  @Query('role') role?: string,
+  @Query('search') search?: string,
+) {
+  const filters: any = {};
+  if (role) filters.role = role;
+  if (search) filters.search = search;
+  
+  return this.articleService.getAllUsers(page, limit, filters);
+}
+
+@Get('admin/financial/overview')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async getFinancialOverview() {
+  return this.articleService.getFinancialOverview();
+}
+
+@Get('admin/audit/logs')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async getAuditLogs(
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+  @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number = 50,
+  @Query('userId') userId?: string,
+  @Query('action') action?: string,
+  @Query('resourceType') resourceType?: string,
+) {
+  const filters: any = {};
+  if (userId) filters.userId = userId;
+  if (action) filters.action = action;
+  if (resourceType) filters.resourceType = resourceType;
+  
+  return this.articleService.getAuditLogs(page, limit, filters);
+}
 
 // In article.controller.ts - getArticle method
 @Get(':identifier')
@@ -1053,6 +1190,34 @@ async deleteComment(
 
 
 
+  @Get('admin/articles/list')  // Change from 'admin/list'
+@UseGuards(JwtGuard, AdminGuard)
+async adminListArticles(
+  @Request() req: any,
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  @Query('status') status?: ArticleStatus,
+  @Query('accessType') accessType?: string,
+  @Query('search') search?: string,
+) {
+  const user = req.user;
+  const userRole = user.role;
+  const userId = user.id;
+  
+  // For ADMIN users, only show their articles
+  // For SUPER_ADMIN, show all articles
+  const authorId = userRole === 'ADMIN' ? userId : undefined;
+  
+  return this.articleService.listArticles({
+    page,
+    limit: Math.min(limit, 100),
+    status,
+    accessType: accessType as any,
+    search,
+    authorId,
+  });
+}
+
 
   @Get('translations/all')
   @UseGuards(JwtGuard, AdminGuard)
@@ -1109,7 +1274,6 @@ async deleteComment(
     };
   }
 
-  // In article.controller.ts - add this new endpoint
 @Get('translations/article/:articleId')
 @UseGuards(JwtGuard, AdminGuard)
 async getArticleTranslations(
@@ -2028,4 +2192,636 @@ async getAchievementShareData(
     
     return colors[categoryName] || '#6B7280';
   }
+
+
+
+
+
+
+
+
+
+
+
+
+  // ========== DRAFT MANAGEMENT ENDPOINTS ==========
+
+
+@Get('admin/drafts')
+@UseGuards(JwtGuard, AdminGuard)
+async getDrafts(
+  @Request() req: any,
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+  @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
+  @Query('status') status?: string,
+  @Query('search') search?: string,
+  @Query('authorId') authorId?: string,
+  @Query('category') category?: string,
+) {
+  const user = req.user;
+  const userId = user.id;
+  const userRole = user.role;
+  
+  this.logger.log(`User accessing drafts: ${userId} (${userRole}) - ${user.email}`);
+  
+  // Build where clause
+  const where: any = {};
+  
+  // CRITICAL: Regular admins can ONLY see their own drafts
+  if (userRole === 'ADMIN') {
+    where.authorId = userId;
+    this.logger.debug(`Admin ${userId} restricted to own drafts`);
+    
+    // Prevent admin from viewing other authors' drafts via authorId parameter
+    if (authorId && authorId !== userId) {
+      this.logger.warn(`Admin ${userId} attempted to filter by other author: ${authorId}`);
+      throw new ForbiddenException('Admins can only view their own drafts');
+    }
+  }
+  
+  // SUPER_ADMIN can filter by author if provided
+  if (userRole === 'SUPER_ADMIN' && authorId) {
+    where.authorId = authorId;
+    this.logger.debug(`Super admin filtering by author: ${authorId}`);
+  }
+  
+  // Status filter
+  if (status) {
+    where.status = status;
+    this.logger.debug(`Status filter: ${status}`);
+  } else {
+    // Default status filters based on role
+    if (userRole === 'ADMIN') {
+      where.status = { in: ['DRAFT', 'NEEDS_REVISION', 'REJECTED'] };
+      this.logger.debug(`Default admin statuses: DRAFT, NEEDS_REVISION, REJECTED`);
+    } else if (userRole === 'SUPER_ADMIN') {
+      where.status = { in: ['DRAFT', 'UNDER_REVIEW', 'NEEDS_REVISION', 'APPROVED', 'REJECTED'] };
+      this.logger.debug(`Default super admin statuses: all`);
+    }
+  }
+  
+  // Search filter
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { excerpt: { contains: search, mode: 'insensitive' } },
+      { plainText: { contains: search, mode: 'insensitive' } },
+    ];
+    this.logger.debug(`Search filter: ${search}`);
+  }
+  
+  // Category filter
+  if (category) {
+    where.category = { slug: category };
+    this.logger.debug(`Category filter: ${category}`);
+  }
+  
+  // Log final where clause for debugging
+  this.logger.debug('Final WHERE clause:', JSON.stringify(where, null, 2));
+  
+  try {
+    const skip = (page - 1) * limit;
+    
+    let [drafts, total] = await Promise.all([ // Changed to 'let' instead of 'const'
+      this.prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          { status: 'asc' },
+          { updatedAt: 'desc' }
+        ],
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            },
+          },
+          author: {
+            select: {
+              id: true,
+              name: true,
+              picture: true,
+            },
+          },
+          _count: {
+            select: {
+              validationMessages: {
+                where: { resolved: false },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.article.count({ where }),
+    ]);
+    
+    this.logger.log(`Found ${drafts.length} drafts for user ${userId} (${userRole})`);
+    
+    // Security verification for admin users
+    if (userRole === 'ADMIN') {
+      const unauthorizedDrafts = drafts.filter(draft => draft.author.id !== userId);
+      if (unauthorizedDrafts.length > 0) {
+        this.logger.error(`SECURITY ISSUE: Admin ${userId} found ${unauthorizedDrafts.length} drafts not owned by them`);
+        unauthorizedDrafts.forEach(draft => {
+          this.logger.error(`Unauthorized draft: ${draft.id} owned by ${draft.author.id}`);
+        });
+        // For security, filter them out - now we can reassign 'drafts'
+        drafts = drafts.filter(draft => draft.author.id === userId);
+        // Also update total count
+        total = drafts.length;
+      }
+    }
+    
+    // Transform drafts with additional data
+    const transformedDrafts = await Promise.all(
+      drafts.map(async (article) => {
+        const validationMessages = await this.getValidationMessagesWithRelations(article.id);
+        const wordCount = this.getWordCount(article.content);
+        const imagesCount = this.getImageCount(article.content);
+        const estimatedReadingTime = Math.ceil(wordCount / 200);
+        
+        return {
+          id: article.id,
+          title: article.title,
+          slug: article.slug,
+          excerpt: article.excerpt,
+          content: article.content,
+          status: article.status,
+          category: article.category,
+          author: article.author,
+          createdAt: article.createdAt,
+          updatedAt: article.updatedAt,
+          submittedForReviewAt: article.submittedForReviewAt,
+          reviewedAt: article.reviewedAt,
+          reviewerId: article.reviewerId,
+          validationMessages: validationMessages.map(msg => ({
+            ...msg,
+            resolvedBy: msg.resolvedBy ? {
+              id: msg.resolvedBy.id,
+              name: msg.resolvedBy.name,
+            } : undefined,
+          })),
+          wordCount,
+          estimatedReadingTime,
+          imagesCount,
+          tags: article.tags || [],
+          targetLanguages: article.targetLanguages,
+          autoTranslate: article.autoTranslate,
+          accessType: article.accessType,
+          coinPrice: article.coinPrice,
+          hasUnresolvedMessages: article._count.validationMessages > 0,
+        };
+      })
+    );
+    
+    return {
+      drafts: transformedDrafts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    this.logger.error('Error getting drafts:', error);
+    throw new BadRequestException('Failed to retrieve drafts');
+  }
+}
+
+// Submit draft for review
+@Post('admin/drafts/:id/submit-for-review')
+@UseGuards(JwtGuard)
+async submitDraftForReview(
+  @Param('id') articleId: string,
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  
+  try {
+    // Check if article exists and belongs to user (for admins)
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { 
+        id: true, 
+        authorId: true, 
+        status: true,
+        title: true
+      },
+    });
+    
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    
+    // Check permissions
+    if (userRole === 'ADMIN' && article.authorId !== userId) {
+      throw new ForbiddenException('You can only submit your own drafts for review');
+    }
+    
+    // Check if already submitted
+    if (article.status !== 'DRAFT' && article.status !== 'NEEDS_REVISION') {
+      throw new BadRequestException(`Article is already ${article.status.toLowerCase()}`);
+    }
+    
+    // Update status to UNDER_REVIEW
+    const updated = await this.prisma.article.update({
+      where: { id: articleId },
+      data: {
+        status: 'UNDER_REVIEW',
+        submittedForReviewAt: new Date(),
+      },
+    });
+    
+    // Create notification for super admins
+    const superAdmins = await this.prisma.user.findMany({
+      where: { role: 'SUPER_ADMIN' },
+      select: { id: true },
+    });
+    
+    for (const admin of superAdmins) {
+      await this.prisma.notification.create({
+        data: {
+          userId: admin.id,
+          type: 'DRAFT_SUBMITTED',
+          title: 'New Draft Submitted for Review',
+          message: `Article "${article.title}" has been submitted for review`, 
+          metadata: { articleId: article.id },
+          read: false,
+        },
+      });
+    }
+    
+    return {
+      success: true,
+      message: 'Draft submitted for review',
+      article: updated,
+    };
+  } catch (error) {
+    this.logger.error('Error submitting draft for review:', error);
+    throw error;
+  }
+}
+
+// Update draft status (approve/reject/request revision)
+@Put('admin/drafts/:id/status')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async updateDraftStatus(
+  @Param('id') articleId: string,
+  @Body() body: { status: string; message?: string },
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  
+  try {
+    // Validate status
+    const validStatuses = ['APPROVED', 'REJECTED', 'NEEDS_REVISION'];
+    if (!validStatuses.includes(body.status)) {
+      throw new BadRequestException('Invalid status');
+    }
+    
+    // Check if article exists and is under review
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { id: true, title: true, status: true, authorId: true },
+    });
+    
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    
+    if (article.status !== 'UNDER_REVIEW') {
+      throw new BadRequestException('Article is not under review');
+    }
+    
+    // Start transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update article status
+      const updatedArticle = await tx.article.update({
+        where: { id: articleId },
+        data: {
+          status: body.status,
+          reviewedAt: new Date(),
+          reviewerId: userId,
+          // If approved, set as published
+          ...(body.status === 'APPROVED' && {
+            status: 'PUBLISHED',
+            publishedAt: new Date(),
+          }),
+        },
+      });
+      
+      // Add validation message if provided
+      if (body.message) {
+        let messageType: 'ERROR' | 'WARNING' | 'SUGGESTION' | 'REJECTION' = 'SUGGESTION';
+        
+        if (body.status === 'REJECTED') {
+          messageType = 'REJECTION';
+        } else if (body.status === 'NEEDS_REVISION') {
+          messageType = 'WARNING';
+        }
+        
+        await tx.validationMessage.create({
+          data: {
+            articleId,
+            message: body.message,
+            type: messageType,
+            createdById: userId,
+            resolved: false,
+          },
+        });
+      }
+      
+      // Create notification for author
+      await tx.notification.create({
+        data: {
+          userId: article.authorId,
+          type: 'DRAFT_REVIEWED',
+          title: `Your Draft Has Been ${body.status}`,
+          message: `Your article "${article.title}" has been ${body.status.toLowerCase()}`,
+          metadata: { // ← Change here
+            articleId: article.id,
+            status: body.status,
+            reviewerId: userId,
+            message: body.message,
+          },
+          read: false,
+        },
+      });
+      
+      return updatedArticle;
+    });
+    
+    // If approved, trigger translations if auto-translate is enabled
+    if (body.status === 'APPROVED') {
+      const articleWithSettings = await this.prisma.article.findUnique({
+        where: { id: articleId },
+        select: { autoTranslate: true, targetLanguages: true },
+      });
+      
+      if (articleWithSettings?.autoTranslate && articleWithSettings.targetLanguages) {
+        this.processTranslationsInBackground(articleId, articleWithSettings.targetLanguages)
+          .then((translationResult) => {
+            this.logger.log(`Auto-translations triggered for approved article "${article.title}"`);
+          })
+          .catch((error) => {
+            this.logger.error(`Failed to trigger translations for approved article:`, error);
+          });
+      }
+    }
+    
+    return {
+      success: true,
+      message: `Draft ${body.status.toLowerCase()} successfully`,
+      article: result,
+    };
+  } catch (error) {
+    this.logger.error('Error updating draft status:', error);
+    throw error;
+  }
+}
+
+// Get validation messages for a draft
+@Get('admin/drafts/:id/validation-messages')
+@UseGuards(JwtGuard)
+async getValidationMessages(
+  @Param('id') articleId: string,
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  
+  try {
+    // Check permissions
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { id: true, authorId: true },
+    });
+    
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    
+    if (userRole === 'ADMIN' && article.authorId !== userId) {
+      throw new ForbiddenException('You can only view validation messages for your own articles');
+    }
+    
+    const messages = await this.prisma.validationMessage.findMany({
+      where: { articleId },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            picture: true,
+          },
+        },
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    return messages;
+  } catch (error) {
+    this.logger.error('Error fetching validation messages:', error);
+    throw error;
+  }
+}
+
+// Add validation message
+@Post('admin/drafts/:id/validation-messages')
+@UseGuards(JwtGuard, SuperAdminGuard)
+async addValidationMessage(
+  @Param('id') articleId: string,
+  @Body() body: { 
+    message: string; 
+    type: 'ERROR' | 'WARNING' | 'SUGGESTION' | 'REJECTION';
+    section?: string;
+    lineNumber?: number;
+  },
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  
+  try {
+    // Check if article exists
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { id: true, title: true, authorId: true },
+    });
+    
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    
+    // Create validation message
+    const validationMessage = await this.prisma.validationMessage.create({
+      data: {
+        articleId,
+        message: body.message,
+        type: body.type,
+        section: body.section,
+        lineNumber: body.lineNumber,
+        createdById: userId,
+        resolved: false,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            picture: true,
+          },
+        },
+      },
+    });
+    
+    // Create notification for author
+    await this.prisma.notification.create({
+      data: {
+        userId: article.authorId,
+        type: 'VALIDATION_MESSAGE_ADDED',
+        title: 'New Feedback on Your Draft',
+        message: `New ${body.type.toLowerCase()} added to your article "${article.title}"`,
+        metadata: { // ← Change here
+          articleId: article.id,
+          messageId: validationMessage.id,
+          messageType: body.type,
+        },
+        read: false,
+      },
+    });
+    
+    return {
+      success: true,
+      message: 'Validation message added successfully',
+      validationMessage,
+    };
+  } catch (error) {
+    this.logger.error('Error adding validation message:', error);
+    throw error;
+  }
+}
+
+// Mark validation message as resolved
+@Put('admin/validation-messages/:id/resolve')
+@UseGuards(JwtGuard)
+async markMessageResolved(
+  @Param('id') messageId: string,
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  
+  try {
+    // Check if message exists
+    const message = await this.prisma.validationMessage.findUnique({
+      where: { id: messageId },
+      include: {
+        article: {
+          select: {
+            id: true,
+            authorId: true,
+          },
+        },
+      },
+    });
+    
+    if (!message) {
+      throw new NotFoundException('Validation message not found');
+    }
+    
+    // Check permissions
+    if (userRole === 'ADMIN' && message.article.authorId !== userId) {
+      throw new ForbiddenException('You can only resolve messages on your own articles');
+    }
+    
+    // Update message
+    const updatedMessage = await this.prisma.validationMessage.update({
+      where: { id: messageId },
+      data: {
+        resolved: true,
+        resolvedAt: new Date(),
+        resolvedById: userId,
+      },
+      include: {
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+    
+    return {
+      success: true,
+      message: 'Validation message marked as resolved',
+      validationMessage: updatedMessage,
+    };
+  } catch (error) {
+    this.logger.error('Error marking message as resolved:', error);
+    throw error;
+  }
+}
+
+// Delete draft
+@Delete('admin/drafts/:id')
+@UseGuards(JwtGuard)
+async deleteDraft(
+  @Param('id') articleId: string,
+  @Request() req: any,
+) {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  
+  try {
+    // Check if article exists
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { 
+        id: true, 
+        authorId: true, 
+        status: true,
+        title: true 
+      },
+    });
+    
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    
+    // Check permissions
+    if (userRole === 'ADMIN' && article.authorId !== userId) {
+      throw new ForbiddenException('You can only delete your own drafts');
+    }
+    
+    // Check status - only allow deletion of DRAFT or NEEDS_REVISION
+    if (!['DRAFT', 'NEEDS_REVISION', 'REJECTED'].includes(article.status)) {
+      throw new BadRequestException(`Cannot delete article with status: ${article.status}`);
+    }
+    
+    // Delete article
+    await this.prisma.article.delete({
+      where: { id: articleId },
+    });
+    
+    return {
+      success: true,
+      message: 'Draft deleted successfully',
+    };
+  } catch (error) {
+    this.logger.error('Error deleting draft:', error);
+    throw error;
+  }
+}
 }

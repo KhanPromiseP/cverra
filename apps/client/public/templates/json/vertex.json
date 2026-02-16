@@ -271,7 +271,7 @@
     "custom": {}
   },
   "metadata": {
-    "template": "gengar",
+    "template": "vertex",
     "layout": [
       [
         ["summary", "experience", "education", "projects", "references"],

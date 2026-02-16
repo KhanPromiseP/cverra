@@ -60,7 +60,7 @@ export const ArtboardPage = () => {
   return (
     <>
       <Helmet>
-        <title>{name} | Cverra</title>
+        <title>{name} | Inlirah</title>
         {metadata.css.visible && (
           <style id="custom-css" lang="css">
             {metadata.css.value}

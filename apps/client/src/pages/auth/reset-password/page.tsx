@@ -57,7 +57,7 @@ export const ResetPasswordPage = () => {
     <div className="space-y-8">
       <Helmet>
         <title>
-          {t`Reset your password`} - {t`Inrah`}
+          {t`Reset your password`} - {t`Inlirah`}
         </title>
       </Helmet>
 
