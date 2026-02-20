@@ -52,7 +52,7 @@ import {
   RobotOutlined,
   UserOutlined,
   ArrowLeftOutlined,
-  
+  StarOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import { getArticles, deleteArticle, updateArticleStatus, getArticleAvailableLanguages, getTranslationStatus, triggerArticleTranslation, getTranslations, updateTranslation, regenerateTranslation } from '../../../../services/article.service';
@@ -71,11 +71,12 @@ interface Article {
   slug: string;
   excerpt: string;
   status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
-  
   accessType: 'FREE' | 'PREMIUM' | 'SUBSCRIPTION';
   viewCount: number;
   likeCount: number;
-  commentCount: number;
+  commentCount?: number; // Keep for backward compatibility
+  reviewCount?: number; // Add this
+  averageRating?: number; // Add this
   isFeatured: boolean;
   isTrending: boolean;
   publishedAt?: string;
@@ -90,6 +91,11 @@ interface Article {
   };
   autoTranslate?: boolean;
   targetLanguages?: string[];
+  reviewStats?: {
+    totalCount: number;
+    averageRating: number;
+    ratingDistribution: Record<number, number>;
+  };
 }
 
 interface Translation {
@@ -182,17 +188,27 @@ const ArticlesList: React.FC = () => {
     
     console.log('📡 Fetching admin articles...');
     
-    // The response IS the ArticleListDto directly, not wrapped
     const data = await getAdminArticles(params);
     
     console.log('📦 Received data:', {
       articlesCount: data?.articles?.length,
       total: data?.total,
-      dataKeys: data ? Object.keys(data) : 'no data'
     });
     
-    // Direct assignment - the response is already ArticleListDto
-    setArticles(data?.articles || []);
+    // Map the API response to match your local interface
+    const mappedArticles = data?.articles?.map((article: any) => ({
+      ...article,
+      reviewStats: article.reviewStats ? {
+        totalCount: article.reviewStats.totalReviews, // Map totalReviews to totalCount
+        averageRating: article.reviewStats.averageRating,
+        ratingDistribution: article.reviewStats.ratingDistribution
+      } : undefined,
+      // Also map these for backward compatibility
+      reviewCount: article.reviewStats?.totalReviews || article.reviewCount,
+      averageRating: article.reviewStats?.averageRating || article.averageRating
+    })) || [];
+    
+    setArticles(mappedArticles);
     setPagination(prev => ({
       ...prev,
       total: data?.total || 0,
@@ -439,6 +455,32 @@ const ArticlesList: React.FC = () => {
     },
   ];
 
+  // Helper function to get review display text
+  const getReviewDisplay = (record: Article) => {
+    const reviewCount = record.reviewStats?.totalCount || record.reviewCount || 0;
+    const avgRating = record.reviewStats?.averageRating || record.averageRating || 0;
+    
+    if (reviewCount === 0) {
+      return <span className="text-gray-400 dark:text-gray-500">{t`No reviews`}</span>;
+    }
+    
+    return (
+      <Tooltip title={t`${reviewCount} reviews with ${avgRating.toFixed(1)} average rating`}>
+        <span>
+          <Rate 
+            disabled 
+            value={avgRating} 
+            allowHalf 
+            className="text-sm [&_.ant-rate-star]:mr-0.5 [&_.ant-rate-star]:dark:text-yellow-500" 
+          />
+          <span className="ml-1 text-xs text-gray-600 dark:text-gray-400">
+            ({reviewCount})
+          </span>
+        </span>
+      </Tooltip>
+    );
+  };
+
   const columns = [
     {
       title: t`Title`,
@@ -530,6 +572,12 @@ const ArticlesList: React.FC = () => {
       },
     },
     {
+      title: t`Reviews`,
+      key: 'reviews',
+      width: 150,
+      render: (_: any, record: Article) => getReviewDisplay(record),
+    },
+    {
       title: t`Translations`,
       key: 'translations',
       width: 120,
@@ -567,7 +615,10 @@ const ArticlesList: React.FC = () => {
             👁️ {(record.viewCount || 0).toLocaleString()} {t`views`}
           </div>
           <div>
-            ❤️ {record.likeCount || 0} {t`likes`} • 💬 {record.commentCount || 0} {t`comments`}
+            ❤️ {record.likeCount || 0} {t`likes`}
+          </div>
+          <div>
+            ⭐ {record.reviewStats?.totalCount || record.reviewCount || 0} {t`reviews`}
           </div>
           {record.publishedAt && (
             <div>
@@ -627,7 +678,7 @@ const ArticlesList: React.FC = () => {
                 },
                 {
                   key: 'draft',
-                  label: t`Move to Draft`,
+                   label: t`Move to Draft`,
                   disabled: record.status === 'DRAFT',
                   onClick: () => handleStatusChange(record.id, 'DRAFT'),
                 },

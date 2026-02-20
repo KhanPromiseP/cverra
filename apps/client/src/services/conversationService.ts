@@ -70,12 +70,15 @@ class ConversationService {
 
   // Delete conversation
   async deleteConversation(id: string, permanent: boolean = false) {
-    const response = await fetch(`/api/assistant/conversations/${id}`, {
+    const response = await fetch(`/api/assistant/conversations/${id}/delete`, { // ✅ Fixed endpoint
       method: 'DELETE',
       headers: this.getHeaders(),
       body: JSON.stringify({ conversationId: id, permanent }),
     });
-    if (!response.ok) throw new Error('Failed to delete conversation');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to delete conversation');
+    }
     return response.json();
   }
 

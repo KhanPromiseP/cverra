@@ -27,6 +27,11 @@ interface Article {
   isPremium?: boolean;
   price?: number;
   slug: string;
+  reviewStats?: {
+    totalCount: number;
+    averageRating: number;
+    ratingDistribution: Record<number, number>;
+  };
 }
 
 interface ArticleAccess {

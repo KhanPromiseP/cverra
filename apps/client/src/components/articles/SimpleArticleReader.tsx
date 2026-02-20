@@ -22,6 +22,7 @@ import {
   Spin,
   Progress,
   Alert,
+  
 } from 'antd';
 import { 
   HeartOutlined, 
@@ -36,9 +37,7 @@ import {
   StarOutlined,
   FireOutlined,
   UserOutlined,
-  CommentOutlined,
   ShareAltOutlined,
-  SendOutlined,
   LikeOutlined,
   LikeFilled,
   MoreOutlined,
@@ -57,7 +56,8 @@ import {
   InfoCircleOutlined, 
   CloseOutlined,
   PlusOutlined,
-  CopyrightOutlined
+  CopyrightOutlined,
+  CheckCircleOutlined
   
 } from '@ant-design/icons';
 import { Fragment } from "react"; 
@@ -68,6 +68,9 @@ import AuthModal from '../common/AuthModal';
 import { useUser } from "@/client/services/user";
 import PremiumPaywall from './PremiumPaywall';
 import { useLingui } from '@lingui/react';
+import './SimpleArticleReader.css';
+import SimpleReviewSection from './SimpleReviewSection';
+import { useWallet } from '../../hooks/useWallet'; 
 
 
 
@@ -105,36 +108,29 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
 }) => {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [commenting, setCommenting] = useState(false);
   const [relatedArticles, setRelatedArticles] = useState<RelatedArticle[]>([]);
   const [trendingArticles, setTrendingArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [showCommentModal, setShowCommentModal] = useState(false);
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'comments' | 'related' | 'trending'>('comments');
-  const [commentPage, setCommentPage] = useState(1);
-  const [hasMoreComments, setHasMoreComments] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
 
+  const checkingAccessRef = useRef(false);
+
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewStats, setReviewStats] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  });
+
+  const [activeTab, setActiveTab] = useState<'comments' | 'related' | 'trending'>('comments');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authAction, setAuthAction] = useState<'like' | 'comment' | 'save' | 'premium' | 'translate' | 'share' | 'reply'>('like');
   const { user, loading: userLoading } = useUser();
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [replyLoading, setReplyLoading] = useState(false);
-  const [visibleComments, setVisibleComments] = useState(2);
-  const [isLoadingMoreComments, setIsLoadingMoreComments] = useState(false);
-
-  const [displayedComments, setDisplayedComments] = useState<Comment[]>([]);
-  // Add a new state for showing all comments
-  const [showAllComments, setShowAllComments] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [userHasAccess, setUserHasAccess] = useState(false);
 
@@ -166,18 +162,13 @@ const SimpleArticleReader: React.FC<SimpleArticleReaderProps> = ({
   const fetchInProgressRef = useRef(false);
   const scrollTrackingEnabledRef = useRef(false);
   const articleIdRef = useRef<string | null>(null);
-  const commentsEndRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
-  const [editingComment, setEditingComment] = useState<string | null>(null);
-  const [editCommentText, setEditCommentText] = useState('');
-  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
-
 
   const [fontSize, setFontSize] = useState<number>(18); // Default 18px
   const [lineHeight, setLineHeight] = useState<number>(1.8);
   const [fontFamily, setFontFamily] = useState<string>('system-ui');
 
-
+  const { balance, fetchBalance } = useWallet(user?.id || '');
 
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
   const [availableLanguages, setAvailableLanguages] = useState<string[]>(['en']);
@@ -250,55 +241,6 @@ console.log('👤 useUser result:', { user, loading: userLoading });
   loadAvailableLanguages();
 }, [article?.id]); // Should only run when article.id changes
 
-
-// useEffect(() => {
-//   // This will run when language changes AND article exists
-//   if (article && i18n.locale !== currentLanguage) {
-//     console.log('🌐 UI language changed, updating article language:', {
-//       uiLocale: i18n.locale,
-//       currentArticleLang: currentLanguage,
-//       shouldUpdate: i18n.locale.split('-')[0] !== currentLanguage.split('-')[0]
-//     });
-    
-//     // Extract base language code (e.g., 'fr' from 'fr-FR')
-//     const uiLanguageCode = i18n.locale.split('-')[0];
-//     const currentLanguageCode = currentLanguage.split('-')[0];
-    
-    
-//     // Only update if different language codes
-//     if (uiLanguageCode !== currentLanguageCode) {
-//       handleLanguageChange(uiLanguageCode);
-//     }
-//   }
-// }, [i18n.locale, article]); // Watch for language changes
-
-
-// useEffect(() => {
-//   // Only run when UI language changes, not when article changes
-//   if (article && i18n.locale !== currentLanguage) {
-//     console.log('🌐 UI language changed:', {
-//       uiLocale: i18n.locale,
-//       currentArticleLang: currentLanguage
-//     });
-    
-//     const uiLanguageCode = i18n.locale.split('-')[0];
-//     const currentLanguageCode = currentLanguage.split('-')[0];
-    
-//     // Check if this is likely a manual change by user
-//     // (if article language was recently changed manually)
-//     const timeSinceArticleLoad = article?.updatedAt ? 
-//       Date.now() - new Date(article.updatedAt).getTime() : Infinity;
-    
-//     // Only auto-sync if article hasn't been recently updated
-//     // (meaning user hasn't just manually changed language)
-//     if (uiLanguageCode !== currentLanguageCode && timeSinceArticleLoad > 5000) {
-//       console.log('🔄 Auto-syncing article to UI language');
-//       handleLanguageChange(uiLanguageCode);
-//     } else {
-//       console.log('🔄 Skipping auto-sync - article recently updated');
-//     }
-//   }
-// }, [i18n.locale]); // REMOVE article from dependencies! Only watch i18n.locale
 
 
 useEffect(() => {
@@ -399,49 +341,95 @@ useEffect(() => {
     } : null);
   };
 
-// const handleLanguageChange = async (language: string) => {
-//   if (!article || language === currentLanguage || isTranslating || languageSwitching) return;
+
+  // Add this function inside your SimpleArticleReader component
+const refreshArticleData = useCallback(async () => {
+  if (!slug || !article?.id) return; // Add null check for article
   
-//   console.log('🔄 START Switching language to:', language);
-//   console.log('🔄 Current article language:', article.language, 'Current state language:', currentLanguage);
-  
-//   setLanguageSwitching(true);
-  
-//   try {
-//     // Show loading notification
-//     notification.info({
-//       message: t`Loading ${getLanguageName(language)} version...`,
-//       duration: 2,
-//       key: 'language-switch',
-//     });
+  try {
+    const params = currentLanguage !== 'en' ? { language: currentLanguage } : undefined;
+    const response = await articleApi.getArticle(slug, params);
     
-//     // Simply update the currentLanguage state
-//     // This will trigger the useEffect above to reload the article
-//     console.log('🔄 Setting currentLanguage to:', language);
-//     setCurrentLanguage(language);
-    
-//     // Set a new content key to force re-render
-//     const newKey = `lang-${language}-${Date.now()}`;
-//     setContentKey(newKey);
-    
-//     notification.success({
-//       message: t`Switched to ${getLanguageName(language)}`,
-//       description: t`Article content has been updated.`,
-//       duration: 3,
-//     });
-    
-//     console.log('✅ Language switch state updated');
-//   } catch (error: any) {
-//     console.error('❌ Failed to switch language:', error);
-//     notification.error({
-//       message: t`Language Switch Failed`,
-//       description: error.response?.data?.message || t`Could not load the translated version.`,
-//       duration: 3,
-//     });
-//   } finally {
-//     setLanguageSwitching(false);
-//   }
-// };
+    if (response?.data) {
+      let articleData;
+      if (typeof response.data === 'object' && 'success' in response.data) {
+        const apiResponse = response.data as any;
+        if (apiResponse.success && apiResponse.data) {
+          articleData = apiResponse.data;
+        }
+      } else {
+        articleData = response.data;
+      }
+      
+      if (articleData && articleData.id) {
+        // Update the article with new data (including updated review stats)
+        setArticle(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            ...articleData,
+            reviewStats: articleData.reviewStats || prev.reviewStats
+          };
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to refresh article data:', error);
+  }
+}, [slug, currentLanguage, article?.id]);
+
+
+
+  // Helper function to safely access review stats
+const getReviewStats = (article: Article | null) => {
+  if (!article?.reviewStats) {
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      recentReviews: []
+    };
+  }
+  return article.reviewStats;
+};
+
+// Add this function to fetch and update review stats
+const fetchAndUpdateReviewStats = useCallback(async (articleId: string) => {
+  try {
+    const response = await apiClient.get(`/articles/${articleId}/reviews/summary`);
+    if (response.data) {
+      console.log('📊 Fetched review stats:', response.data);
+      
+      // Update the local reviewStats state
+      setReviewStats(response.data);
+      
+      // Also update the article object with the review stats
+      setArticle(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          reviewStats: response.data
+        };
+      });
+      
+      return response.data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch review stats:', error);
+  }
+}, []);
+
+const handleStatsUpdate = (stats: any) => {
+  console.log('📊 Stats update received from review section:', stats);
+  setReviewStats(stats);
+  setArticle(prev => {
+    if (!prev) return prev;
+    return {
+      ...prev,
+      reviewStats: stats
+    };
+  });
+};
 
 
 const handleArticleLanguageChange = async (language: string, isManualChange: boolean = true) => {
@@ -609,7 +597,11 @@ const handleArticleLanguageChange = async (language: string, isManualChange: boo
           readingTime: articleData.readingTime || 1,
           viewCount: articleData.viewCount || 0,
           likeCount: articleData.likeCount || 0,
-          commentCount: articleData.commentCount || 0,
+          reviewStats: articleData.reviewStats || {
+            totalCount: 0,
+            averageRating: 0,
+            ratingDistribution: {}
+          },
           clapCount: articleData.clapCount || 0,
           shareCount: articleData.shareCount || 0,
           isFeatured: articleData.isFeatured || false,
@@ -647,6 +639,9 @@ const handleArticleLanguageChange = async (language: string, isManualChange: boo
         
         console.log('✅ Setting article with language:', mappedArticle.language);
         setArticle(mappedArticle);
+
+         // Fetch review stats separately
+        await fetchAndUpdateReviewStats(mappedArticle.id);
         
         // Update available languages if provided
         if (articleData.availableLanguages) {
@@ -803,7 +798,11 @@ const handleLanguageChange = async (language: string) => {
           readingTime: articleData.readingTime || 1,
           viewCount: articleData.viewCount || 0,
           likeCount: articleData.likeCount || 0,
-          commentCount: articleData.commentCount || 0,
+          reviewStats: articleData.reviewStats || {
+            totalCount: 0,
+            averageRating: 0,
+            ratingDistribution: {}
+          },
           clapCount: articleData.clapCount || 0,
           shareCount: articleData.shareCount || 0,
           isFeatured: articleData.isFeatured || false,
@@ -853,17 +852,17 @@ const handleLanguageChange = async (language: string) => {
           duration: 3,
         });
         
-        console.log('✅ Language switch and article reload completed');
+        console.log(' Language switch and article reload completed');
       } else {
-        console.error('❌ No article data found in response');
+        console.error(' No article data found in response');
         throw new Error(t`Could not load the ${getLanguageName(language)} version`);
       }
     } else {
-      console.error('❌ No response data');
+      console.error(' No response data');
       throw new Error(t`Could not load the ${getLanguageName(language)} version`);
     }
   } catch (error: any) {
-    console.error('❌ Failed to switch language:', error);
+    console.error(' Failed to switch language:', error);
     
     // Revert to previous language on error
     if (article) {
@@ -926,7 +925,7 @@ const MobileLanguageSelector: React.FC<{
   }, []);
 
 useEffect(() => {
-  console.log('🌐 Language changed to:', i18n.locale);
+  console.log(' Language changed to:', i18n.locale);
   
   // Extract language code
   const uiLanguageCode = i18n.locale.split('-')[0];
@@ -934,7 +933,7 @@ useEffect(() => {
   
   // Only update if language code is different
   if (uiLanguageCode !== currentLanguageCode) {
-    console.log('🔄 UI language differs from article language, triggering update');
+    console.log(' UI language differs from article language, triggering update');
     
     // Clear related articles cache
     setRelatedArticles([]);
@@ -956,7 +955,7 @@ useEffect(() => {
   useEffect(() => {
   const startTranslation = async () => {
     if (showTranslationModal && selectedLangForTranslate && !isMobileTranslating && translationStatus === 'idle') {
-      console.log('🔄 Auto-starting translation for:', selectedLangForTranslate);
+      console.log(' Auto-starting translation for:', selectedLangForTranslate);
       await handleMobileTranslate(selectedLangForTranslate);
     }
   };
@@ -1049,11 +1048,11 @@ const handleMobileTranslate = useCallback(async (langCode: string) => {
       ));
     
     if (isSuccess) {
-      console.log('✅ Mobile: Translation request successful');
+      console.log(' Mobile: Translation request successful');
       
       // Show success notification
       notification.success({
-        message: t`Translation Started! 🚀`,
+        message: t`Translation Started! `,
         description: t`Converting your content to ${getLanguageName(langCode)}. Hang tight - this usually takes seconds to a minute!`,
         duration: 4,
       });
@@ -1078,7 +1077,7 @@ const handleMobileTranslate = useCallback(async (langCode: string) => {
       
     } else {
       // Log technical error to console
-      console.error('❌ Mobile: Translation API returned non-success (Technical):', response?.message || response?.error);
+      console.error(' Mobile: Translation API returned non-success (Technical):', response?.message || response?.error);
       
       // Throw user-friendly error from FRONTEND
       throw new Error(t`Translation service is temporarily busy. Please try again shortly.`);
@@ -1086,7 +1085,7 @@ const handleMobileTranslate = useCallback(async (langCode: string) => {
     
   } catch (error: any) {
     // Log technical error to console
-    console.error('❌ Mobile: Translation request failed (Technical):', {
+    console.error(' Mobile: Translation request failed (Technical):', {
       message: error.message,
       stack: error.stack
     });
@@ -1888,7 +1887,7 @@ const checkPremiumAccess = async (): Promise<boolean> => {
   console.log('Checking premium access for user:', user.id, 'article:', article.id);
   
   try {
-    // Use the new access check endpoint first
+    // Use the access check endpoint first
     console.log('Checking /access endpoint...');
     const accessResponse = await apiClient.get(`/articles/${article.id}/access`);
     console.log('Access check response:', accessResponse.data);
@@ -1908,59 +1907,41 @@ const checkPremiumAccess = async (): Promise<boolean> => {
     console.error('Failed to check article access:', error);
     console.log('Error response:', error.response?.data);
     
-    // Fallback to old method
-    try {
-      console.log('Trying fallback purchase check...');
-      const response = await articleApi.purchaseArticle(article.id);
-      console.log('Fallback purchase response:', response);
-      
-      if (response.success === true || response.data?.purchased === true) {
-        console.log('Purchase successful via fallback');
-        setUserHasAccess(true);
-        return true;
-      }
-      
-      setUserHasAccess(false);
-      return false;
-      
-    } catch (fallbackError) {
-      console.error('Fallback also failed:', fallbackError);
-      setUserHasAccess(false);
-      return false;
-    }
+    // IMPORTANT: REMOVE THIS FALLBACK PURCHASE CALL!
+    // This is what's causing the auto-purchase on refresh
+    // Just return false and show paywall
+    setUserHasAccess(false);
+    return false;
   }
 };
 
 
 // Function to check if user has access and update state
 const checkAndSetAccess = async () => {
-  if (!article || article.accessType !== 'PREMIUM' || !user) {
-    return;
-  }
+  if (checkingAccessRef.current) return; // Prevent concurrent checks
+  checkingAccessRef.current = true;
   
-  console.log('Checking and setting access...');
-  const hasAccess = await checkPremiumAccess();
-  setUserHasAccess(hasAccess);
-  
-  if (!hasAccess) {
-    console.log('Showing paywall...');
-    setShowPaywall(true);
-  } else {
-    console.log('User has access, not showing paywall');
-    setShowPaywall(false);
+  try {
+    if (!article || article.accessType !== 'PREMIUM' || !user) {
+      return;
+    }
+    
+    console.log('Checking and setting access...');
+    const hasAccess = await checkPremiumAccess();
+    setUserHasAccess(hasAccess);
+    
+    if (!hasAccess) {
+      console.log('Showing paywall...');
+      setShowPaywall(true);
+    } else {
+      console.log('User has access, not showing paywall');
+      setShowPaywall(false);
+    }
+  } finally {
+    checkingAccessRef.current = false;
   }
 };
 
-  
-
-//  const checkAuth = (action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply' | 'translate'): boolean => {
-//   if (!user) {
-//     setAuthAction(action);
-//     setShowAuthModal(true);
-//     return false;
-//   }
-//   return true;
-// };
 
 // Wrap checkAuth with useCallback to prevent recreation
 const checkAuth = useCallback((action: 'like' | 'comment' | 'save' | 'premium' | 'share' | 'reply' | 'translate'): boolean => {
@@ -1972,35 +1953,6 @@ const checkAuth = useCallback((action: 'like' | 'comment' | 'save' | 'premium' |
   return true;
 }, [user]); // Add user as dependency
 
-
-  // Handle edit comment
-const handleEditComment = (comment: Comment) => {
-  setEditingComment(comment.id);
-  setEditCommentText(comment.content);
-};
-
-
-// Function to check if current user owns the comment
-const isCurrentUserComment = (comment: any): boolean => {
-  try {
-    // Check if user is logged in
-    if (!user) return false;
-    
-    // Get current user ID
-    const currentUserId = user.id;
-    if (!currentUserId) return false;
-    
-    // Get author from comment (handles both author and user fields)
-    const author = comment.author || comment.user;
-    const commentAuthorId = author?.id || author?._id;
-    
-    // Also check if comment already has isOwn flag
-    return commentAuthorId === currentUserId || comment.isOwn === true;
-  } catch (error) {
-    console.error('Error checking comment ownership:', error);
-    return false;
-  }
-};
 
 const refreshAvailableLanguages = async () => {
   if (!article?.id) return;
@@ -2048,98 +2000,6 @@ const renderPremiumContentPlaceholder = () => {
     </div>
   );
 };
-
-
-const handleSaveEdit = async (commentId: string) => {
-  if (!editCommentText.trim()) return;
-  
-  // Save original comment for rollback - declare it here (outside try-catch)
-  const findOriginalComment = (comments: any[]): any => {
-    for (const comment of comments) {
-      if (comment.id === commentId) return comment;
-      if (comment.replies?.length) {
-        const found = findOriginalComment(comment.replies);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-  
-  const originalComment = findOriginalComment(comments); // ✅ Now accessible in catch block
-  
-  try {
-    // OPTIMISTIC UPDATE
-    const updateCommentContent = (comments: any[]): any[] => {
-      return comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            content: editCommentText,
-            updatedAt: new Date().toISOString(),
-            isEdited: true
-          };
-        }
-        
-        if (comment.replies && comment.replies.length > 0) {
-          return {
-            ...comment,
-            replies: updateCommentContent(comment.replies)
-          };
-        }
-        
-        return comment;
-      });
-    };
-    
-    setComments(prev => updateCommentContent(prev));
-    setDisplayedComments(prev => updateCommentContent(prev));
-    setEditingComment(null);
-    setEditCommentText('');
-    
-    // Make API call
-    await articleApi.updateComment(commentId, { content: editCommentText });
-    
-    notification.success({ 
-      message: t`Comment updated!`,
-      placement: 'top',
-      duration: 2
-    });
-    
-  } catch (error) {
-    console.error('Failed to update comment:', error);
-    
-    // Revert optimistic update on error - ✅ Now originalComment is accessible
-    if (originalComment) {
-      const revertUpdate = (comments: any[]): any[] => {
-        return comments.map(comment => {
-          if (comment.id === commentId) {
-            return originalComment;
-          }
-          
-          if (comment.replies && comment.replies.length > 0) {
-            return {
-              ...comment,
-              replies: revertUpdate(comment.replies)
-            };
-          }
-          
-          return comment;
-        });
-      };
-      
-      setComments(prev => revertUpdate(prev));
-      setDisplayedComments(prev => revertUpdate(prev));
-    }
-    
-    notification.error({ 
-      message: t`Failed to update comment`,
-      placement: 'top',
-      duration: 3
-    });
-  }
-};
-
-
 
 
   // Session-based view tracking
@@ -2242,6 +2102,8 @@ useEffect(() => {
 }, [user?.id, article?.id]); 
 
 
+
+
 useEffect(() => {
   // This will run when slug changes OR component unmounts
   return () => {
@@ -2261,7 +2123,7 @@ const saveArticleLanguagePreference = (articleId: string, language: string) => {
       timestamp: Date.now()
     };
     localStorage.setItem('articleLanguagePreferences', JSON.stringify(preferences));
-    console.log('💾 Saved article language preference:', { articleId, language });
+    console.log('Saved article language preference:', { articleId, language });
   } catch (error) {
     console.error('Failed to save article language preference:', error);
   }
@@ -2318,7 +2180,7 @@ useEffect(() => {
 useEffect(() => {
   if (!slug) return;
   
-  console.log('📥 Loading article for slug:', slug, 'UI language:', i18n.locale);
+  console.log(' Loading article for slug:', slug, 'UI language:', i18n.locale);
   
   let isActive = true;
   
@@ -2335,8 +2197,6 @@ useEffect(() => {
     if (isActive) {
       setRelatedArticles([]);
       setTrendingArticles([]);
-      setComments([]);
-      setDisplayedComments([]);
       setCategories([]);
     }
   
@@ -2350,7 +2210,7 @@ useEffect(() => {
       
       // IMPORTANT: Always start with UI language for article on page load/reload
       // Only use saved preference if user has manually changed language DURING CURRENT SESSION
-      console.log('📥 Article will load in UI language on page load:', uiLanguageCode);
+      console.log(' Article will load in UI language on page load:', uiLanguageCode);
       
       // Check for session-based manual change (not localStorage)
       const sessionManualChange = sessionStorage.getItem(`article_manual_lang_${slug}`);
@@ -2362,11 +2222,11 @@ useEffect(() => {
         // User changed language during this session
         languageToLoad = sessionManualChange;
         isManualFromSession = true;
-        console.log('🔄 Using session-based manual language change:', languageToLoad);
+        console.log('Using session-based manual language change:', languageToLoad);
       }
       
       // Set article language state IMMEDIATELY
-      console.log('📥 Setting articleLanguage to:', languageToLoad);
+      console.log(' Setting articleLanguage to:', languageToLoad);
       setArticleLanguage(languageToLoad);
       
       if (isManualFromSession) {
@@ -2377,7 +2237,7 @@ useEffect(() => {
         setArticleLanguageFromStorage(null);
       }
 
-      console.log('📥 Fetching article for slug:', slug, 'in language:', languageToLoad);
+      console.log(' Fetching article for slug:', slug, 'in language:', languageToLoad);
       
       // Fetch article in the determined language
       const params = languageToLoad !== 'en' ? { language: languageToLoad } : undefined;
@@ -2385,7 +2245,7 @@ useEffect(() => {
       
       // Check if component is still mounted
       if (!isActive) {
-        console.log('🔄 Component unmounted, aborting');
+        console.log(' Component unmounted, aborting');
         return;
       }
       
@@ -2406,7 +2266,7 @@ useEffect(() => {
       }
 
       if (articleData && articleData.id) {
-        console.log('✅ Article loaded in language:', languageToLoad, {
+        console.log(' Article loaded in language:', languageToLoad, {
           id: articleData.id,
           title: articleData.title,
           availableLanguages: articleData.availableLanguages || ['en']
@@ -2487,7 +2347,6 @@ useEffect(() => {
           readingTime: articleData.readingTime || 1,
           viewCount: articleData.viewCount || 0,
           likeCount: articleData.likeCount || 0,
-          commentCount: articleData.commentCount || 0,
           clapCount: articleData.clapCount || 0,
           shareCount: articleData.shareCount || 0,
           isFeatured: articleData.isFeatured || false,
@@ -2535,7 +2394,7 @@ useEffect(() => {
         const initialKey = `init-${mappedArticle.id}-${languageToLoad}-${Date.now()}`;
         setContentKey(initialKey);
         
-        console.log('✅ Article state set on page load:', {
+        console.log(' Article state set on page load:', {
           articleLanguage: languageToLoad,
           uiLanguage: uiLanguageCode,
           isManualFromSession,
@@ -2557,23 +2416,16 @@ useEffect(() => {
         scrollTrackingEnabledRef.current = false;
 
         if (mappedArticle.accessType === 'PREMIUM' && user) {
-          try {
-            const accessResponse = await articleApi.purchaseArticle(mappedArticle.id);
-            setUserHasAccess(accessResponse.success === true);
-          } catch (error) {
-            console.error('Failed to check premium access:', error);
-            setUserHasAccess(false);
-          }
+          checkAndSetAccess();
         } else if (mappedArticle.accessType === 'FREE') {
           setUserHasAccess(true);
+          setShowPaywall(false);
         }
         
         // Load related data
         if (isActive) {
+          await loadReviews();
           await Promise.allSettled([
-            loadComments(mappedArticle.id).catch(err => 
-              console.log('Comments load skipped:', err.message)
-            ),
             loadRelatedArticles(mappedArticle.id).catch(err => 
               console.log('Related articles load skipped:', err.message)
             ),
@@ -2587,7 +2439,7 @@ useEffect(() => {
         }
         
         if (isActive) {
-          console.log('✅ Article fully loaded in language:', languageToLoad);
+          console.log(' Article fully loaded in language:', languageToLoad);
         }
         
       } else {
@@ -2595,7 +2447,7 @@ useEffect(() => {
       }
     } catch (error: any) {
       if (isActive) {
-        console.error('❌ Failed to load article:', error);
+        console.error(' Failed to load article:', error);
         notification.error({
           message: 'Error Loading Article',
           description: error.response?.data?.message || error.message || t`Failed to load article. Please try again.`,
@@ -2947,7 +2799,7 @@ const LanguageSwitcher: React.FC<{
   
   if (!articleId) return;
   
-  console.log('🔄 Starting manual translation for language:', targetLanguage);
+  console.log(' Starting manual translation for language:', targetLanguage);
   
   // Check if translation already exists first
   try {
@@ -2976,12 +2828,12 @@ const LanguageSwitcher: React.FC<{
   cleanupIntervals();
   
   try {
-    console.log('📤 Calling translateArticle API...');
+    console.log(' Calling translateArticle API...');
     
     // Make the API call
     const response = await articleApi.translateArticle(articleId, targetLanguage);
     
-    console.log('📥 Translation API raw response:', response);
+    console.log(' Translation API raw response:', response);
     
     // Check if response indicates success
     const isSuccess = 
@@ -2994,11 +2846,11 @@ const LanguageSwitcher: React.FC<{
       ));
     
     if (isSuccess) {
-      console.log('✅ Translation request successful');
+      console.log(' Translation request successful');
       
       // Show success notification
       notification.success({
-        message: t`Translation Started! 🚀`,
+        message: t`Translation Started!`,
         description: t`AI is now generating a ${getLanguageName(targetLanguage)} translation. This may take 1-2 minutes.`,
         duration: 4,
       });
@@ -3011,14 +2863,14 @@ const LanguageSwitcher: React.FC<{
       
     } else {
       // Log technical error to console
-      console.error('❌ Translation API returned non-success (Technical):', response?.message || response?.error);
+      console.error(' Translation API returned non-success (Technical):', response?.message || response?.error);
       
       // Throw user-friendly error from FRONTEND
       throw new Error(t`Translation service is temporarily busy. Please try again in a moment.`);
     }
     
   } catch (error: any) {
-    console.error('❌ Translation request failed (Technical):', {
+    console.error(' Translation request failed (Technical):', {
       message: error.message,
       stack: error.stack
     });
@@ -3073,7 +2925,7 @@ const startPollingForTranslation = (targetLanguage: string) => {
     
     const poll = async () => {
       if (checkCount >= maxChecks) {
-        console.log('⏰ Polling timeout reached');
+        console.log(' Polling timeout reached');
         notification.info({
           message: t`Translation Taking Longer`,
           description: t`Translation is still processing. It will appear automatically when ready.`,
@@ -3083,7 +2935,7 @@ const startPollingForTranslation = (targetLanguage: string) => {
       }
       
       checkCount++;
-      console.log(`🔄 Polling attempt ${checkCount}/${maxChecks} for ${targetLanguage}`);
+      console.log(` Polling attempt ${checkCount}/${maxChecks} for ${targetLanguage}`);
       
       try {
         const alreadyTranslated = await checkTranslationExists(targetLanguage);
@@ -3540,159 +3392,52 @@ const startPollingForTranslation = (targetLanguage: string) => {
 };
   
 
-
-const loadComments = async (articleId?: string, page = 1, loadAll = false) => {
-  const articleIdToUse = articleId || article?.id;
+const loadReviews = async () => {
+  if (!article?.id) return;
   
-  if (!articleIdToUse) return;
-  
-  // Prevent duplicate loading with a check
-  if (commentsLoading) {
-    console.log('🔄 Comments already loading, skipping');
-    return;
-  }
-  
-  // Don't load if we already have comments and not loading more
-  if (page === 1 && comments.length > 0 && !loadAll) {
-    console.log('🔄 Comments already loaded, skipping initial load');
-    return;
-  }
-  
-  setCommentsLoading(true);
+  setReviewsLoading(true);
   try {
-    const limit = 10;
-    
-    console.log('Loading comments for article:', articleIdToUse, 'page:', page);
-    
-    const response = await apiClient.get(`/articles/${articleIdToUse}/comments`, {
-      params: { 
-        page, 
-        limit,
-        depth: 2,
-      }
-    });
-    
-    console.log('Comments API Response:', {
-      page,
-      limit,
-      loaded: response.data?.comments?.length,
-      total: response.data?.meta?.total,
-      hasMore: response.data?.meta?.hasMore
-    });
-    
-    if (response.data?.comments) {
-      const loadedComments = response.data.comments;
+    const response = await apiClient.get(`/articles/${article.id}/reviews`);
+    if (response.data) {
+      setReviews(response.data.reviews || []);
       
-      // Process comments with inline type annotations
-      const processedComments = loadedComments.map((comment: any) => ({
-        ...comment,
-        isLiked: comment.isLiked || false,
-        likesCount: comment.likesCount || comment.likeCount || 0,
-        replies: comment.replies?.map((reply: any) => ({
-          ...reply,
-          isLiked: reply.isLiked || false,
-          likesCount: reply.likesCount || reply.likeCount || 0
-        })) || []
-      }));
-      
-      if (page > 1) {
-        // Load more pagination
-        const updatedComments = [...comments, ...processedComments];
-        setComments(updatedComments);
-        setDisplayedComments(updatedComments);
-      } else {
-        // First load
-        setComments(processedComments);
-        // Always show only 2 initially
-        setDisplayedComments(processedComments.slice(0, 2));
-      }
-      
-      setHasMoreComments(response.data.meta?.hasMore || false);
-      setCommentPage(page);
-    }
-  } catch (error) {
-    console.error('Failed to load comments:', error);
-  } finally {
-    setCommentsLoading(false);
-  }
-};
-
-
-// Function to show all comments
-const handleShowAllComments = async () => {
-  // If we haven't loaded all parent comments yet, load them
-  if (hasMoreComments && comments.length < 10) {
-    await loadComments(article?.id, 1, true);
-  }
-  // Show all loaded comments
-  setDisplayedComments(comments);
-};
-
-// Function to show fewer comments (collapse)
-const handleShowFewerComments = () => {
-  setDisplayedComments(comments.slice(0, 2));
-};
-
-// New function to load all comments
-const loadAllComments = async () => {
-  await loadComments(article?.id, 1, true);
-};
-
-
-
-const loadMoreReplies = async (commentId: string) => {
-  try {
-    const response = await apiClient.get(`/articles/comments/${commentId}/replies`, {
-      params: {
-        page: 1,
-        limit: 10,
-      }
-    });
-    
-    if (response.data?.replies) {
-      // Update the specific comment with its replies
-      const updateCommentWithReplies = (comments: any[]): any[] => {
-        return comments.map(comment => {
-          if (comment.id === commentId) {
-            return {
-              ...comment,
-              replies: [...(comment.replies || []), ...response.data.replies],
-              hasMoreReplies: response.data.meta?.hasMore || false
-            };
-          }
-          
-          // Recursively check nested replies
-          if (comment.replies && comment.replies.length > 0) {
-            return {
-              ...comment,
-              replies: updateCommentWithReplies(comment.replies)
-            };
-          }
-          
-          return comment;
-        });
+      const stats = response.data.stats || {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
       };
       
-      setComments(prev => updateCommentWithReplies(prev));
-      setDisplayedComments(prev => updateCommentWithReplies(prev));
+      setReviewStats(stats);
+      
+      // Update article with latest review stats
+      setArticle(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          reviewStats: stats
+        };
+      });
     }
   } catch (error) {
-    console.error('Failed to load replies:', error);
-    notification.error({ message: t`Failed to load replies` });
+    console.error('Failed to load reviews:', error);
+  } finally {
+    setReviewsLoading(false);
   }
 };
+
+
 
 // Load related articles with engagement score
 const loadRelatedArticles = async (articleId: string, forceRefresh = false) => {
   // Don't reload if we already have articles AND not forcing refresh
   if (!forceRefresh && relatedArticles.length > 0 && !relatedLoading) {
-    console.log('🔄 Related articles already loaded, skipping');
+    console.log(' Related articles already loaded, skipping');
     return;
   }
   
   // Clear cache if forcing refresh
   if (forceRefresh) {
-    console.log('🔄 Force refreshing related articles');
+    console.log(' Force refreshing related articles');
     setRelatedArticles([]);
   }
   
@@ -3703,7 +3448,7 @@ const loadRelatedArticles = async (articleId: string, forceRefresh = false) => {
     const currentLocale = i18n.locale;
     const languageCode = currentLocale.split('-')[0];
     
-    console.log('🌐 Loading related articles in language:', {
+    console.log(' Loading related articles in language:', {
       currentLocale,
       languageCode,
       articleId,
@@ -3721,7 +3466,7 @@ const loadRelatedArticles = async (articleId: string, forceRefresh = false) => {
       }
     });
     
-    console.log('📚 Related Articles Response:', {
+    console.log(' Related Articles Response:', {
       identifier: articleId,
       language: languageCode,
       articles: response.data,
@@ -3860,15 +3605,7 @@ const calculateEngagementScore = (article: any): number => {
     }
   } catch (error) {
     console.error('Failed to load categories:', error);
-    // Try alternative endpoint
-    // try {
-    //   const fallbackResponse = await apiClient.get('/articles/categories/all');
-    //   if (fallbackResponse?.data) {
-    //     setCategories(fallbackResponse.data.slice(0, 8));
-    //   }
-    // } catch (fallbackError) {
-    //   console.error('Failed to load categories from fallback:', fallbackError);
-    // }
+   
   }
 };
 
@@ -4071,278 +3808,9 @@ const handleSave = async () => {
           notification.success({ message: t`Link copied to clipboard!`, duration: 2 });
         });
     }
-  };
+  }; 
 
-  // Handle comment submission
-const handleCommentSubmit = async () => {
-  if (article?.accessType === 'PREMIUM' && !userHasAccess) {
-    setShowPaywall(true);
-    return;
-  }
-  if (!checkAuth('comment')) return;
-  if (!article?.id || !commentText.trim()) return;
   
-  setCommenting(true);
-  try {
-    const response = await articleApi.addComment(article.id, {
-      content: commentText,
-    });
-    
-    if (response?.data) {
-      notification.success({ 
-        message: t`Comment added successfully!`, 
-        duration: 2,
-        placement: 'top'
-      });
-      
-      // Create a properly typed new comment object
-      const newComment: Comment = {
-        id: response.data.id || Date.now().toString(),
-        content: commentText,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        likesCount: 0,
-        likeCount: 0,
-        isLiked: false,
-        isOwn: true,
-        isEdited: false,
-        isPinned: false,
-        isFeatured: false,
-        language: 'en',
-        replyCount: 0,
-        author: user ? {
-          id: user.id,
-          name: user.name || user.username || 'User',
-          picture: user.picture, // ✅ Use only existing property
-          isVerified: false, // Add required properties from Author interface
-          followersCount: 0,
-          bio: '',
-          username: user.username || '' // Add if needed
-        } as Author : undefined, // Or create a minimal Author object
-        user: user ? {
-          id: user.id,
-          name: user.name || user.username || 'User',
-          picture: user.picture,
-          isVerified: false,
-          followersCount: 0,
-          bio: '',
-          username: user.username || ''
-        } as Author : undefined,
-        replies: [],
-        parentId: undefined
-      };
-      
-      // IMMEDIATELY ADD TO COMMENTS STATE
-      setComments(prev => {
-        // Add new comment at the beginning
-        const updated = [newComment, ...prev];
-        return updated;
-      });
-      
-      // Also update displayed comments
-      setDisplayedComments(prev => {
-        if (prev.length <= 2) {
-          // If showing only 2 comments, keep showing them but update the list
-          return [newComment, ...prev.slice(0, 1)];
-        } else {
-          // If showing all, add to beginning
-          return [newComment, ...prev];
-        }
-      });
-      
-      // Update comment count on article
-      setArticle(prev => prev ? {
-        ...prev,
-        commentCount: (prev.commentCount || 0) + 1
-      } : null);
-      
-      // Clear the input
-      setCommentText('');
-      
-      // Scroll to show the new comment
-      setTimeout(() => {
-        const newCommentElement = document.getElementById(`comment-${newComment.id}`);
-        if (newCommentElement) {
-          newCommentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-    }
-  } catch (error: any) {
-    console.error('Comment submission error:', error);
-    notification.error({
-      message: 'Error',
-      description: error.response?.data?.message || t`Failed to add comment.`,
-      duration: 3,
-      placement: 'top'
-    });
-  } finally {
-    setCommenting(false);
-  }
-};
-
- const handleCommentLike = async (commentId: string) => {
-  if (!checkAuth('like')) return;
-  
-  if (fetchInProgressRef.current) return;
-  fetchInProgressRef.current = true;
-  
-  try {
-    const findComment = (comments: any[]): any => {
-      for (const comment of comments) {
-        if (comment.id === commentId) return comment;
-        if (comment.replies?.length) {
-          const found = findComment(comment.replies);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-    
-    const comment = findComment(comments);
-    if (!comment) return;
-    
-    const previousLiked = comment.isLiked || false;
-    const previousCount = comment.likesCount || comment.likeCount || 0;
-    
-    // Optimistic update
-    const updateCommentLikes = (comments: any[]): any[] => {
-      return comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            likesCount: previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1,
-            likeCount: previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1,
-            isLiked: !previousLiked,
-          };
-        }
-        if (comment.replies?.length) {
-          return {
-            ...comment,
-            replies: updateCommentLikes(comment.replies),
-          };
-        }
-        return comment;
-      });
-    };
-    
-    setComments(prev => updateCommentLikes(prev));
-    setDisplayedComments(prev => updateCommentLikes(prev));
-    
-    // Make API call with proper type handling
-    const response = await articleApi.likeComment(commentId) as any; // Type assertion
-    
-    // Handle different response formats
-    if (response?.success === true || response?.status === 200 || response?.status === 201) {
-      notification.success({
-        message: previousLiked ? t`Comment unliked!` : t`Comment liked!`,
-        duration: 1,
-        placement: 'top'
-      });
-      
-      // If response has data with liked status, update it
-      if (response.data && typeof response.data === 'object') {
-        if (response.data.liked !== undefined) {
-          const updateWithServerData = (comments: any[]): any[] => {
-            return comments.map(comment => {
-              if (comment.id === commentId) {
-                return {
-                  ...comment,
-                  isLiked: response.data.liked,
-                };
-              }
-              if (comment.replies?.length) {
-                return {
-                  ...comment,
-                  replies: updateWithServerData(comment.replies),
-                };
-              }
-              return comment;
-            });
-          };
-          
-          setComments(prev => updateWithServerData(prev));
-          setDisplayedComments(prev => updateWithServerData(prev));
-        }
-      }
-    } else {
-      // Revert on error
-      const revertUpdate = (comments: any[]): any[] => {
-        return comments.map(comment => {
-          if (comment.id === commentId) {
-            return {
-              ...comment,
-              likesCount: previousCount,
-              likeCount: previousCount,
-              isLiked: previousLiked,
-            };
-          }
-          if (comment.replies?.length) {
-            return {
-              ...comment,
-              replies: revertUpdate(comment.replies),
-            };
-          }
-          return comment;
-        });
-      };
-      
-      setComments(prev => revertUpdate(prev));
-      setDisplayedComments(prev => revertUpdate(prev));
-      
-      notification.error({
-        message: 'Error',
-        description: t`Failed to like comment`,
-      });
-    }
-  } catch (error: any) {
-    console.error('Failed to like comment:', error);
-    notification.error({
-      message: t`Error`,
-      description: t`Failed to like comment`,
-    });
-  } finally {
-    fetchInProgressRef.current = false;
-  }
-};
-
-  // Handle comment reply
-  const handleReply = (commentId: string) => {
-    if (!checkAuth('reply')) return;
-
-    setReplyTo(commentId);
-    setShowCommentModal(true);
-  };
-
-  // Handle comment delete
-  const handleCommentDelete = async (commentId: string) => {
-    Modal.confirm({
-    title: t`Delete Comment`,
-    content: t`Are you sure you want to delete this comment? This action cannot be undone.`,
-    okText: t`Delete`,
-    okType: 'danger',
-    cancelText: t`Cancel`,
-    onOk: async () => {
-      try {
-        await articleApi.deleteComment(commentId);
-        notification.success({ message: t`Comment deleted successfully!`, duration: 2 });
-        if (article?.id) {
-          await loadComments(article.id);
-          // Update comment count
-          setArticle({
-            ...article,
-            commentCount: Math.max(0, (article.commentCount || 0) - 1)
-          });
-        }
-      } catch (error) {
-        notification.error({
-          message: t`Error`,
-          description: t`Failed to delete comment.`,
-          duration: 3,
-        });
-      }
-    }
-  });
-  };
 
   // Enhanced content rendering with proper image and link handling
   const shouldShowPaywall = article?.accessType === 'PREMIUM' && !userHasAccess;
@@ -4363,7 +3831,7 @@ const handleCommentSubmit = async () => {
     return (
       <div className="article-content">
         <Paragraph className="whitespace-pre-wrap leading-relaxed text-foreground">
-          {article?.plainText || article?.excerpt || t`No content available.`}
+          {article?.plainText || renderPremiumContentPlaceholder()}
         </Paragraph>
       </div>
     );
@@ -4371,7 +3839,7 @@ const handleCommentSubmit = async () => {
 
   // Use a unique key that forces re-render
   const uniqueKey = `content-${article.id}-${currentLanguage}-${contentKey || 'default'}`;
-  console.log('🎨 Rendering content with key:', uniqueKey);
+  console.log(' Rendering content with key:', uniqueKey);
   
   // Handle string content
   if (typeof article.content === 'string') {
@@ -4693,6 +4161,13 @@ const renderArticleCard = useCallback((item: RelatedArticle) => {
     return Math.round(score);
   };
   
+  // Get review stats for this specific article
+  const articleReviewStats = item.reviewStats || {
+    totalReviews: 0,
+    averageRating: 0,
+    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  };
+  
   const engagementScore = item.engagementScore || calculateEngagementScore(item);
   const engagementLabel = getEngagementLabel(engagementScore);
   const engagementPercentage = Math.min(Math.round(engagementScore), 100);
@@ -4707,8 +4182,7 @@ const renderArticleCard = useCallback((item: RelatedArticle) => {
   // Get stats from item, with fallbacks
   const viewCount = item.viewCount || 0;
   const likeCount = item.likeCount || 0;
-  const commentCount = item.commentCount || 0;
-  
+
   return (
     <Card
       key={item.id}
@@ -4850,72 +4324,71 @@ const renderArticleCard = useCallback((item: RelatedArticle) => {
                 </Space>
               </Tooltip>
             </div>
-
           </div>
 
           {/* Stats & Engagement */}
           <div className="pt-2 space-y-2">
             {/* Stats */}
-           <div className="flex items-center justify-between text-xs">
-            <Tooltip title={t`Views`}>
-              <Space size={4} className="text-gray-600 dark:text-gray-300">
-                <EyeOutlined className="text-blue-500 dark:text-blue-400" />
-                <span>{formatViewCount(item.viewCount || 0)}</span>
-              </Space>
-            </Tooltip>
+            <div className="flex items-center justify-between text-xs">
+              <Tooltip title={t`Views`}>
+                <Space size={4} className="text-gray-600 dark:text-gray-300">
+                  <EyeOutlined className="text-blue-500 dark:text-blue-400" />
+                  <span>{formatViewCount(item.viewCount || 0)}</span>
+                </Space>
+              </Tooltip>
 
-            <Tooltip title={t`Likes`}>
-              <Space size={4} className="text-gray-600 dark:text-gray-300">
-                <HeartOutlined className="text-red-500 dark:text-red-400" />
-                <span>{formatViewCount(item.likeCount || 0)}</span>
-              </Space>
-            </Tooltip>
+              <Tooltip title={t`Likes`}>
+                <Space size={4} className="text-gray-600 dark:text-gray-300">
+                  <HeartOutlined className="text-red-500 dark:text-red-400" />
+                  <span>{formatViewCount(item.likeCount || 0)}</span>
+                </Space>
+              </Tooltip>
 
-            <Tooltip title={t`Comments`}>
-              <Space size={4} className="text-gray-600 dark:text-gray-300">
-                <CommentOutlined className="text-green-500 dark:text-green-400" />
-                <span>{formatViewCount(item.commentCount || 0)}</span>
-              </Space>
-            </Tooltip>
-          </div>
+              <Tooltip title={t`Reviews`}>
+                <Space size={4} className="text-gray-600 dark:text-gray-300">
+                  <StarOutlined className="text-yellow-500 dark:text-yellow-400" />
+                  <span>
+                    {articleReviewStats.totalReviews > 0 
+                      ? `${articleReviewStats.totalReviews} (${articleReviewStats.averageRating.toFixed(1)})` 
+                      : '0'}
+                  </span>
+                </Space>
+              </Tooltip>
+            </div>
 
-            
-            {(viewCount > 0 || likeCount > 0 || commentCount > 0) && (
+            {/* Engagement Progress Bar */}
+            {(viewCount > 0 || likeCount > 0 || articleReviewStats.totalReviews > 0) && (
               <div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Text className="text-xs text-gray-600 dark:text-gray-300">
-                      {t`Engagement`}
-                    </Text>
-
-                    <Text
-                      className="text-xs font-medium"
-                      style={{ color: engagementLabel.color }}
-                    >
-                      {engagementPercentage}%
-                    </Text>
-                  </div>
-
-                  <Progress
-                    percent={engagementPercentage}
-                    size="small"
-                    showInfo={false}
-                    strokeColor={engagementLabel.color}
-                    trailColor="rgba(0,0,0,0.06)"
-                    className="dark:[&_.ant-progress-bg]:opacity-90 dark:[&_.ant-progress-inner]:bg-gray-700"
-                  />
+                <div className="flex items-center justify-between mb-1">
+                  <Text className="text-xs text-gray-600 dark:text-gray-300">
+                    {t`Engagement`}
+                  </Text>
+                  <Text
+                    className="text-xs font-medium"
+                    style={{ color: engagementLabel.color }}
+                  >
+                    {engagementPercentage}%
+                  </Text>
                 </div>
-
-                {item.publishedAt && (
-                  <div className="text-right pt-2">
-                    <Text className="text-xs text-gray-500 dark:text-gray-400">
-                      {getTimeAgo(item.publishedAt)}
-                    </Text>
-                  </div>
-                )}
+                <Progress
+                  percent={engagementPercentage}
+                  size="small"
+                  showInfo={false}
+                  strokeColor={engagementLabel.color}
+                  trailColor="rgba(0,0,0,0.06)"
+                  className="dark:[&_.ant-progress-bg]:opacity-90 dark:[&_.ant-progress-inner]:bg-gray-700"
+                />
               </div>
             )}
 
+            {/* Publish Date */}
+            {item.publishedAt && (
+              <div className="text-right pt-2">
+                <Text className="text-xs text-gray-500 dark:text-gray-400">
+                  {getTimeAgo(item.publishedAt)}
+                </Text>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -4924,464 +4397,7 @@ const renderArticleCard = useCallback((item: RelatedArticle) => {
 }, []);
 
 
-  // Render comment item with proper nested replies
-const renderComment = (comment: any, depth = 0) => {
-  const getAuthor = (comment: any) => comment.author || comment.user;
-  const author = getAuthor(comment);
-  const isOwnComment = isCurrentUserComment(comment);
-  const isEditing = editingComment === comment.id;
-  const isReplying = replyingTo === comment.id;
-  
-  // Toggle replies visibility
-  const showReplies = expandedReplies[comment.id];
-  
-  // Calculate time ago
-  const getTimeAgo = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-      
-      if (seconds < 60) return 'Just now';
-      if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-      if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch (error) {
-      return t`Recently`;
-    }
-  };
 
-  const isNested = depth > 0;
-  const levelClass = `comment-level-${Math.min(depth, 4)}`;
-
-  return (
-    <div 
-      key={comment.id} 
-      id={`comment-${comment.id}`}
-      className={`comment-item ${isNested ? 'comment-nested' : ''} ${levelClass}`}
-    >
-      <div className="flex gap-3">
-        {/* Avatar */}
-        <div className="relative">
-          <Avatar 
-            src={author?.picture}
-            icon={!author?.picture && <UserOutlined />}
-            size={isNested ? "small" : "default"}
-            className={`comment-avatar ${isOwnComment ? 'ring-2 ring-blue-500' : ''}`}
-          >
-            {author?.name?.charAt(0)}
-          </Avatar>
-        </div>
-        
-        {/* Comment content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <Text 
-                  strong 
-                  className="text-foreground text-sm cursor-pointer hover:underline"
-                  onClick={() => author?.id && window.open(`/profile/${author.id}`, '_blank')}
-                  title={author?.name}
-                >
-                  {author?.name}
-                </Text>
-                {isOwnComment && (
-                  <span className="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full ml-2">
-                    {t`You`}
-                  </span>
-                )}
-                <Text type="secondary" className="text-xs whitespace-nowrap">
-                  {getTimeAgo(comment.createdAt)}
-                  {comment.isEdited && (
-                    <span className="ml-2 text-xs text-gray-400 italic">({t`edited`})</span>
-                  )}
-                </Text>
-              </div>
-            </div>
-            
-            {/* Edit/Delete Menu - Only show for comment owner */}
-            {(isOwnComment || comment.isOwn) && (
-              <Dropdown menu={{
-                items: [
-                  {
-                    key: 'edit',
-                    label: t`Edit`,
-                    icon: <EditOutlined />,
-                    onClick: () => handleEditComment(comment)
-                  },
-                  {
-                    key: 'delete',
-                    label: t`Delete`,
-                    icon: <DeleteOutlined />,
-                    danger: true,
-                    onClick: () => handleCommentDelete(comment.id)
-                  },
-                  {
-                    key: 'flag',
-                    label: t`Report`,
-                    icon: <FlagOutlined />,
-                    onClick: () => {
-                      notification.info({ message: t`Report feature coming soon!` });
-                    }
-                  }
-                ]
-              }} trigger={['click']}>
-                <Button 
-                  type="text" 
-                  icon={<MoreOutlined />} 
-                  size="small" 
-                  className="text-muted-foreground flex-shrink-0 hover:bg-gray-100 dark:hover:bg-gray-800"
-                />
-              </Dropdown>
-            )}
-          </div>
-          
-          {/* Comment Content - Edit or View */}
-          {isEditing ? (
-            <div className="mb-4">
-              <TextArea
-                value={editCommentText}
-                onChange={(e) => setEditCommentText(e.target.value)}
-                autoSize={{ minRows: 2, maxRows: 6 }}
-                className="mb-2"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="small"
-                  onClick={() => handleSaveEdit(comment.id)}
-                  type="primary"
-                >
-                  {t`Save`}
-                </Button>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    setEditingComment(null);
-                    setEditCommentText('');
-                  }}
-                >
-                  {t`Cancel`}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Paragraph className="text-foreground mb-3 text-sm leading-relaxed break-words whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-              {comment.content}
-            </Paragraph>
-          )}
-          
-          {/* Comment Actions */}
-          {!isEditing && (
-            <div className="flex items-center gap-4 mb-4">
-              <Button
-                type="link"
-                size="small"
-                icon={comment.isLiked ? <LikeFilled className="text-blue-500" /> : <LikeOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  handleCommentLike(comment.id);
-                }}
-                className={`comment-like-button flex items-center gap-1 px-2 py-1 rounded transition-all ${
-                  comment.isLiked 
-                    ? 'liked text-blue-500 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40' 
-                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                }`}
-                disabled={fetchInProgressRef.current}
-                style={{
-                  fontWeight: comment.isLiked ? '600' : '400'
-                }}
-              >
-                <span 
-                  className={`text-xs font-medium ${
-                    comment.isLiked ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  {comment.likesCount || comment.likeCount || 0}
-                </span>
-              </Button>
-              
-              <Button
-                type="text"
-                size="small"
-                icon={<SendOutlined />}
-                onClick={() => {
-                  if (replyingTo === comment.id) {
-                    setReplyingTo(null);
-                  } else {
-                    setReplyingTo(comment.id);
-                    setReplyText('');
-                  }
-                }}
-                className="flex items-center text-blue gap-1 text-muted-foreground hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded"
-              >
-                <span className="text-xs font-medium">{t`Reply`}</span>
-              </Button>
-              
-              {/* Show/Hide Replies Button */}
-              {comment.replies && comment.replies.length > 0 && (
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => setExpandedReplies(prev => ({
-                    ...prev,
-                    [comment.id]: !prev[comment.id]
-                  }))}
-                  className="!text-xs !px-2 !py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  {showReplies ? t`Hide replies` : t`View ${comment.replies.length} ${comment.replies.length === 1 ? 'reply' : 'replies'}`}
-                </Button>
-              )}
-            </div>
-          )}
-          
-          {/* Reply Form (Facebook style - inline) */}
-          {isReplying && (
-            <div className="mb-4 ml-2">
-              <div className="flex gap-3">
-                <Avatar 
-                  size="small"
-                  src={user?.picture}
-                  icon={<UserOutlined />}
-                  className="flex-shrink-0"
-                />
-                <div className="flex-1">
-                  <TextArea
-                    placeholder={t`Reply to ${author?.name}...`}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    autoSize={{ minRows: 1, maxRows: 4 }}
-                    className="mb-2"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="small"
-                      onClick={() => handleReplySubmit(comment.id)}
-                      type="primary"
-                      loading={replyLoading}
-                      disabled={!replyText.trim()}
-                    >
-                      {t`Reply`}
-                    </Button>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        setReplyingTo(null);
-                        setReplyText('');
-                      }}
-                    >
-                      {t`Cancel`}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Replies Section */}
-          {showReplies && comment.replies && comment.replies.length > 0 && (
-            <div className="mt-4 space-y-4">
-              {comment.replies.map((reply: any) => renderComment(reply, depth + 1))}
-              
-              {/* Load more replies button */}
-              {comment.hasMoreReplies && (
-                <div className="text-center">
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => loadMoreReplies(comment.id)}
-                    className="!text-xs"
-                  >
-                    {t`Load more replies...`}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-
-
-
-
-  const handleReplySubmit = async (commentId: string) => {
-  if (!checkAuth('reply')) return;
-  if (!article?.id || !replyText.trim()) return;
-  
-  setReplyLoading(true);
-  try {
-    // Generate a temporary ID for optimistic update
-    const tempId = `temp-${Date.now()}`;
-    
-    // Create the reply object for optimistic update
-    const newReply = {
-      id: tempId,
-      content: replyText,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      likesCount: 0,
-      isLiked: false,
-      author: user ? {
-        id: user.id,
-        name: user.name || user.username,
-        picture: user.picture,
-        username: user.username
-      } : { 
-        id: 'temp-user',
-        name: t`You`,
-        username: 'you'
-      },
-      replies: [],
-      replyCount: 0,
-      isOwn: true,
-      isEdited: false,
-      isPinned: false,
-      isFeatured: false,
-      language: 'en',
-      user: user ? {
-        id: user.id,
-        name: user.name || user.username,
-        picture: user.picture,
-        username: user.username
-      } : null,
-      parentId: commentId
-    };
-    
-    // OPTIMISTIC UPDATE: Add reply immediately
-    const addReplyToComment = (comments: any[]): any[] => {
-      return comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            replies: [newReply, ...(comment.replies || [])],
-            replyCount: (comment.replyCount || 0) + 1
-          };
-        }
-        
-        if (comment.replies && comment.replies.length > 0) {
-          return {
-            ...comment,
-            replies: addReplyToComment(comment.replies)
-          };
-        }
-        
-        return comment;
-      });
-    };
-    
-    setComments(prev => addReplyToComment(prev));
-    setDisplayedComments(prev => addReplyToComment(prev));
-    
-    // Expand replies for this comment
-    setExpandedReplies(prev => ({
-      ...prev,
-      [commentId]: true
-    }));
-    
-    // Clear reply form
-    setReplyText('');
-    setReplyingTo(null);
-    
-    // Update article comment count
-    setArticle(prev => prev ? {
-      ...prev,
-      commentCount: (prev.commentCount || 0) + 1
-    } : null);
-    
-    // Make API call
-    const response = await articleApi.addComment(article.id, {
-      content: replyText,
-      parentId: commentId
-    });
-    
-    if (response?.data) {
-      // Replace temp ID with real ID from server
-      const updateTempReply = (comments: any[]): any[] => {
-        return comments.map(comment => {
-          if (comment.id === commentId) {
-            const updatedReplies = comment.replies.map((reply: any) => 
-              reply.id === tempId 
-                ? { ...reply, id: response.data.id }
-                : reply
-            );
-            return { ...comment, replies: updatedReplies };
-          }
-          
-          if (comment.replies && comment.replies.length > 0) {
-            return {
-              ...comment,
-              replies: updateTempReply(comment.replies)
-            };
-          }
-          
-          return comment;
-        });
-      };
-      
-      setComments(prev => updateTempReply(prev));
-      setDisplayedComments(prev => updateTempReply(prev));
-      
-      notification.success({ 
-        message: t`Reply added successfully!`, 
-        duration: 2,
-        placement: 'top'
-      });
-    }
-  } catch (error: any) {
-    console.error(t`Failed to add reply:`, error);
-    
-    // Remove the optimistic update on error
-    const removeTempReply = (comments: any[]): any[] => {
-      return comments.map(comment => {
-        if (comment.id === commentId) {
-          const filteredReplies = comment.replies.filter((reply: any) => !reply.id.includes('temp-'));
-          return {
-            ...comment,
-            replies: filteredReplies,
-            replyCount: Math.max(0, (comment.replyCount || 0) - 1)
-          };
-        }
-        
-        if (comment.replies && comment.replies.length > 0) {
-          return {
-            ...comment,
-            replies: removeTempReply(comment.replies)
-          };
-        }
-        
-        return comment;
-      });
-    };
-    
-    setComments(prev => removeTempReply(prev));
-    setDisplayedComments(prev => removeTempReply(prev));
-    
-    // Restore article comment count
-    setArticle(prev => prev ? {
-      ...prev,
-      commentCount: Math.max(0, (prev.commentCount || 0) - 1)
-    } : null);
-    
-    notification.error({
-      message: t`Error`,
-      description: error.response?.data?.message || t`Failed to add reply.`,
-      duration: 3,
-    });
-  } finally {
-    setReplyLoading(false);
-  }
-};
-
-  
 
   if (loading) {
     return <ArticleSkeleton />;
@@ -5452,17 +4468,29 @@ const renderComment = (comment: any, depth = 0) => {
           </Button>
         </Tooltip>
 
-        <Tooltip title="Comments">
+        <Tooltip title={t`Reviews`}>
           <Button
-            type="text"
-            icon={<CommentOutlined />}
-            onClick={scrollToComments}
-            className="text-foreground hover:text-primary"
+            type="default"
+            icon={<StarOutlined />}
+            onClick={() => {
+              document.getElementById('reviews-section')?.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+              });
+            }}
+            size="large"
+            className="flex items-center gap-2 shadow-sm"
           >
-            <span className="ml-1">{article.commentCount || 0}</span>
+            {t`Reviews`} 
+            {article?.reviewStats?.totalReviews ? (
+              <Badge 
+                count={article.reviewStats.totalReviews} 
+                style={{ backgroundColor: '#1890ff' }}
+                className="ml-1"
+              />
+            ) : null}
           </Button>
         </Tooltip>
-
         <Tooltip title="Share">
           <Button
             type="text"
@@ -5517,8 +4545,42 @@ const renderComment = (comment: any, depth = 0) => {
     >
       <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right rounded-xl bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 max-h-[80vh] overflow-y-auto">
         <div className="py-2">
+          {/* Reviews Button with Stats */}
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={() => {
+                  document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`flex items-center w-full px-4 py-3 text-sm ${
+                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+                disabled={!article}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3">
+                  <StarOutlined className="text-yellow-500" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {t`Reviews`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {article?.reviewStats?.totalReviews ? (
+                      <>
+                        {article.reviewStats.totalReviews} {t`reviews`} • 
+                        {article.reviewStats.averageRating.toFixed(1)} {t`avg`}
+                      </>
+                    ) : (
+                      t`No reviews yet`
+                    )}
+                  </div>
+                </div>
+              </button>
+            )}
+          </Menu.Item>
           {/* Like Button */}
           <Menu.Item>
+            
             {({ active }) => (
               <button
                 onClick={handleLike}
@@ -5547,30 +4609,7 @@ const renderComment = (comment: any, depth = 0) => {
             )}
           </Menu.Item>
 
-          {/* Comments Button */}
-          <Menu.Item>
-            {({ active }) => (
-              <button
-                onClick={scrollToComments}
-                className={`flex items-center w-full px-4 py-3 text-sm ${
-                  active ? 'bg-gray-50 dark:bg-gray-800' : ''
-                }`}
-              >
-                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3">
-                  <CommentOutlined className="text-gray-500 dark:text-gray-400" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-gray-900 dark:text-white">
-                    {t`Comments`}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {t`${article?.commentCount || 0} comments`}
-                  </div>
-                </div>
-              </button>
-            )}
-          </Menu.Item>
-
+         
           {/* Share Button */}
           <Menu.Item>
             {({ active }) => (
@@ -5748,11 +4787,25 @@ const renderComment = (comment: any, depth = 0) => {
                     <Text>{(article.likeCount || 0).toLocaleString()}</Text>
                   </Space>
                 </Tooltip>
-                <Tooltip title={t`Comments`}>
-                  <Space>
-                    <CommentOutlined className="text-gray-900 dark:text-white"/>
-                    <Text>{(article.commentCount || 0).toLocaleString()}</Text>
-                  </Space>
+                <Tooltip title={t`Reviews`}>
+                  <Button
+                    type="link"
+                    icon={<StarOutlined className="text-yellow-500" />}
+                    onClick={() => {
+                      document.getElementById('reviews-section')?.scrollIntoView({ 
+                        behavior: 'smooth',
+                        block: 'start'
+                      });
+                    }}
+                    className="p-0 h-auto text-muted-foreground hover:text-primary"
+                  >
+                    <span className="ml-1">
+                      {article?.reviewStats?.totalReviews || 0}
+                      {article?.reviewStats?.averageRating ? 
+                        ` (${article.reviewStats.averageRating.toFixed(1)} ★)` : ''
+                      }
+                    </span>
+                  </Button>
                 </Tooltip>
               </div>
             </div>
@@ -5859,12 +4912,25 @@ const renderComment = (comment: any, depth = 0) => {
               
               <Button
                 type="default"
-                icon={<CommentOutlined />}
-                onClick={scrollToComments}
+                icon={<StarOutlined />}
+                onClick={() => {
+                  document.getElementById('reviews-section')?.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                  });
+                }}
                 size="large"
                 className="flex items-center gap-2 shadow-sm"
+                disabled={!article} // Disable if no article
               >
-                {t`Comment`} ({article.commentCount || 0})
+                {t`Reviews`} 
+                {article?.reviewStats?.totalReviews ? (
+                  <Badge 
+                    count={article.reviewStats.totalReviews} 
+                    style={{ backgroundColor: '#1890ff' }}
+                    className="ml-1"
+                  />
+                ) : null}
               </Button>
               
               <Button
@@ -5919,158 +4985,76 @@ const renderComment = (comment: any, depth = 0) => {
               </div>
             </div>
           )} */}
-          {/* Comments Section */}
-          <div id="comments-section" className="mb-10">
-            <Title level={3} className="!mb-6 text-foreground flex items-center gap-3">
-              <CommentOutlined className="text-primary" />
-              {t`Comments`} ({article?.commentCount || 0})
-            </Title>
-            
-            {/* Add Comment Form */}
-            <Card className="mb-8 shadow-sm border">
-              <div className="flex gap-4">
-                <Avatar 
-                  size="large"
-                  src={user?.picture}
-                  icon={<UserOutlined />}
-                  className="flex-shrink-0 border-2 border-primary/20"
-                />
-                <div className="flex-1">
-                  <TextArea
-                    placeholder={t`Share your thoughts on this article...`}
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    autoSize={{ minRows: 3, maxRows: 6 }}
-                    className="mb-4 text-base "
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      type="primary"
-                      icon={<SendOutlined />}
-                      onClick={handleCommentSubmit}
-                      loading={commenting}
-                      disabled={!commentText.trim()}
-                      className="!text-gray-700"
-                    >
-                      {t`Add Comment`}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
 
-            {/* Comments List */}
-            {commentsLoading && displayedComments.length === 0 ? (
-              <div className="text-center py-12">
-                <Spin size="large" />
-                <Paragraph className="mt-4 text-muted-foreground">
-                  {t`Loading comments...`}
-                </Paragraph>
-              </div>
-            ) : displayedComments.length > 0 ? (
-              <div className="space-y-6">
-                {/* Show comments count header */}
-                <div className="flex justify-between items-center mb-4">
-                  <Text strong className="text-foreground">
-                    {displayedComments.length === comments.length ? 
-                      t`All ${comments.length} parent comments` : 
-                      t`Showing ${displayedComments.length} of ${comments.length} parent comments`}
-                    {article?.commentCount && article.commentCount > comments.length && 
-                      t` • ${article.commentCount} total comments`}
-                  </Text>
-                  
-                  {/* Show Collapse button when showing all */}
-                  {displayedComments.length > 2 && (
-                    <Button
-                      type="link"
-                      onClick={handleShowFewerComments}
-                      icon={<ArrowLeftOutlined rotate={90} />}
-                      className="text-sm"
-                    >
-                      {t`Show Less`}
-                    </Button>
-                  )}
-                </div>
-                
-                {/* Show displayed comments */}
-                {displayedComments.map(comment => renderComment(comment))}
-                
-                {/* Action Buttons at the bottom */}
-                <div className="flex flex-col gap-3 pt-6">
-                  {/* Show "View More Comments" button when only showing 2 */}
-                  {displayedComments.length === 2 && comments.length > 2 && (
-                    <div className="text-center">
-                      <Button 
-                        onClick={handleShowAllComments}
-                        loading={commentsLoading}
-                        type="primary"
-                        size="large"
-                        className="min-w-[200px]"
-                      >
-                        {commentsLoading ? t`Loading...` : t`View ${comments.length - 2} More Comments`}
-                      </Button>
-                      <Paragraph className="text-sm text-muted-foreground mt-2">
-                        {t`Showing 2 of ${comments.length} parent comments`}
-                        {article?.commentCount && t` • ${article.commentCount} total comments`}
-                      </Paragraph>
-                    </div>
-                  )}
-                  
-                  {/* Show "Load More" button for pagination */}
-                  {displayedComments.length > 2 && hasMoreComments && (
-                    <div className="text-center">
-                      <Button 
-                        onClick={() => loadComments(article?.id, commentPage + 1)}
-                        loading={commentsLoading}
-                        type="primary"
-                        size="large"
-                        className="min-w-[200px]"
-                      >
-                        {commentsLoading ? t`Loading...` : t`Load More Comments`}
-                      </Button>
-                      <Paragraph className="text-sm text-muted-foreground mt-2">
-                        {t`${comments.length} parent comments loaded`}
-                        {article?.commentCount && t` • ${article.commentCount} total comments`}
-                      </Paragraph>
-                    </div>
-                  )}
-                  
-                  {/* Show "Collapse Comments" button when showing many */}
-                  {displayedComments.length > 2 && (
-                    <div className="text-center">
-                      <Button 
-                        onClick={handleShowFewerComments}
-                        type="default"
-                        size="large"
-                        icon={<ArrowLeftOutlined rotate={90} />}
-                        className="min-w-[200px]"
-                      >
-                        {t`Show Less Comments`}
-                      </Button>
-                      <Paragraph className="text-sm text-muted-foreground mt-2">
-                        {t`Showing ${displayedComments.length} of ${comments.length} parent comments`}
-                      </Paragraph>
-                    </div>
-                  )}
-                </div>
-                
-                <div ref={commentsEndRef} />
-              </div>
-            ) : (
-              <div className="text-center py-12 border rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-                <CommentOutlined className="text-5xl text-muted-foreground mb-4" />
-                <Title level={4} className="!mb-3 text-foreground">
-                  {t`No comments yet`}
-                </Title>
-                <Paragraph className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  {t`Be the first to share your thoughts! Your comment could start an interesting discussion.`}
-                </Paragraph>
-              </div>
-            )}
+          {/* Reviews Section */}
+          {article && article.reviewStats && article.reviewStats.totalReviews > 0 && (
+  <div className="mb-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border border-yellow-100 dark:border-yellow-800">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <div className="text-2xl font-bold text-yellow-600">
+            {article.reviewStats.averageRating.toFixed(1)}
           </div>
+          <Rate 
+            disabled 
+            defaultValue={article.reviewStats.averageRating} 
+            allowHalf 
+            className="text-sm"
+          />
+        </div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {t`Based on ${article.reviewStats.totalReviews} review${
+            article.reviewStats.totalReviews !== 1 ? 's' : ''
+          }`}
+        </div>
+      </div>
+      
+      {/* Quick distribution preview */}
+      {article.reviewStats.totalReviews >= 5 && (
+        <div className="flex items-center gap-3">
+          <div className="text-sm">
+            <span className="font-medium">
+              {Math.round(
+                ((article.reviewStats.ratingDistribution[5] + 
+                  article.reviewStats.ratingDistribution[4]) / 
+                  article.reviewStats.totalReviews) * 100
+              )}%
+            </span>
+            <span className="text-gray-500 ml-1">{t`recommend`}</span>
+          </div>
+          <Tag color="blue" icon={<CheckCircleOutlined />}>
+            {t`Community Trusted`}
+          </Tag>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
+{/* Reviews Section - Using your SimpleReviewSection */}
+<div id="reviews-section" className="scroll-mt-20">
+  {article && (
+    <SimpleReviewSection 
+      articleId={article.id}
+      articleTitle={article.title}
+      onReviewAdded={() => {
+        refreshArticleData();
+        fetchAndUpdateReviewStats(article.id); 
+        loadReviews();
+      }}
+      onReviewUpdated={() => {
+        refreshArticleData();
+        fetchAndUpdateReviewStats(article.id); 
+        loadReviews();
+      }}
+      onStatsUpdate={handleStatsUpdate} 
+    />
+  )}
+</div>
+
+          
         {/* Related Articles Section */}
-<div className="mb-12">
+<div className="mt-12 mb-12">
   <div className="flex items-center justify-between mb-6">
     <Title level={3} className="!mb-0 text-foreground flex items-center gap-3">
       <ReadOutlined className="text-primary" />
@@ -6494,10 +5478,6 @@ const renderComment = (comment: any, depth = 0) => {
 
 
       {/* CSS styles */}
-
-                {/* font-size: 1.125rem;
-          line-height: 1.8;
-          color: var(--foreground); */}
       <style>{`
         .article-content {
           font-size: ${fontSize}px !important;
@@ -6506,341 +5486,7 @@ const renderComment = (comment: any, depth = 0) => {
           color: var(--foreground) !important;
         }
         
-        .article-content p,
-        .article-content .ant-typography {
-          font-size: ${fontSize}px !important;
-          line-height: ${lineHeight} !important;
-          font-family: ${fontFamily} !important;
-          margin-bottom: 1.75rem !important;
-        }
-        
-        .article-heading {
-          font-weight: 700;
-          margin-top: 2.5rem;
-          margin-bottom: 1.5rem;
-          color: var(--foreground);
-          line-height: 1.3;
-        }
-
-        
-        
-        .article-link {
-          color: var(--primary);
-          text-decoration: underline;
-          transition: all 0.2s;
-          font-weight: 500;
-        }
-        
-        .article-link:hover {
-          color: var(--primary-dark);
-          text-decoration: none;
-        }
-        
-        .article-image {
-          max-width: 100%;
-          height: auto;
-          border-radius: 0.75rem;
-          margin: 2rem 0;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .article-blockquote {
-          border-left: 4px solid var(--primary);
-          padding-left: 1.75rem;
-          margin: 2.5rem 0;
-          font-style: italic;
-          color: var(--foreground-muted);
-          font-size: 1.1rem;
-        }
-        
-        .article-pre {
-          background-color: var(--background-muted);
-          padding: 1.5rem;
-          border-radius: 0.75rem;
-          overflow-x: auto;
-          margin: 2rem 0;
-          font-family: 'SF Mono', Monaco, 'Cascadia Mono', 'Courier New', monospace;
-          font-size: 0.95rem;
-        }
-        
-        .article-code {
-          background-color: var(--background-muted);
-          padding: 0.2rem 0.5rem;
-          border-radius: 0.375rem;
-          font-family: monospace;
-          font-size: 0.9em;
-        }
-        
-        .article-code-block {
-          display: block;
-          white-space: pre;
-          overflow-x: auto;
-        }
-        
-        .tiptap-editor {
-          min-height: 400px;
-          padding: 1rem;
-          border: 1px solid var(--border);
-          border-radius: 0.75rem;
-          outline: none;
-          font-size: 1rem;
-          line-height: 1.6;
-        }
-        
-        .tiptap-editor:focus {
-          border-color: var(--primary);
-          box-shadow: 0 0 0 3px var(--primary-light);
-        }
-        
-        .prose {
-          color: var(--foreground);
-        }
-        
-        .prose-lg {
-          font-size: 1.125rem;
-          line-height: 1.75;
-        }
-        
-        .dark .prose-invert {
-          color: #d1d5db;
-        }
-        
-        .dark .prose-invert .article-link {
-          color: #60a5fa;
-        }
-        
-        .dark .prose-invert .article-heading {
-          color: #f3f4f6;
-        }
-        
-        .dark .article-blockquote {
-          background-color: rgba(59, 130, 246, 0.05);
-        }
-        
-        .dark .article-pre,
-        .dark .article-code {
-          background-color: #1f2937;
-        }
-        
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        
-        .line-clamp-3 {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        /* Facebook-style comment threading */
-        .comment-thread {
-          position: relative;
-        }
-        
-        /* Main vertical line for nested comments */
-        .comment-thread::before {
-          content: '';
-          position: absolute;
-          left: 20px;
-          top: 40px; /* Start below the avatar */
-          bottom: 0;
-          width: 2px;
-          background-color: #e4e6eb;
-        }
-        
-        .dark .comment-thread::before {
-          background-color: #3a3b3c;
-        }
-        
-        /* Individual comment container */
-        .comment-item {
-          position: relative;
-          margin-bottom: 16px;
-        }
-        
-        /* Horizontal connector line for nested comments */
-        .comment-nested::before {
-          content: '';
-          position: absolute;
-          left: -20px;
-          top: 24px;
-          width: 20px;
-          height: 2px;
-          background-color: #e4e6eb;
-        }
-        
-        .dark .comment-nested::before {
-          background-color: #3a3b3c;
-        }
-        
-        /* Nesting levels */
-        .comment-nested {
-          margin-left: 40px;
-          position: relative;
-        }
-        
-        .comment-level-1 { margin-left: 40px; }
-        .comment-level-2 { margin-left: 80px; }
-        .comment-level-3 { margin-left: 120px; }
-        .comment-level-4 { margin-left: 160px; }
-        
-        /* Avatar styling */
-        .comment-avatar {
-          position: relative;
-          z-index: 2;
-        }
-        
-        /* Comment content styling */
-        .comment-content {
-          background-color: rgb(243, 248, 248);
-          border-radius: 18px;
-          padding: 8px 12px;
-          max-width: 600px;
-        }
-        
-        .dark .comment-content {
-          background-color: #3a3b3c;
-        }
-        
-        /* Reply button styling */
-        .reply-button {
-          color: #65676b;
-          font-size: 12px;
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-        
-        .reply-button:hover {
-          background-color: #f0f2f5;
-        }
-        
-        .dark .reply-button:hover {
-          background-color: #3a3b3c;
-        }
-        
-        /* Edit/Delete dropdown */
-        .comment-actions-dropdown .ant-dropdown-menu {
-          min-width: 140px;
-        }
-        
-        /* Like button active state */
-        .like-button-active {
-          color: #1877f2 !important;
-        }
-
-        /* Ensure blue color for liked comments */
-        .liked-comment-button .anticon {
-          color: #1890ff !important;
-        }
-        
-        .liked-comment-button span {
-          color: #1890ff !important;
-        }
-        
-        /* Comment like button states */
-        .comment-like-button {
-          transition: all 0.2s ease;
-        }
-        
-        .comment-like-button.liked {
-          color: #1890ff;
-          background-color: rgba(24, 144, 255, 0.1);
-        }
-        
-        .comment-like-button:hover:not(.liked) {
-          color: #1890ff;
-          background-color: rgba(24, 144, 255, 0.05);
-        }
-        
-        /* Ensure icon color stays blue when liked */
-        .anticon-heart-filled.text-blue-500 {
-          color: #1890ff !important;
-        }
-
-        /* Comment like button - this is the most important fix */
-        .comment-like-button.liked {
-          color: #1890ff !important;
-        }
-        
-        .comment-like-button.liked .anticon {
-          color: #1890ff !important;
-        }
-        
-        .comment-like-button.liked span {
-          color: #1890ff !important;
-        }
-        
-        /* Make sure the like button stays blue */
-        .ant-btn:hover .anticon-heart-filled.text-blue-500,
-        .ant-btn:focus .anticon-heart-filled.text-blue-500,
-        .ant-btn:active .anticon-heart-filled.text-blue-500 {
-          color: #1890ff !important;
-        }
-        
-        /* Fix for Ant Design button override */
-        .ant-btn-text:hover,
-        .ant-btn-text:focus,
-        .ant-btn-text:active {
-          background-color: transparent !important;
-        }
-
-        /* Fade-in animation for content load */
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-in-out;
-        }
-
-        /* Add to your existing styles */
-      .article-content-wrapper {
-        min-height: 200px;
-        transition: opacity 0.3s ease;
-      }
-
-      .animate-pulse {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-
-      @keyframes pulse {
-        0%, 100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
-
-      .animate-fadeIn {
-        animation: fadeIn 0.5s ease-in-out forwards;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-        .article-content {
-          font-size: ${fontSize}px !important;
-          line-height: ${lineHeight} !important;
-          font-family: ${fontFamily} !important;
-          color: var(--foreground) !important;
-        }
-        
-        /* Make sure paragraphs have proper dark mode support */
+        /* Making sure paragraphs have proper dark mode support */
         .article-content p,
         .article-content .ant-typography {
           font-size: ${fontSize}px !important;
@@ -6849,35 +5495,8 @@ const renderComment = (comment: any, depth = 0) => {
           margin-bottom: 1.75rem !important;
           color: var(--foreground) !important;
         }
-        
-        /* Force dark mode text colors */
-        .dark .article-content,
-        [data-theme="dark"] .article-content {
-          color: #f9fafb !important;
-        }
-        
-        .dark .article-content p,
-        .dark .article-content .ant-typography,
-        [data-theme="dark"] .article-content p,
-        [data-theme="dark"] .article-content .ant-typography {
-          color: #f9fafb !important;
-        }
-        
-        /* Make sure text-foreground class works in dark mode */
-        .dark .text-foreground,
-        [data-theme="dark"] .text-foreground {
-          color: #f9fafb !important;
-        }
-        
-        /* Also fix for Tailwind's text color classes */
-        .dark .text-gray-900,
-        .dark .text-gray-800,
-        .dark .text-gray-700 {
-          color: #f9fafb !important;
-        }
-  
       `}</style>
-
+      
       <AuthModal
         visible={showAuthModal}
         onCancel={() => setShowAuthModal(false)}
@@ -6885,19 +5504,40 @@ const renderComment = (comment: any, depth = 0) => {
       />
 
       <PremiumPaywall
-      article={article}
-      visible={showPaywall}
-      onClose={() => setShowPaywall(false)}
-      onPurchaseSuccess={() => {
-        setUserHasAccess(true);
-        setShowPaywall(false);
-        notification.success({
-          message: t`Article Unlocked!`,
-          description: t`You now have full access to this premium article.`,
-          duration: 3,
-        });
-      }}
-    />
+  article={article}
+  visible={showPaywall}
+  onClose={() => setShowPaywall(false)}
+  onPurchaseSuccess={() => {
+    setUserHasAccess(true);
+    setShowPaywall(false);
+    
+    // Calculate coin price
+    const coinPrice = (article as any).coinPrice || Math.max(10, Math.floor(article.readingTime * 2));
+    
+    notification.success({
+      message: (
+        <div>
+          <div className="font-bold text-base">{t`✨ Article Unlocked!`}</div>
+          <div className="flex items-center gap-1 mt-1 text-sm">
+            <span className="text-yellow-600 font-medium">{coinPrice} coins</span>
+            <span>{t`used`}</span>
+          </div>
+        </div>
+      ),
+      description: t`Enjoy your premium content!`,
+      duration: 4,
+      className: 'premium-unlock-toast',
+      style: {
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e6f7e6 100%)',
+        border: '1px solid #10b981',
+      }
+    });
+    
+    refreshArticleData();
+    fetchBalance();
+    setContentKey(`purchased-${Date.now()}`);
+  }}
+/>
 
 
     <ReadingSettingsModal

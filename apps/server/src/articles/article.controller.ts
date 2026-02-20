@@ -267,67 +267,80 @@ async getAuditLogs(
 
 // In article.controller.ts - getArticle method
 @Get(':identifier')
-async getArticle(
-  @Param('identifier') identifier: string,
-  @Query('language') language?: string,
-  @Request() req?: any,
-): Promise<any> {
-  const userId = req?.user?.id;
-  
-  console.log('🔍 Backend getArticle called:', { identifier, language, userId });
-  
-  let result;
-  
-  // Check if identifier is an ID (25 chars like Prisma IDs) or a slug
-  const isId = identifier.length === 25 && !identifier.includes('-');
-  
-  if (isId) {
-    console.log('📌 Looking up article by ID:', identifier);
-    const article = await this.prisma.article.findUnique({
-      where: { id: identifier },
-      select: { slug: true }
+  async getArticle(
+    @Request() req: any,
+    @Param('identifier') identifier: string,
+    @Query('language') language?: string,
+  ): Promise<any> {
+    // This will be undefined for unauthenticated users, but populated for authenticated users
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    
+    console.log('🔍 Backend getArticle called:', { 
+      identifier, 
+      language, 
+      userId,
+      userRole,
+      hasUser: !!req.user,
+      isAuthenticated: !!userId
     });
     
-    console.log('📄 Found article by ID:', article);
+    let result;
     
-    if (!article) {
-      console.log('❌ Article not found with ID:', identifier);
+    // Check if identifier is an ID (25 chars like Prisma IDs) or a slug
+    const isId = identifier.length === 25 && !identifier.includes('-');
+    
+    if (isId) {
+      console.log('📌 Looking up article by ID:', identifier);
+      const article = await this.prisma.article.findUnique({
+        where: { id: identifier },
+        select: { 
+          slug: true,
+          id: true,
+          coinPrice: true,
+          accessType: true
+        }
+      });
+      
+      console.log('📄 Found article by ID:', article);
+      
+      if (!article) {
+        console.log('❌ Article not found with ID:', identifier);
+        throw new NotFoundException('Article not found');
+      }
+      
+      result = await this.articleService.getArticle(article.slug, userId, language);
+    } else {
+      console.log('📌 Looking up article by slug:', identifier);
+      result = await this.articleService.getArticle(identifier, userId, language);
+    }
+    
+    console.log('📦 Service returned:', {
+      hasResult: !!result,
+      resultType: typeof result,
+      resultKeys: result ? Object.keys(result) : 'no result'
+    });
+    
+    if (!result) {
+      console.log('⚠️ Service returned null/undefined');
       throw new NotFoundException('Article not found');
     }
     
-    result = await this.articleService.getArticle(article.slug, userId, language);
-  } else {
-    console.log('📌 Looking up article by slug:', identifier);
-    result = await this.articleService.getArticle(identifier, userId, language);
+    const response = {
+      success: true,
+      data: result,
+      message: 'Article loaded successfully',
+    };
+    
+    console.log('✅ Sending response:', {
+      status: 200,
+      dataKeys: Object.keys(result),
+      responseLength: JSON.stringify(response).length
+    });
+    
+    return response;
   }
-  
-  console.log('📦 Service returned:', {
-    hasResult: !!result,
-    resultType: typeof result,
-    resultKeys: result ? Object.keys(result) : 'no result'
-  });
-  
-  // Check if result is valid
-  if (!result) {
-    console.log('⚠️ Service returned null/undefined');
-    throw new NotFoundException('Article not found');
-  }
-  
-  // Return consistent response structure
-  const response = {
-    success: true,
-    data: result,
-    message: 'Article loaded successfully',
-  };
-  
-  console.log('✅ Sending response:', {
-    status: 200,
-    dataKeys: Object.keys(result),
-    responseLength: JSON.stringify(response).length
-  });
-  
-  return response;
-}
+
 
   @Put(':identifier')
   @UseGuards(JwtGuard)
@@ -419,7 +432,7 @@ async getCategory(
 }
 
   @Post('categories/create') 
-  @UseGuards(JwtGuard, AdminGuard) // Apply guards at method level like AdminController
+  @UseGuards(JwtGuard, SuperAdminGuard) 
   async createCategory(
     @Body() createCategoryDto: CreateCategoryDto,
   ) {
@@ -428,7 +441,7 @@ async getCategory(
   }
 
   @Put('categories/:id')
-  @UseGuards(JwtGuard, AdminGuard)
+  @UseGuards(JwtGuard, SuperAdminGuard)
   async updateCategory(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
@@ -438,7 +451,7 @@ async getCategory(
   }
 
   @Delete('categories/:id')
-  @UseGuards(JwtGuard, AdminGuard)
+  @UseGuards(JwtGuard, SuperAdminGuard)
   async deleteCategory(
     @Param('id') id: string,
   ) {
@@ -449,7 +462,7 @@ async getCategory(
   // In your article.controller.ts
 
 @Get('categories/:id/translations')
-@UseGuards(JwtGuard, AdminGuard)
+@UseGuards(JwtGuard, SuperAdminGuard) // Only super admins can manage translations
 async getCategoryTranslations(@Param('id') categoryId: string) {
   // First check if category exists
   const categoryExists = await this.prisma.articleCategory.findUnique({
@@ -474,7 +487,7 @@ async getCategoryTranslations(@Param('id') categoryId: string) {
 }
 
 @Put('translations/category/:id')
-@UseGuards(JwtGuard, AdminGuard)
+@UseGuards(JwtGuard, SuperAdminGuard)
 async updateCategoryTranslation(
   @Param('id') translationId: string,
   @Body() body: { 
@@ -493,7 +506,7 @@ async updateCategoryTranslation(
 }
 
 @Post('translations/category/:id/regenerate')
-@UseGuards(JwtGuard, AdminGuard)
+@UseGuards(JwtGuard, SuperAdminGuard)
 async regenerateCategoryTranslation(@Param('id') translationId: string) {
   const translation = await this.prisma.categoryTranslation.findUnique({
     where: { id: translationId },
@@ -514,7 +527,7 @@ async regenerateCategoryTranslation(@Param('id') translationId: string) {
 }
 
 @Post('categories/:id/generate-translations')
-@UseGuards(JwtGuard, AdminGuard)
+@UseGuards(JwtGuard, SuperAdminGuard)
 async generateCategoryTranslations(@Param('id') categoryId: string) {
   const category = await this.prisma.articleCategory.findUnique({
     where: { id: categoryId },

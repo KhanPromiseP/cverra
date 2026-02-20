@@ -709,7 +709,6 @@ export interface Article {
   readingTime: number;
   viewCount: number;
   likeCount: number;
-  commentCount: number;
   clapCount?: number;
   shareCount?: number;
   isFeatured: boolean;
@@ -730,6 +729,27 @@ export interface Article {
   language?: string;
   translationQuality?: number;
   recommendationScore?: number;
+  reviewStats?: {
+    averageRating: number;
+    totalReviews: number;
+    ratingDistribution: {
+      1: number;
+      2: number;
+      3: number;
+      4: number;
+      5: number;
+    };
+    recentReviews?: Array<{
+      id: string;
+      rating: number;
+      insightText?: string;
+      user: {
+        id: string;
+        name: string;
+        picture?: string;
+      };
+    }>;
+  };
   
   // Translations property
   translations?: Record<string, { title: string; excerpt: string }>;
@@ -762,12 +782,14 @@ export interface ArticleListDto {
 }
 
 // Enhanced ApiResponse interface to include status
+
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
   error?: string;
-  status?: number; // Add status field
+  status?: number;
 }
 
 export interface Comment {
@@ -1017,8 +1039,15 @@ export const articleApi = {
     apiClient.delete(`/articles/comments/${commentId}`),
 
   // Premium content
-  purchaseArticle: (articleId: string): Promise<ApiResponse<{ purchased: boolean }>> => 
-    apiClient.post(`/articles/${articleId}/purchase`),
+  purchaseArticle: (articleId: string): Promise<ApiResponse<{ 
+  purchased: boolean; 
+  alreadyHadAccess?: boolean;
+  transactionId?: string;
+  premiumAccessId?: string;
+  newBalance?: number;
+  accessUntil?: string;
+}>> => 
+  apiClient.post(`/articles/${articleId}/purchase`),
   
   // Reading profile
   getReadingProfile: (): Promise<ApiResponse<ReadingProfile>> => 

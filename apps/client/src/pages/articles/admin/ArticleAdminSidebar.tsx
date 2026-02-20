@@ -12,6 +12,7 @@ import {
   ScheduleOutlined,
   CrownOutlined
 } from '@ant-design/icons';
+import { useAuthStore } from '@/client/stores/auth'; // Import your auth store
 
 interface ArticleAdminNavbarProps {
   currentPath?: string;
@@ -23,13 +24,43 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
   title = t`Article Admin`
 }) => {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string>('ADMIN');
+  const [userRole, setUserRole] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  
+  // Get user from auth store (this is the secure source)
+  const { user } = useAuthStore();
   
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'ADMIN';
-    setUserRole(role);
-  }, []);
+    const fetchUserRole = async () => {
+      try {
+        // Method 1: Get role from auth store (if available)
+        if (user?.role) {
+          setUserRole(user.role);
+          setLoading(false);
+          return;
+        }
+        
+        // Method 2: Fetch role from API as fallback
+        const response = await fetch('/api/user/me');
+        if (response.ok) {
+          const userData = await response.json();
+          setUserRole(userData.role || 'ADMIN');
+        } else {
+          console.error('Failed to fetch user role');
+          setUserRole('ADMIN'); // Fallback, but still not secure
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('ADMIN');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchUserRole();
+  }, [user]);
+
+  // Only check for SUPER_ADMIN - regular admins should NOT see super admin features
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
   
   // Define all possible navigation items
@@ -38,7 +69,6 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
     { key: 'articles', label: t`Articles`, icon: <FileTextOutlined />, path: '/dashboard/article-admin/articles' },
     { key: 'new-article', label: t`New Article`, icon: <PlusOutlined />, path: '/dashboard/article-admin/articles/new' },
     { key: 'drafts', label: t`Drafts`, icon: <EditOutlined />, path: '/dashboard/article-admin/articles/drafts' },
-    // { key: 'drafts', label: t`Draft Management`, icon: <FileTextOutlined />, link: '/dashboard/article-admin/drafts',},
     { key: 'scheduled', label: t`Scheduled`, icon: <ScheduleOutlined />, path: '/dashboard/article-admin/articles/scheduled' },
     { key: 'categories', label: t`Categories`, icon: <FolderOutlined />, path: '/dashboard/article-admin/categories', superAdminOnly: true },
     { key: 'translations', label: t`Translations`, icon: <TranslationOutlined />, path: '/dashboard/article-admin/translations' },
@@ -49,6 +79,13 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
     !item.superAdminOnly || (item.superAdminOnly && isSuperAdmin)
   );
 
+  // Log for debugging (remove in production)
+  useEffect(() => {
+    console.log('Current user role:', userRole);
+    console.log('Is super admin:', isSuperAdmin);
+    console.log('Filtered nav items:', navItems.map(item => item.key));
+  }, [userRole, isSuperAdmin, navItems]);
+
   const isActive = (path: string) => {
     if (path === '/dashboard/article-admin' && currentPath === '/dashboard/article-admin') return true;
     if (path !== '/dashboard/article-admin' && currentPath.startsWith(path)) return true;
@@ -58,6 +95,16 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
   const handleNavigation = (path: string) => {
     navigate(path);
   };
+
+  if (loading) {
+    return (
+      <Card className="mb-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <div className="flex justify-center items-center h-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="
@@ -72,10 +119,10 @@ const ArticleAdminNavbar: React.FC<ArticleAdminNavbarProps> = ({
           <h3 className="m-0 text-gray-800 dark:text-white font-semibold text-lg">
             {title}
           </h3>
-          <Tag color={isSuperAdmin ? "purple" : "blue"} className="
+          <Tag color={isSuperAdmin ? "purple" : "blue"} className={`
             ${isSuperAdmin ? 'dark:bg-purple-900 dark:text-purple-200' : 'dark:bg-blue-900 dark:text-blue-200'}
             dark:border-opacity-50
-          ">
+          `}>
             {isSuperAdmin ? t`Super Admin` : t`Admin`}
           </Tag>
         </div>

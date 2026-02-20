@@ -146,6 +146,8 @@ import { RedisModule } from './redis/redis.module';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { PremiumAssistantMiddleware } from './middleware/premium-assistant.middleware';
 
+import { ReviewModule } from './articles/review/review.module';
+
 @Module({
   controllers: [OpenAiController], 
   
@@ -161,7 +163,7 @@ import { PremiumAssistantMiddleware } from './middleware/premium-assistant.middl
       ignoreErrors: false,
     }),
     ScheduleModule.forRoot(),
-    
+
     // ADD Rate Limiting Module
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute
@@ -204,6 +206,9 @@ import { PremiumAssistantMiddleware } from './middleware/premium-assistant.middl
 
     // bonus
     WelcomeModule,
+
+    // reviews
+    ReviewModule,
 
     // contact
     ContactModule,
@@ -251,4 +256,5 @@ export class AppModule implements NestModule { // ADD implements NestModule
     //   { path: 'assistant/memories', method: RequestMethod.GET },
     // );
   }
+  
 }

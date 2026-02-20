@@ -332,6 +332,26 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
 };
 
 
+useEffect(() => {
+  // Check authentication status
+  const token = localStorage.getItem('token');
+  const userId = localStorage.getItem('userId');
+  
+  console.log('🔐 Component auth check:', {
+    hasToken: !!token,
+    tokenPreview: token ? token.substring(0, 20) + '...' : 'none',
+    userId,
+    cookies: document.cookie
+  });
+  
+  // If no token, redirect to login or show message
+  if (!token) {
+    message.error(t`You need to be logged in to edit articles`);
+    // Optionally redirect to login
+    // navigate('/auth/login');
+  }
+}, []);
+
 
 
   return (
@@ -1979,6 +1999,32 @@ const extractPlainText = (content: any): string => {
     );
   }
 
+
+  if (userLoading) {
+  return (
+    <div>
+      <ArticleAdminNavbar 
+        currentPath={window.location.pathname}
+        title={t`Article Management`}
+      />
+      <Card
+        styles={{
+          body: {
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            minHeight: 400
+          }
+        }}
+      >
+        <Spin size="large" />
+        <div style={{ marginLeft: 16 }}>
+          {t`Loading user data...`}
+        </div>
+      </Card>
+    </div>
+  );
+}
 
   return (
     <div>

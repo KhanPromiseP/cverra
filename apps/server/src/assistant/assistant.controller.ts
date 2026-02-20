@@ -22,9 +22,17 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AssistantService } from './services/assistant.service';
+import { DecisionEngineService } from './services/decision.service';
+import { FutureSimulationService } from './services/future-simulation.service';
+import { SecondBrainService } from './services/second-brain.service';
+import { LifeDashboardService } from './services/life-dashboard.service';
+import { GoalService } from './services/goal.service';
+import { EmotionalIntelligenceService } from './services/emotional.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { PrismaService } from '../../../../tools/prisma/prisma.service'; 
 import { CreateConversationDto, SearchMemoriesDto, SendMessageDto } from './dto';
+
+
 import { 
   ClearConversationDto,
   DeleteConversationDto,
@@ -39,6 +47,12 @@ import {
   EmptyTrashDto
 } from './dto/conversation-management.dto';
 import { Observable, interval, map } from 'rxjs';
+
+import { DecisionAnalysisDto } from './dto/decision.dto';
+import { SimulationRequestDto } from './dto/simulation.dto';
+import { BrainDumpDto } from './dto/brain.dto';
+import { WeeklySummaryDto } from './dto/weekly-summary.dto';
+
 
 // Define extended request interface like in payments controller
 interface AuthRequest extends Request {
@@ -60,7 +74,13 @@ export class AssistantController {
 
   constructor(
   private readonly assistantService: AssistantService,
-  private readonly prisma: PrismaService, // Add this
+  private readonly prisma: PrismaService, 
+  private readonly decisionEngine: DecisionEngineService,
+  private readonly futureSimulation: FutureSimulationService,
+  private readonly secondBrain: SecondBrainService,
+  private readonly lifeDashboard: LifeDashboardService,
+  private readonly goalService: GoalService,
+  private readonly emotionalService: EmotionalIntelligenceService,
 ) {}
 
   @Post('conversations')
@@ -1330,6 +1350,90 @@ async getUserInfo(
   }
 }
 
+/**
+ * Get rate limit status for current user
+ * This endpoint is called by the frontend to check rate limits before sending messages
+ */
+@Get('rate-limit/status')
+async getRateLimitStatus(@Req() req: AuthRequest) {
+  this.logger.log('Get rate limit status request:', {
+    userId: req.user.id,
+    tier: req.user.tier || 'FREE',
+  });
+
+  try {
+    const tier = req.user.tier || 'FREE';
+    
+    // For FREE users, check daily usage
+    if (tier === 'FREE') {
+      // Get today's message count
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const cacheKey = `ratelimit:daily:${req.user.id}:${startOfDay.toISOString().split('T')[0]}`;
+      
+      let dailyUsage = 0;
+      try {
+        // Try to get from cache service if available
+        if (this.assistantService['cacheService']) {
+          const cachedCount = await this.assistantService['cacheService'].getCachedData(cacheKey);
+          dailyUsage = cachedCount ? parseInt(cachedCount) || 0 : 0;
+        }
+      } catch (cacheError) {
+        this.logger.warn('Failed to get daily usage from cache:', cacheError);
+      }
+
+      const resetTime = new Date();
+      resetTime.setHours(24, 0, 0, 0); // Reset at midnight
+      const now = new Date();
+      const msUntilReset = resetTime.getTime() - now.getTime();
+      const minutesUntilReset = Math.max(0, Math.floor(msUntilReset / (1000 * 60)));
+
+      return {
+        success: true,
+        data: {
+          canSend: dailyUsage < 10,
+          remaining: Math.max(0, 10 - dailyUsage),
+          limit: 10,
+          used: dailyUsage,
+          resetTime: resetTime.toISOString(),
+          resetInMinutes: minutesUntilReset,
+          tier: 'FREE',
+        },
+        message: 'Rate limit status retrieved',
+      };
+    } else {
+      // Premium/Admin users have no limits
+      return {
+        success: true,
+        data: {
+          canSend: true,
+          remaining: 9999,
+          limit: 9999,
+          used: 0,
+          tier: tier,
+          unlimited: true,
+        },
+        message: 'No rate limits for premium tier',
+      };
+    }
+  } catch (error) {
+    this.logger.error('Failed to get rate limit status:', error);
+    
+    // Safe fallback - allow sending but log error
+    return {
+      success: true,
+      data: {
+        canSend: true,
+        remaining: 10,
+        limit: 10,
+        used: 0,
+        tier: 'FREE',
+      },
+      message: 'Using fallback rate limit',
+    };
+  }
+}
+
 // Update getRateLimit method
 @Get('rate-limit')
 async getRateLimit(
@@ -1351,22 +1455,23 @@ async getRateLimit(
       
       let dailyUsage = 0;
       try {
-        // Use getCachedData to get the count
-        const cachedCount = await this.assistantService['cacheService'].getCachedData(cacheKey);
-        dailyUsage = cachedCount ? parseInt(cachedCount) || 0 : 0;
+        if (this.assistantService['cacheService']) {
+          const cachedCount = await this.assistantService['cacheService'].getCachedData(cacheKey);
+          dailyUsage = cachedCount ? parseInt(cachedCount) || 0 : 0;
+        }
       } catch (cacheError) {
         this.logger.warn('Failed to get daily usage from cache:', cacheError);
       }
 
       const resetTime = new Date();
-      resetTime.setHours(24, 0, 0, 0); // Reset at midnight
+      resetTime.setHours(24, 0, 0, 0);
 
       return {
         success: true,
         data: {
           remaining: Math.max(0, 10 - dailyUsage),
           limit: 10,
-          usage: dailyUsage,
+          used: dailyUsage,
           resetTime: resetTime.toISOString(),
           resetInHours: Math.ceil((resetTime.getTime() - Date.now()) / (1000 * 60 * 60)),
           tier: 'FREE',
@@ -1375,13 +1480,12 @@ async getRateLimit(
         message: 'Rate limit retrieved successfully',
       };
     } else {
-      // Premium/Admin users have no limits
       return {
         success: true,
         data: {
-          remaining: 9999, // High number instead of MAX_SAFE_INTEGER
+          remaining: 9999,
           limit: 9999,
-          usage: 0,
+          used: 0,
           tier: tier,
           isLimited: false,
           unlimited: true,
@@ -1392,13 +1496,12 @@ async getRateLimit(
   } catch (error) {
     this.logger.error('Failed to get rate limit:', error);
     
-    // Fallback for FREE users
     return {
       success: true,
       data: {
         remaining: 10,
         limit: 10,
-        usage: 0,
+        used: 0,
         tier: 'FREE',
         isLimited: false,
       },
@@ -1406,7 +1509,6 @@ async getRateLimit(
     };
   }
 }
-
   private extractTopics(messages: any[]): string[] {
     const topics = new Set<string>();
     
@@ -1480,5 +1582,414 @@ async getLatestConversation(@Req() req: AuthRequest) {
   }
 }
 
+// 1️⃣ Decision Engine
+  @Post('decision/analyze')
+  async analyzeDecision(
+    @Req() req: AuthRequest,
+    @Body() dto: DecisionAnalysisDto,
+  ) {
+    this.logger.log(`Analyzing decision for user ${req.user.id}`);
+    
+    const analysis = await this.decisionEngine.analyzeDecision(
+      req.user.id,
+      'Decision analysis',
+      dto.optionA,
+      dto.optionB,
+      dto.goals,
+      dto.constraints,
+    );
+    
+    return {
+      success: true,
+      data: analysis,
+    };
+  }
 
+  // 2️⃣ Future Simulation
+  @Post('simulate')
+  async simulatePath(
+    @Req() req: AuthRequest,
+    @Body() dto: SimulationRequestDto,
+  ) {
+    this.logger.log(`Running simulation for user ${req.user.id}: ${dto.path}`);
+    
+    if (req.user.tier === 'FREE') {
+      throw new BadRequestException('Simulation requires Premium or Admin tier');
+    }
+    
+    const simulation = await this.futureSimulation.simulatePath(
+      req.user.id,
+      dto.path,
+      dto.duration,
+    );
+    
+    return {
+      success: true,
+      data: simulation,
+    };
+  }
+
+  // 3️⃣ Second Brain
+  @Post('brain/dump')
+  async processBrainDump(
+    @Req() req: AuthRequest,
+    @Body() dto: BrainDumpDto,
+  ) {
+    this.logger.log(`Processing brain dump for user ${req.user.id}`);
+    
+    const items = await this.secondBrain.processBrainDump(
+      req.user.id,
+      dto.content,
+    );
+    
+    return {
+      success: true,
+      data: items,
+      count: items.length,
+    };
+  }
+
+  @Get('brain/items')
+  async getBrainItems(
+    @Req() req: AuthRequest,
+    @Query() query: any,
+  ) {
+    this.logger.log(`Fetching brain items for user ${req.user.id}`);
+    
+    const items = await this.secondBrain.getBrainItems(req.user.id, query);
+    
+    return {
+      success: true,
+      data: items,
+      count: items.length,
+    };
+  }
+
+  @Get('brain/projects/:id')
+  async getProject(
+    @Req() req: AuthRequest,
+    @Param('id') projectId: string,
+  ) {
+    this.logger.log(`Fetching project ${projectId} for user ${req.user.id}`);
+    
+    const project = await this.secondBrain.getProject(req.user.id, projectId);
+    
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+    
+    return {
+      success: true,
+      data: project,
+    };
+  }
+
+  @Post('brain/items/:id/convert-to-project')
+  async convertToProject(
+    @Req() req: AuthRequest,
+    @Param('id') itemId: string,
+  ) {
+    this.logger.log(`Converting item ${itemId} to project for user ${req.user.id}`);
+    
+    const project = await this.secondBrain.convertToProject(req.user.id, itemId);
+    
+    return {
+      success: true,
+      data: project,
+    };
+  }
+
+  // 4️⃣ Life Dashboard
+  @Get('dashboard/weekly-summary')
+  async getWeeklySummary(@Req() req: AuthRequest) {
+    this.logger.log(`Fetching weekly summary for user ${req.user.id}`);
+    
+    const summary = await this.lifeDashboard.getLatestSummary(req.user.id);
+    
+    if (!summary) {
+      // Generate on demand
+      const newSummary = await this.lifeDashboard.generateWeeklySummary(req.user.id);
+      return {
+        success: true,
+        data: newSummary,
+      };
+    }
+    
+    return {
+      success: true,
+      data: summary,
+    };
+  }
+
+  @Get('dashboard/all-summaries')
+  async getAllSummaries(@Req() req: AuthRequest) {
+    this.logger.log(`Fetching all summaries for user ${req.user.id}`);
+    
+    const summaries = await this.lifeDashboard.getAllSummaries(req.user.id);
+    
+    return {
+      success: true,
+      data: summaries,
+      count: summaries.length,
+    };
+  }
+
+  // 5️⃣ Goals
+  @Get('goals')
+  async getGoals(@Req() req: AuthRequest) {
+    this.logger.log(`Fetching goals for user ${req.user.id}`);
+    
+    const goals = await this.goalService.getActiveGoals(req.user.id);
+    
+    return {
+      success: true,
+      data: goals,
+      count: goals.length,
+    };
+  }
+
+  @Get('goals/stalled')
+  async getStalledGoals(@Req() req: AuthRequest) {
+    this.logger.log(`Fetching stalled goals for user ${req.user.id}`);
+    
+    const stalled = await this.goalService.detectRepeatedGoals(req.user.id);
+    
+    return {
+      success: true,
+      data: stalled,
+    };
+  }
+
+  @Post('goals/:id/micro-plan')
+  async createMicroPlan(
+    @Req() req: AuthRequest,
+    @Param('id') goalId: string,
+  ) {
+    this.logger.log(`Creating micro-plan for goal ${goalId}`);
+    
+    const plan = await this.goalService.createMicroPlan(req.user.id, goalId);
+    
+    return {
+      success: true,
+      data: plan,
+    };
+  }
+
+  // 6️⃣ Emotional Intelligence
+  @Get('emotional/summary')
+  async getEmotionalSummary(
+    @Req() req: AuthRequest,
+    @Query('days') days?: string,
+  ) {
+    this.logger.log(`Fetching emotional summary for user ${req.user.id}`);
+    
+    const summary = await this.emotionalService.getEmotionalSummary(
+      req.user.id,
+      days ? parseInt(days) : 7,
+    );
+    
+    return {
+      success: true,
+      data: summary,
+    };
+  }
+
+  @Get('emotional/patterns')
+  async getEmotionalPatterns(@Req() req: AuthRequest) {
+    this.logger.log(`Fetching emotional patterns for user ${req.user.id}`);
+    
+    const patterns = await this.prisma.assistantEmotionalPattern.findMany({
+      where: { userId: req.user.id },
+      orderBy: { severity: 'desc' },
+    });
+    
+    return {
+      success: true,
+      data: patterns,
+    };
+  }
+
+
+  @Get('analytics/growth')
+  async getGrowthAnalytics(
+    @Req() req: AuthRequest,
+    @Query('timeframe') timeframe?: string,
+  ) {
+    this.logger.log('Get growth analytics request:', {
+      userId: req.user.id,
+      timeframe: timeframe || '3m',
+    });
+
+    try {
+      const months = timeframe === '1y' ? 12 : timeframe === '6m' ? 6 : 3;
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+
+      // Get conversations by month
+      const conversations = await this.prisma.assistantConversation.findMany({
+        where: {
+          userId: req.user.id,
+          createdAt: { gte: startDate },
+          isDeleted: false,
+        },
+        select: {
+          createdAt: true,
+          _count: { select: { messages: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      // Group by month
+      const byMonth: Record<string, { conversations: number; messages: number }> = {};
+      conversations.forEach(conv => {
+        const month = conv.createdAt.toLocaleString('default', { month: 'short', year: 'numeric' });
+        if (!byMonth[month]) {
+          byMonth[month] = { conversations: 0, messages: 0 };
+        }
+        byMonth[month].conversations += 1;
+        byMonth[month].messages += conv._count.messages || 0;
+      });
+
+      // Get completed goals
+      const completedGoals = await this.prisma.assistantGoal.count({
+        where: {
+          userId: req.user.id,
+          status: 'COMPLETED',
+          updatedAt: { gte: startDate },
+        },
+      });
+
+      // Get emotional summary
+      const emotional = await this.emotionalService.getEmotionalSummary(req.user.id, months * 30);
+
+      return {
+        success: true,
+        data: {
+          conversationsByMonth: Object.values(byMonth).map(v => v.conversations),
+          messagesByMonth: Object.values(byMonth).map(v => v.messages),
+          months: Object.keys(byMonth),
+          totalConversations: conversations.length,
+          completedGoals,
+          emotionalVolatility: emotional.emotionalVolatility,
+          topTopics: await this.getTopTopics(req.user.id, months),
+        },
+        message: 'Growth analytics retrieved successfully',
+      };
+    } catch (error) {
+      this.logger.error('Failed to get growth analytics:', error);
+      throw new BadRequestException(error.message || 'Failed to get growth analytics');
+    }
+  }
+
+  private async getTopTopics(userId: string, months: number): Promise<string[]> {
+    const memories = await this.prisma.assistantMemory.findMany({
+      where: {
+        userId,
+        updatedAt: { gte: new Date(Date.now() - months * 30 * 24 * 60 * 60 * 1000) },
+      },
+      select: { topic: true, contextType: true },
+      take: 50,
+    });
+
+    // Count occurrences
+    const counts: Record<string, number> = {};
+    memories.forEach(m => {
+      if (m.contextType) {
+        counts[m.contextType] = (counts[m.contextType] || 0) + 1;
+      }
+      if (m.topic) {
+        counts[m.topic] = (counts[m.topic] || 0) + 0.5; // Lower weight for topics
+      }
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([topic]) => topic);
+  }
+
+
+  @Get('decisions')
+  async getDecisions(@Req() req: AuthRequest) {
+    this.logger.log('Fetching decisions for user:', req.user.id);
+
+    try {
+      const decisions = await this.prisma.assistantDecision.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      return {
+        success: true,
+        data: decisions,
+        count: decisions.length,
+        message: 'Decisions retrieved successfully',
+      };
+    } catch (error) {
+      this.logger.error('Failed to get decisions:', error);
+      throw new BadRequestException(error.message || 'Failed to get decisions');
+    }
+  }
+
+  @Get('decisions/:id')
+  async getDecision(
+    @Req() req: AuthRequest,
+    @Param('id') decisionId: string,
+  ) {
+    this.logger.log('Fetching decision:', decisionId);
+
+    const decision = await this.prisma.assistantDecision.findFirst({
+      where: { id: decisionId, userId: req.user.id },
+    });
+
+    if (!decision) {
+      throw new NotFoundException('Decision not found');
+    }
+
+    return {
+      success: true,
+      data: decision,
+      message: 'Decision retrieved successfully',
+    };
+  }
+
+
+  /**
+   * Connect items by tags (simpler method)
+   */
+  @Post('brain/connect-by-tags')
+  async connectBrainItemsByTags(@Req() req: AuthRequest) {
+    this.logger.log(`Connecting brain items by tags for user ${req.user.id}`);
+    
+    const result = await this.secondBrain.connectByTags(req.user.id);
+    
+    return {
+      success: true,
+      data: result,
+      message: `Connected ${result.updated} items by tags`,
+    };
+  }
+
+  /**
+   * Suggest connections for a specific item
+   */
+  @Get('brain/items/:id/suggestions')
+  async suggestConnections(
+    @Req() req: AuthRequest,
+    @Param('id') itemId: string,
+  ) {
+    this.logger.log(`Getting connection suggestions for item ${itemId}`);
+    
+    const suggestions = await this.secondBrain.suggestConnections(
+      req.user.id,
+      itemId
+    );
+    
+    return {
+      success: true,
+      data: suggestions,
+      count: suggestions.length,
+    };
+  }
 }

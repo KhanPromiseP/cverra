@@ -38,7 +38,6 @@ import {
   ClockCircleOutlined,
   EyeOutlined,
   HeartOutlined,
-  CommentOutlined,
   CrownOutlined,
   GlobalOutlined,
   HistoryOutlined,
@@ -102,7 +101,7 @@ import {
 } from '@ant-design/icons';
 import { cn } from "@reactive-resume/utils";
 import { useLingui } from '@lingui/react';
-import { t, Trans } from "@lingui/macro"; // Added Lingui macro
+import { t, Trans } from "@lingui/macro";
 import { useNavigate } from 'react-router';
 import articleApi, { Article, FilterParams, ArticleListDto } from '../../services/articleApi';
 import { useAuthStore } from '@/client/stores/auth';
@@ -136,7 +135,7 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
 }) => {
 
   const { i18n } = useLingui();
-  const currentLocale = i18n.locale; // e.g., 'fr', 'en', etc.
+  const currentLocale = i18n.locale;
 
   console.log('🌐 Current UI locale in ArticleFeed:', currentLocale);
   
@@ -195,6 +194,13 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
   articlesCount: number;
   link: string;
 }>>([]);
+
+// Helper function to get review count and rating
+const getReviewInfo = (article: Article) => {
+  const reviewCount = article.reviewStats?.totalReviews || 0;
+  const averageRating = article.reviewStats?.averageRating || 0;
+  return { reviewCount, averageRating };
+};
 
 // Add this function
 const fetchSpecialCollections = async () => {
@@ -696,85 +702,100 @@ useEffect(() => {
   };
 
   // Render a featured article card (larger, more prominent)
-  const renderFeaturedArticle = (article: Article, index: number) => (
-    <div key={article.id} className="relative h-full">
-      <Card
-        hoverable
-        className="h-full border-0 hover:shadow-xl transition-all duration-500 text-gray-900"
-        onClick={() => navigate(`/dashboard/article/${article.slug}`)}
-        cover={
-          article.coverImage ? (
-            <div className="relative h-[354px] overflow-hidden">
-              <Image
-                src={article.coverImage}
-                alt={article.title}
-                className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
-                preview={false}
+  const renderFeaturedArticle = (article: Article, index: number) => {
+    const { reviewCount, averageRating } = getReviewInfo(article);
+    
+    return (
+      <div key={article.id} className="relative h-full">
+        <Card
+          hoverable
+          className="h-full border-0 hover:shadow-xl transition-all duration-500 text-gray-900"
+          onClick={() => navigate(`/dashboard/article/${article.slug}`)}
+          cover={
+            article.coverImage ? (
+              <div className="relative h-[354px] overflow-hidden">
+                <Image
+                  src={article.coverImage}
+                  alt={article.title}
+                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+                  preview={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent"></div>
+                <div className="absolute top-4 left-4">
+                  <Badge color="blue" className="font-semibold bg-blue-200 rounded-xl px-2">
+                    <Trans>Featured</Trans>
+                  </Badge>
+                </div>
+              </div>
+            ) : null
+          }
+        >
+          <div className="p-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Avatar 
+                src={article.author?.picture} 
+                size="small"
+                icon={!article.author?.picture && <UserOutlined />}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent"></div>
-              <div className="absolute top-4 left-4">
-                <Badge color="blue" className="font-semibold bg-blue-200 rounded-xl px-2">
-                  <Trans>Featured</Trans>
-                </Badge>
+              <div>
+                <Text className="text-gray-900 text-sm">{article.author?.name || t`Unknown`}</Text>
+                <Text className="text-gray-900 text-xs block">
+                  {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric' 
+                  })}
+                </Text>
               </div>
             </div>
-          ) : null
-        }
-      >
-        <div className="p-2">
-          <div className="flex items-center gap-2 mb-2">
-            <Avatar 
-              src={article.author?.picture} 
-              size="small"
-              icon={!article.author?.picture && <UserOutlined />}
-            />
-            <div>
-              <Text className="text-gray-900 text-sm">{article.author?.name || t`Unknown`}</Text>
-              <Text className="ttext-gray-900 text-xs block">
-                {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                  year: 'numeric' 
-                })}
-              </Text>
+            
+            <Title level={4} className="text-white dark:text-gray-900 !mb-3 line-clamp-2">
+              {article.title}
+            </Title>
+            
+            <Paragraph className="text-gray-800 mb-4 line-clamp-3">
+              {article.excerpt || t`Discover valuable insights in this featured article...`}
+            </Paragraph>
+            
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-4 text-gray-600">
+                <span className="flex items-center gap-1">
+                  <ClockCircleOutlined />
+                  <Text className="text-sm">{article.readingTime || 5} <Trans>min</Trans></Text>
+                </span>
+                <span className="flex items-center gap-1">
+                  <EyeOutlined className="text-blue-600"/>
+                  <Text className="text-sm">{article.viewCount || 0}</Text>
+                </span>
+                {reviewCount > 0 && (
+                  <span className="flex items-center gap-1">
+                    <StarOutlined className="text-yellow-500"/>
+                    <Text className="text-sm">
+                      {reviewCount}
+                      {averageRating > 0 && ` (${averageRating.toFixed(1)})`}
+                    </Text>
+                  </span>
+                )}
+              </div>
+              <Button 
+                type="primary" 
+                ghost 
+                size="small"
+                className="border-white/30 hover:border-white/50"
+              >
+                <Trans>Read Article</Trans>
+              </Button>
             </div>
           </div>
-          
-          <Title level={4} className="text-white dark:text-gray-900 !mb-3 line-clamp-2">
-            {article.title}
-          </Title>
-          
-          <Paragraph className="text-gray-800 mb-4 line-clamp-3">
-            {article.excerpt || t`Discover valuable insights in this featured article...`}
-          </Paragraph>
-          
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-4 text-gray-600">
-              <span className="flex items-center gap-1">
-                <ClockCircleOutlined />
-                <Text className="text-sm">{article.readingTime || 5} <Trans>min</Trans></Text>
-              </span>
-              <span className="flex items-center gap-1">
-                <EyeOutlined className="text-blue-600"/>
-                <Text className="text-sm">{article.viewCount || 0}</Text>
-              </span>
-            </div>
-            <Button 
-              type="primary" 
-              ghost 
-              size="small"
-              className="border-white/30 hover:border-white/50"
-            >
-              <Trans>Read Article</Trans>
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
+        </Card>
+      </div>
+    );
+  };
 
   // Render a regular article card
   const renderArticleCard = (article: Article, variant: 'default' | 'compact' = 'default') => {
+    const { reviewCount, averageRating } = getReviewInfo(article);
+    
     if (variant === 'compact') {
       return (
         <div key={article.id} className="mb-4">
@@ -806,6 +827,15 @@ useEffect(() => {
                 <span>{article.author?.name?.split(' ')[0] || t`Author`}</span>
                 <span>•</span>
                 <span>{article.readingTime || 5} <Trans>min read</Trans></span>
+                {reviewCount > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <StarOutlined className="text-yellow-500" />
+                      {reviewCount}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1070,113 +1100,125 @@ const renderFeaturedCarousel = () => {
           autoplaySpeed={5000}
           className="rounded-lg bg-background md:rounded-2xl overflow-hidden shadow-md md:shadow-lg mx-2 md:mx-0"
         >
-          {featuredArticles.map((article) => (
-            <div key={article.id} className="relative">
-              {/* Background Image with Gradient */}
-              <div className="relative h-[280px] sm:h-[350px] md:h-[400px] lg:h-[400px] xl:h-[600px] overflow-hidden">
-                <Image
-                  src={article.coverImage || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=1200&h=500&fit=crop'}
-                  alt={article.title}
-                  className="w-full h-full"
-                  preview={false}
-                />
-                
-                {/* Gradient Overlay - More prominent on mobile */}
-                <div
-                  className="
-                    absolute inset-0
-                    bg-gradient-to-t
-                    from-gray-100 via-white/80 to-transparent
-                    dark:from-gray-900 dark:via-gray-900/70 dark:to-transparent
-                  "
-                />
+          {featuredArticles.map((article) => {
+            const { reviewCount, averageRating } = getReviewInfo(article);
+            
+            return (
+              <div key={article.id} className="relative">
+                {/* Background Image with Gradient */}
+                <div className="relative h-[280px] sm:h-[350px] md:h-[400px] lg:h-[400px] xl:h-[600px] overflow-hidden">
+                  <Image
+                    src={article.coverImage || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=1200&h=500&fit=crop'}
+                    alt={article.title}
+                    className="w-full h-full"
+                    preview={false}
+                  />
+                  
+                  {/* Gradient Overlay - More prominent on mobile */}
+                  <div
+                    className="
+                      absolute inset-0
+                      bg-gradient-to-t
+                      from-gray-100 via-white/80 to-transparent
+                      dark:from-gray-900 dark:via-gray-900/70 dark:to-transparent
+                    "
+                  />
 
-                {/* Content Container */}
-                <div className="absolute  border border-gray-500 inset-0 flex items-end p-1 sm:p-1 md:p-2 lg:p-6">
-                  <div className="w-full">
-                    {/* Badge - Smaller on mobile */}
-                    <div className="mb-2 md:mb-3">
-                      <Badge 
-                        count={t`Featured Story`}
-                        color="blue"
-                        className="text-xs md:text-sm font-medium px-2 md:px-3 py-0.5 md:py-1"
-                        style={{ backgroundColor: 'rgba(37, 99, 235, 0.9)' }}
-                      />
-                    </div>
-                    {/* Title - Responsive sizing */}
-                    <Typography.Title 
-                      level={window.innerWidth < 640 ? 5 : window.innerWidth < 768 ? 4 : 1} 
-                      className="!mb-1 md:!mb-2 text-white font-bold leading-tight"
-                    >
-                      {article.title}
-                    </Typography.Title>
-                    
-                    {/* Excerpt - Responsive line clamping */}
-                    <Paragraph className="text-white! text-sm sm:text-base md:text-lg mb-0.5 md:mb-2 line-clamp-1 sm:line-clamp-3">
-                      {article.excerpt || t`Discover valuable insights in this featured article...`}
-                    </Paragraph>
-                    
-                    {/* Meta Information - Stack on mobile */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 md:gap-2 mb-1 md:mb-1">
-                      <div className="flex items-center gap-2 md:gap-2 w-full sm:w-auto">
-                        <Avatar 
-                          src={article.author?.picture}
-                          size={window.innerWidth < 640 ? "small" : "default"}
-                          icon={!article.author?.picture && <UserOutlined />}
-                          className="border border-white/30 flex-shrink-0"
+                  {/* Content Container */}
+                  <div className="absolute border border-gray-500 inset-0 flex items-end p-1 sm:p-1 md:p-2 lg:p-6">
+                    <div className="w-full">
+                      {/* Badge - Smaller on mobile */}
+                      <div className="mb-2 md:mb-3">
+                        <Badge 
+                          count={t`Featured Story`}
+                          color="blue"
+                          className="text-xs md:text-sm font-medium px-2 md:px-3 py-0.5 md:py-1"
+                          style={{ backgroundColor: 'rgba(37, 99, 235, 0.9)' }}
                         />
-                        <div className="min-w-0">
-                          <Text strong className="text-white! text-sm md:text-base block truncate">
-                            {article.author?.name || t`Unknown Author`}
-                          </Text>
-                          <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-xs md:text-sm mt-0.5 flex-wrap">
-                            <span className="flex items-center gap-1 whitespace-nowrap">
-                              <CalendarOutlined className="text-xs" />
-                              {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: article.publishedAt?.includes('-') ? 'numeric' : undefined 
-                              })}
-                            </span>
-                            <span className="hidden sm:inline">•</span>
-                            <span className="flex items-center text-gray-800 dark:text-white gap-1 whitespace-nowrap">
-                              <ClockCircleOutlined className="text-xs text-white!" />
-                              {article.readingTime || 5} <Trans>min read</Trans>
-                            </span>
+                      </div>
+                      {/* Title - Responsive sizing */}
+                      <Typography.Title 
+                        level={window.innerWidth < 640 ? 5 : window.innerWidth < 768 ? 4 : 1} 
+                        className="!mb-1 md:!mb-2 text-white font-bold leading-tight"
+                      >
+                        {article.title}
+                      </Typography.Title>
+                      
+                      {/* Excerpt - Responsive line clamping */}
+                      <Paragraph className="text-white! text-sm sm:text-base md:text-lg mb-0.5 md:mb-2 line-clamp-1 sm:line-clamp-3">
+                        {article.excerpt || t`Discover valuable insights in this featured article...`}
+                      </Paragraph>
+                      
+                      {/* Meta Information - Stack on mobile */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 md:gap-2 mb-1 md:mb-1">
+                        <div className="flex items-center gap-2 md:gap-2 w-full sm:w-auto">
+                          <Avatar 
+                            src={article.author?.picture}
+                            size={window.innerWidth < 640 ? "small" : "default"}
+                            icon={!article.author?.picture && <UserOutlined />}
+                            className="border border-white/30 flex-shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <Text strong className="text-white! text-sm md:text-base block truncate">
+                              {article.author?.name || t`Unknown Author`}
+                            </Text>
+                            <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-xs md:text-sm mt-0.5 flex-wrap">
+                              <span className="flex items-center gap-1 whitespace-nowrap">
+                                <CalendarOutlined className="text-xs" />
+                                {new Date(article.publishedAt || article.createdAt).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  year: article.publishedAt?.includes('-') ? 'numeric' : undefined 
+                                })}
+                              </span>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="flex items-center text-gray-800 dark:text-white gap-1 whitespace-nowrap">
+                                <ClockCircleOutlined className="text-xs text-white!" />
+                                {article.readingTime || 5} <Trans>min read</Trans>
+                              </span>
+                            </div>
                           </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 md:gap-4 sm:ml-auto">
+                          <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-sm">
+                            <EyeOutlined className="text-sm" />
+                            <span className="font-medium">{(article.viewCount || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-sm">
+                            <HeartOutlined className="text-sm" />
+                            <span className="font-medium">{(article.likeCount || 0).toLocaleString()}</span>
+                          </div>
+                          {reviewCount > 0 && (
+                            <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-sm">
+                              <StarOutlined className="text-sm text-yellow-400" />
+                              <span className="font-medium">
+                                {reviewCount}
+                                {averageRating > 0 && ` (${averageRating.toFixed(1)})`}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-3 md:gap-4 sm:ml-auto">
-                        <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white  text-sm">
-                          <EyeOutlined className="text-sm" />
-                          <span className="font-medium">{(article.viewCount || 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1 md:gap-2 text-gray-800 dark:text-white text-sm">
-                          <HeartOutlined className="text-sm" />
-                          <span className="font-medium">{(article.likeCount || 0).toLocaleString()}</span>
-                        </div>
+                      {/* Call to Action - Stack on mobile */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center p-4 gap-2 md:gap-3">
+                        <Button
+                          type="primary"
+                          size={window.innerWidth < 640 ? "middle" : "large"}
+                          className="w-full sm:w-auto border border-gray-700 py-1 bg-white text-gray-900 hover:bg-gray-100 font-semibold flex-1 sm:flex-none"
+                          onClick={() => navigate(`/dashboard/article/${article.slug}`)}
+                          icon={<ArrowRightOutlined />}
+                        >
+                          <Trans>Read Article</Trans>
+                        </Button>
                       </div>
-                    </div>
-                    
-                    {/* Call to Action - Stack on mobile */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center p-4 gap-2 md:gap-3">
-                      <Button
-                        type="primary"
-                        size={window.innerWidth < 640 ? "middle" : "large"}
-                        className="w-full sm:w-auto  border border-gray-700 py-1 bg-white text-gray-900 hover:bg-gray-100 font-semibold flex-1 sm:flex-none"
-                        onClick={() => navigate(`/dashboard/article/${article.slug}`)}
-                        icon={<ArrowRightOutlined />}
-                      >
-                        <Trans>Read Article</Trans>
-                      </Button>
-                     
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </Carousel>
 
         {/* Slide Indicators - Improved for mobile */}
@@ -1399,77 +1441,94 @@ const renderFeaturedCarousel = () => {
           
           {trendingArticles.length > 0 && (
             <Row gutter={[24, 24]}>
-              {trendingArticles.slice(0, 3).map((article, index) => (
-                <Col xs={24} lg={8} key={article.id}>
-                  <Card
-                    hoverable
-                    className="h-full border border-gray-200 dark:border-black-900 shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800"
-                    onClick={() => navigate(`/dashboard/article/${article.slug}`)}
-                  >
-                    <div className="relative mb-4">
-                      {article.coverImage && (
-                        <div className="w-full h-48 rounded-lg overflow-hidden">
-                          <Image
-                            src={article.coverImage}
-                            alt={article.title}
-                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                            preview={false}
-                          />
+              {trendingArticles.slice(0, 3).map((article, index) => {
+                const { reviewCount, averageRating } = getReviewInfo(article);
+                
+                return (
+                  <Col xs={24} lg={8} key={article.id}>
+                    <Card
+                      hoverable
+                      className="h-full border border-gray-200 dark:border-black-900 shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800"
+                      onClick={() => navigate(`/dashboard/article/${article.slug}`)}
+                    >
+                      <div className="relative mb-4">
+                        {article.coverImage && (
+                          <div className="w-full h-48 rounded-lg overflow-hidden">
+                            <Image
+                              src={article.coverImage}
+                              alt={article.title}
+                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              preview={false}
+                            />
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-3 bg-blue-300 rounded-xl px-2">
+                          <Badge 
+                            color="orange" 
+                            className="font-semibold px-3 py-1"
+                          >
+                            #{index + 1} <Trans>Trending</Trans>
+                          </Badge>
                         </div>
-                      )}
-                      <div className="absolute top-2 left-3 bg-blue-300 rounded-xl px-2">
-                        <Badge 
-                          color="orange" 
-                          className="font-semibold px-3 py-1"
-                        >
-                          #{index + 1} <Trans>Trending</Trans>
-                        </Badge>
                       </div>
-                    </div>
-                    
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar 
-                            src={article.author?.picture}
+                      
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar 
+                              src={article.author?.picture}
+                              size="small"
+                              icon={!article.author?.picture && <UserOutlined />}
+                            />
+                            <Text className="text-sm text-muted-foreground dark:text-gray-400">
+                              {article.author?.name?.split(' ')[0] || t`Author`}
+                            </Text>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <EyeOutlined className="text-sm text-muted-foreground dark:text-gray-400" />
+                            <Text className="text-sm text-muted-foreground dark:text-gray-400">
+                              {article.viewCount?.toLocaleString() || '0'}
+                            </Text>
+                          </div>
+                        </div>
+                        
+                        <Title level={4} className="!mb-3 line-clamp-2 text-foreground dark:text-white">
+                          {article.title}
+                        </Title>
+                        
+                        <Paragraph className="text-muted-foreground dark:text-gray-400 mb-4 line-clamp-2">
+                          {article.excerpt || t`Read this trending article to stay informed...`}
+                        </Paragraph>
+                        
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <ClockCircleOutlined className="text-sm text-muted-foreground dark:text-gray-400" />
+                            <Text className="text-sm text-muted-foreground dark:text-gray-400">
+                              {article.readingTime || 5} <Trans>min read</Trans>
+                            </Text>
+                          </div>
+                          {reviewCount > 0 && (
+                            <div className="flex items-center gap-1">
+                              <StarOutlined className="text-yellow-500 text-sm" />
+                              <Text className="text-sm text-muted-foreground dark:text-gray-400">
+                                {reviewCount}
+                                {averageRating > 0 && ` (${averageRating.toFixed(1)})`}
+                              </Text>
+                            </div>
+                          )}
+                          <Button 
+                            type="link" 
                             size="small"
-                            icon={!article.author?.picture && <UserOutlined />}
-                          />
-                          <Text className="text-sm text-muted-foreground dark:text-gray-400">
-                            {article.author?.name?.split(' ')[0] || t`Author`}
-                          </Text>
+                            className="text-blue-600 dark:text-blue-400"
+                          >
+                            <Trans>Read now</Trans>
+                          </Button>
                         </div>
-                        <Text className="text-sm text-muted-foreground dark:text-gray-400 flex items-center gap-1">
-                          <EyeOutlined />
-                          {article.viewCount?.toLocaleString() || '0'}
-                        </Text>
                       </div>
-                      
-                      <Title level={4} className="!mb-3 line-clamp-2 text-foreground dark:text-white">
-                        {article.title}
-                      </Title>
-                      
-                      <Paragraph className="text-muted-foreground dark:text-gray-400 mb-4 line-clamp-2">
-                        {article.excerpt || t`Read this trending article to stay informed...`}
-                      </Paragraph>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <Text className="text-sm text-muted-foreground dark:text-gray-400 flex items-center gap-1">
-                          <ClockCircleOutlined />
-                          {article.readingTime || 5} <Trans>min read</Trans>
-                        </Text>
-                        <Button 
-                          type="link" 
-                          size="small"
-                          className="text-blue-600 dark:text-blue-400"
-                        >
-                          <Trans>Read now</Trans>
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                </Col>
-              ))}
+                    </Card>
+                  </Col>
+                );
+              })}
             </Row>
           )}
         </div>
@@ -1499,48 +1558,65 @@ const renderFeaturedCarousel = () => {
           </div>
           
           <Row gutter={[24, 24]}>
-            {shortArticles.slice(0, 4).map((article, index) => (
-              <Col xs={24} sm={12} lg={6} key={article.id}>
-                <Card
-                  hoverable
-                  className="h-full border border-gray-200 dark:border-black-900 shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800"
-                  onClick={() => navigate(`/dashboard/article/${article.slug}`)}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge 
-                        count={`${article.readingTime || 5} min`}
-                        className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                      />
-                      {article.isPremium && (
-                        <CrownOutlined className="text-amber-500" />
-                      )}
+            {shortArticles.slice(0, 4).map((article, index) => {
+              const { reviewCount, averageRating } = getReviewInfo(article);
+              
+              return (
+                <Col xs={24} sm={12} lg={6} key={article.id}>
+                  <Card
+                    hoverable
+                    className="h-full border border-gray-200 dark:border-black-900 shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800"
+                    onClick={() => navigate(`/dashboard/article/${article.slug}`)}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <Badge 
+                          count={`${article.readingTime || 5} min`}
+                          className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        />
+                        {article.isPremium && (
+                          <CrownOutlined className="text-amber-500" />
+                        )}
+                      </div>
+                      
+                      <Title level={4} className="!mb-3 line-clamp-3 text-foreground dark:text-white">
+                        {article.title}
+                      </Title>
+                      
+                      <Paragraph className="text-muted-foreground dark:text-gray-400 mb-4 line-clamp-2">
+                        {article.excerpt || t`Quick insight you can apply immediately...`}
+                      </Paragraph>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Text className="text-sm text-muted-foreground dark:text-gray-400">
+                            {article.author?.name?.split(' ')[0] || t`Expert`}
+                          </Text>
+                          {reviewCount > 0 && (
+                            <>
+                              <span className="text-muted-foreground">•</span>
+                              <div className="flex items-center gap-1">
+                                <StarOutlined className="text-yellow-500 text-xs" />
+                                <Text className="text-xs text-muted-foreground dark:text-gray-400">
+                                  {reviewCount}
+                                </Text>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <Button 
+                          type="text" 
+                          size="small"
+                          className="text-blue-600 dark:text-blue-400"
+                        >
+                          <Trans>Read →</Trans>
+                        </Button>
+                      </div>
                     </div>
-                    
-                    <Title level={4} className="!mb-3 line-clamp-3 text-foreground dark:text-white">
-                      {article.title}
-                    </Title>
-                    
-                    <Paragraph className="text-muted-foreground dark:text-gray-400 mb-4 line-clamp-2">
-                      {article.excerpt || t`Quick insight you can apply immediately...`}
-                    </Paragraph>
-                    
-                    <div className="flex items-center justify-between">
-                      <Text className="text-sm text-muted-foreground dark:text-gray-400">
-                        {article.author?.name?.split(' ')[0] || t`Expert`}
-                      </Text>
-                      <Button 
-                        type="text" 
-                        size="small"
-                        className="text-blue-600 dark:text-blue-400"
-                      >
-                        <Trans>Read →</Trans>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            ))}
+                  </Card>
+                </Col>
+              );
+            })}
           </Row>
         </div>
 

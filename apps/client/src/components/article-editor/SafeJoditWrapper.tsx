@@ -1,5 +1,5 @@
 // components/article-editor/SafeJoditWrapper.tsx
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import JoditWrapper from './JoditWrapper';
 
 interface SafeJoditWrapperProps {
@@ -19,42 +19,72 @@ const SafeJoditWrapper: React.FC<SafeJoditWrapperProps> = ({
   placeholder = 'Start writing your amazing article...',
   uploadEndpoint = '/api/upload/image'
 }) => {
-  // Convert any value to string for Jodit
-  const stringValue = React.useMemo(() => {
-    if (!value) return '';
-    
-    // Already a string
-    if (typeof value === 'string') return value;
-    
-    // Tiptap JSON object
-    if (typeof value === 'object' && value.type === 'doc') {
-      try {
-        // Import your conversion function
-        // You may need to adjust this path
-        const { tiptapToHTML } = require('../../utils/content-utils');
-        return tiptapToHTML(value);
-      } catch (error) {
-        console.error('Tiptap conversion error:', error);
-        return '';
-      }
+  const [processedValue, setProcessedValue] = useState<string>('');
+  const prevValueRef = useRef<any>(null);
+  const isFirstRender = useRef(true);
+
+  // Process the value whenever it changes
+  useEffect(() => {
+    console.log('🔄 SafeJoditWrapper value changed:', {
+      hasValue: !!value,
+      valueType: typeof value,
+      isString: typeof value === 'string',
+      isHTML: typeof value === 'string' && value?.trim()?.startsWith?.('<'),
+      preview: value ? 
+        (typeof value === 'string' ? value.substring(0, 100) : 'non-string') 
+        : 'empty',
+      prevValueType: prevValueRef.current ? typeof prevValueRef.current : 'none',
+      isFirstRender: isFirstRender.current
+    });
+
+    // Store previous value for comparison
+    prevValueRef.current = value;
+
+    if (!value) {
+      setProcessedValue('');
+      return;
     }
     
-    // Other objects/arrays
+    // Handle string values (including HTML)
+    if (typeof value === 'string') {
+      setProcessedValue(value);
+      return;
+    }
+    
+    // Handle TipTap JSON if needed
+    if (typeof value === 'object' && value?.type === 'doc') {
+      try {
+        // If you have a TipTap to HTML converter, use it here
+        // For now, just stringify it
+        console.warn('TipTap JSON detected, stringifying for editor');
+        setProcessedValue(JSON.stringify(value));
+      } catch (error) {
+        console.error('Error processing TipTap JSON:', error);
+        setProcessedValue('');
+      }
+      return;
+    }
+    
+    // Handle other objects
     if (typeof value === 'object') {
       try {
-        return JSON.stringify(value);
+        setProcessedValue(JSON.stringify(value));
       } catch {
-        return '';
+        setProcessedValue('');
       }
+      return;
     }
     
-    // Numbers, booleans, etc.
-    return String(value);
+    // Fallback for other types
+    setProcessedValue(String(value));
+    
+    isFirstRender.current = false;
   }, [value]);
 
   return (
     <JoditWrapper
-      value={stringValue}
+      key={`jodit-${processedValue?.substring(0, 50)}-${Date.now()}`}
+      value={processedValue}
       onChange={onChange}
       disabled={disabled}
       height={height}

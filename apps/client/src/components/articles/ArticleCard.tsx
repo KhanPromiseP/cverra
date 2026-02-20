@@ -20,7 +20,7 @@ import {
   CoffeeOutlined
 } from '@ant-design/icons';
 import { useLingui } from '@lingui/react';
-import { t, Trans } from "@lingui/macro"; // Added Lingui macro
+import { t, Trans } from "@lingui/macro";
 import { Article } from '@/client/services/articleApi';
 import { useAuthStore } from '@/client/stores/auth';
 import './ArticleCard.css';
@@ -40,7 +40,7 @@ export interface ArticleCardData {
   readingTime?: number;
   viewCount?: number;
   likeCount?: number;
-  commentCount?: number;
+  reviewCount?: number; // Changed from commentCount to reviewCount
   isLiked?: boolean;
   isSaved?: boolean;
   isFeatured?: boolean;
@@ -63,6 +63,13 @@ export interface ArticleCardData {
   isPreview?: boolean;
   price?: number;
   isPremium?: boolean;
+  
+  // Review stats
+  reviewStats?: {
+    totalReviews: number;
+    averageRating: number;
+    ratingDistribution: Record<number, number>;
+  };
   
   // Translation support
   translations?: Record<string, { title: string; excerpt: string }>;
@@ -185,8 +192,23 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   
   // Get current UI language from Lingui
   const { i18n } = useLingui();
-  const currentLocale = i18n.locale; // e.g., 'en', 'fr', 'es-ES'
+  const currentLocale = i18n.locale;
   
+  // Helper function to get review count
+  const getReviewCount = (): number => {
+    return article.reviewCount || 
+           article.reviewStats?.totalReviews || 
+           0;
+  };
+
+  // Helper function to get average rating
+  const getAverageRating = (): number => {
+    return article.reviewStats?.averageRating || 0;
+  };
+
+  const reviewCount = getReviewCount();
+  const averageRating = getAverageRating();
+
   // Helper function to check user subscription
   const hasActiveSubscription = (user: any): boolean => {
     return user?.subscription?.status === 'ACTIVE';
@@ -463,6 +485,15 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
                   {likeCount.toLocaleString()}
                 </span>
               </div>
+              {reviewCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <StarOutlined className="text-yellow-500 dark:text-yellow-400" />
+                  <span className="text-sm text-muted-foreground dark:text-gray-400">
+                    {reviewCount}
+                    {averageRating > 0 && ` (${averageRating.toFixed(1)})`}
+                  </span>
+                </div>
+              )}
             </div>
           )}
           
@@ -670,6 +701,15 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
                 {likeCount.toLocaleString()}
               </span>
             </div>
+            {reviewCount > 0 && (
+              <div className="flex items-center gap-1">
+                <StarOutlined className="text-xs text-yellow-500 dark:text-yellow-400" />
+                <span className="text-xs text-muted-foreground dark:text-gray-500">
+                  {reviewCount}
+                  {averageRating > 0 && ` (${averageRating.toFixed(1)})`}
+                </span>
+              </div>
+            )}
           </div>
         )}
         
@@ -760,6 +800,12 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
         <div>
           <h4 className="font-semibold text-sm mb-1 text-foreground dark:text-gray-100 line-clamp-2">
             {getTranslatedTitle()}
+            {reviewCount > 0 && (
+              <span className="ml-2 text-xs text-yellow-500">
+                <StarOutlined className="mr-0.5" />
+                {reviewCount}
+              </span>
+            )}
           </h4>
           <p className="text-xs text-muted-foreground dark:text-gray-400 line-clamp-2 mb-2">
             {getShortTranslatedExcerpt()}

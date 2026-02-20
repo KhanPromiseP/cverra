@@ -187,94 +187,95 @@ export class SubscriptionsService {
     }
   }
 
-  async processSuccessfulSubscription(paymentId: string) {
-  this.logger.log(`Processing successful subscription for payment: ${paymentId}`);
+//   async processSuccessfulSubscription(paymentId: string) {
+//   this.logger.log(`Processing successful subscription for payment: ${paymentId}`);
   
-  return await this.prisma.$transaction(async (tx) => {
-    // Get payment with subscription details
-    const payment = await tx.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        userSubscription: {
-          include: { plan: true }
-        }
-      }
-    });
+//   return await this.prisma.$transaction(async (tx) => {
+//     // Get payment with subscription details
+//     const payment = await tx.payment.findUnique({
+//       where: { id: paymentId },
+//       include: {
+//         userSubscription: {
+//           include: { plan: true }
+//         }
+//       }
+//     });
 
-    if (!payment || !payment.userSubscription) {
-      this.logger.error(`Payment or subscription not found for payment ID: ${paymentId}`);
-      throw new NotFoundException('Payment or subscription not found');
-    }
+//     if (!payment || !payment.userSubscription) {
+//       this.logger.error(`Payment or subscription not found for payment ID: ${paymentId}`);
+//       throw new NotFoundException('Payment or subscription not found');
+//     }
 
-    const { userSubscription, userSubscription: { plan } } = payment;
+//     const { userSubscription, userSubscription: { plan } } = payment;
 
-    this.logger.log(`Activating subscription ${userSubscription.id} for user ${payment.userId}`);
+//     this.logger.log(`Activating subscription ${userSubscription.id} for user ${payment.userId}`);
 
-    // Update wallet with subscription coins
-    const wallet = await tx.wallet.upsert({
-      where: { userId: payment.userId },
-      update: { balance: { increment: plan.coins } },
-      create: { userId: payment.userId, balance: plan.coins },
-    });
+//     // Update wallet with subscription coins
+//     const wallet = await tx.wallet.upsert({
+//       where: { userId: payment.userId },
+//       update: { balance: { increment: plan.coins } },
+//       create: { userId: payment.userId, balance: plan.coins },
+//     });
 
-    this.logger.log(`Wallet updated for user ${payment.userId}, new balance: ${wallet.balance}`);
+//     this.logger.log(`Wallet updated for user ${payment.userId}, new balance: ${wallet.balance}`);
 
-    // Create wallet transaction WITH SOURCE FIELD
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        userId: payment.userId,
-        amount: plan.coins,
-        type: 'CREDIT',
-        source: 'SUBSCRIPTION', // ADD THIS LINE
-        description: `Subscription: ${plan.name} (${plan.interval})`,
-        metadata: { 
-          planId: plan.id, 
-          paymentId: payment.id,
-          subscriptionId: userSubscription.id,
-          interval: plan.interval
-        },
-      },
-    });
+//     // Create wallet transaction WITH SOURCE FIELD
+//     await tx.walletTransaction.create({
+//       data: {
+//         walletId: wallet.id,
+//         userId: payment.userId,
+//         amount: plan.coins,
+//         type: 'CREDIT',
+//         source: 'SUBSCRIPTION', // ADD THIS LINE
+//         description: `Subscription: ${plan.name} (${plan.interval})`,
+//         metadata: { 
+//           planId: plan.id, 
+//           paymentId: payment.id,
+//           subscriptionId: userSubscription.id,
+//           interval: plan.interval
+//         },
+//       },
+//     });
 
-    this.logger.log(`Wallet transaction created for ${plan.coins} coins`);
+//     this.logger.log(`Wallet transaction created for ${plan.coins} coins`);
 
-    // Calculate new period dates
-    const newPeriodStart = new Date();
-    const newPeriodEnd = plan.interval === 'MONTHLY' 
-      ? addMonths(newPeriodStart, 1)
-      : addYears(newPeriodStart, 1);
+//     // Calculate new period dates
+//     const newPeriodStart = new Date();
+//     const newPeriodEnd = plan.interval === 'MONTHLY' 
+//       ? addMonths(newPeriodStart, 1)
+//       : addYears(newPeriodStart, 1);
 
-    // Activate subscription
-    await tx.userSubscription.update({
-      where: { id: userSubscription.id },
-      data: { 
-        status: 'ACTIVE' as any, // Use type assertion
-        currentPeriodStart: newPeriodStart,
-        currentPeriodEnd: newPeriodEnd
-      },
-    });
+//     // Activate subscription
+//     await tx.userSubscription.update({
+//       where: { id: userSubscription.id },
+//       data: { 
+//         status: 'ACTIVE' as any, // Use type assertion
+//         currentPeriodStart: newPeriodStart,
+//         currentPeriodEnd: newPeriodEnd
+//       },
+//     });
 
-    this.logger.log(`Subscription activated: ${userSubscription.id}, period: ${newPeriodStart} to ${newPeriodEnd}`);
+//     this.logger.log(`Subscription activated: ${userSubscription.id}, period: ${newPeriodStart} to ${newPeriodEnd}`);
 
-    // Update payment status
-    await tx.payment.update({
-      where: { id: paymentId },
-      data: { 
-        status: 'SUCCESS', 
-        coinsGranted: plan.coins 
-      },
-    });
+//     // Update payment status
+//     await tx.payment.update({
+//       where: { id: paymentId },
+//       data: { 
+//         status: 'SUCCESS', 
+//         coinsGranted: plan.coins 
+//       },
+//     });
 
-    this.logger.log(`Payment ${paymentId} marked as SUCCESS`);
+//     this.logger.log(`Payment ${paymentId} marked as SUCCESS`);
 
-    return {
-      subscriptionId: userSubscription.id,
-      coinsGranted: plan.coins,
-      periodEnd: newPeriodEnd
-    };
-  });
-}
+//     return {
+//       subscriptionId: userSubscription.id,
+//       coinsGranted: plan.coins,
+//       periodEnd: newPeriodEnd
+//     };
+//   });
+// }
+
 
 
   async cancelSubscription(userId: string, subscriptionId: string) {
@@ -324,90 +325,273 @@ export class SubscriptionsService {
     }
   }
 
-  async handleSubscriptionRenewal(subscriptionId: string) {
-  this.logger.log(`Processing subscription renewal for: ${subscriptionId}`);
+//   async handleSubscriptionRenewal(subscriptionId: string) {
+//   this.logger.log(`Processing subscription renewal for: ${subscriptionId}`);
   
-  try {
-    const subscription = await this.prisma.userSubscription.findUnique({
-      where: { id: subscriptionId },
-      include: { plan: true }
+//   try {
+//     const subscription = await this.prisma.userSubscription.findUnique({
+//       where: { id: subscriptionId },
+//       include: { plan: true }
+//     });
+
+//     // Use string literal with type assertion
+//     if (!subscription || subscription.status !== 'ACTIVE') {
+//       this.logger.warn(`Active subscription not found for renewal: ${subscriptionId}`);
+//       throw new NotFoundException('Active subscription not found');
+//     }
+
+//     // Check if it's time to renew
+//     if (isAfter(new Date(), subscription.currentPeriodEnd)) {
+//       this.logger.log(`Subscription ${subscriptionId} is due for renewal`);
+
+//       if (subscription.cancelAtPeriodEnd) {
+//         // Cancel the subscription
+//         await this.prisma.userSubscription.update({
+//           where: { id: subscriptionId },
+//           data: { status: 'EXPIRED' as any } // Use type assertion
+//         });
+        
+//         this.logger.log(`Subscription ${subscriptionId} expired due to cancellation`);
+//         return { status: 'expired' };
+//       } else {
+//         // Renew the subscription
+//         const newPeriodEnd = subscription.plan.interval === 'MONTHLY'
+//           ? addMonths(subscription.currentPeriodEnd, 1)
+//           : addYears(subscription.currentPeriodEnd, 1);
+
+//         await this.prisma.userSubscription.update({
+//           where: { id: subscriptionId },
+//           data: {
+//             currentPeriodStart: subscription.currentPeriodEnd,
+//             currentPeriodEnd: newPeriodEnd,
+//           }
+//         });
+
+//         this.logger.log(`Subscription ${subscriptionId} renewed, new period end: ${newPeriodEnd}`);
+
+//         // Add coins for new period
+//         const wallet = await this.prisma.wallet.upsert({
+//           where: { userId: subscription.userId },
+//           update: { balance: { increment: subscription.plan.coins } },
+//           create: { userId: subscription.userId, balance: subscription.plan.coins },
+//         });
+
+//         await this.prisma.walletTransaction.create({
+//           data: {
+//             walletId: wallet.id,
+//             userId: subscription.userId,
+//             amount: subscription.plan.coins,
+//             type: 'CREDIT',
+//             source: 'SUBSCRIPTION', // ADD THIS LINE
+//             description: `Subscription renewal: ${subscription.plan.name}`,
+//             metadata: { 
+//               subscriptionId: subscription.id,
+//               planId: subscription.plan.id
+//             },
+//           },
+//         });
+
+//         this.logger.log(`Added ${subscription.plan.coins} coins to user ${subscription.userId} for renewal`);
+
+//         return { 
+//           status: 'renewed', 
+//           coinsGranted: subscription.plan.coins,
+//           periodEnd: newPeriodEnd 
+//         };
+//       }
+//     }
+
+//     this.logger.log(`Subscription ${subscriptionId} not due for renewal yet`);
+//     return { status: 'not_due' };
+//   } catch (error) {
+//     this.logger.error(`Failed to process renewal for subscription ${subscriptionId}`, error);
+//     throw error;
+//   }
+// }
+
+
+async processSuccessfulSubscription(paymentId: string) {
+  this.logger.log(`Processing successful subscription for payment: ${paymentId}`);
+  
+  return await this.prisma.$transaction(async (tx) => {
+    // Get payment with subscription details
+    const payment = await tx.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        userSubscription: {
+          include: { plan: true }
+        }
+      }
     });
 
-    // Use string literal with type assertion
-    if (!subscription || subscription.status !== 'ACTIVE') {
-      this.logger.warn(`Active subscription not found for renewal: ${subscriptionId}`);
-      throw new NotFoundException('Active subscription not found');
+    if (!payment || !payment.userSubscription) {
+      this.logger.error(`Payment or subscription not found for payment ID: ${paymentId}`);
+      throw new NotFoundException('Payment or subscription not found');
     }
 
-    // Check if it's time to renew
-    if (isAfter(new Date(), subscription.currentPeriodEnd)) {
-      this.logger.log(`Subscription ${subscriptionId} is due for renewal`);
+    const { userSubscription, userSubscription: { plan } } = payment;
 
-      if (subscription.cancelAtPeriodEnd) {
-        // Cancel the subscription
-        await this.prisma.userSubscription.update({
-          where: { id: subscriptionId },
-          data: { status: 'EXPIRED' as any } // Use type assertion
-        });
-        
-        this.logger.log(`Subscription ${subscriptionId} expired due to cancellation`);
-        return { status: 'expired' };
-      } else {
-        // Renew the subscription
-        const newPeriodEnd = subscription.plan.interval === 'MONTHLY'
-          ? addMonths(subscription.currentPeriodEnd, 1)
-          : addYears(subscription.currentPeriodEnd, 1);
+    this.logger.log(`Activating subscription ${userSubscription.id} for user ${payment.userId}`);
 
-        await this.prisma.userSubscription.update({
-          where: { id: subscriptionId },
-          data: {
-            currentPeriodStart: subscription.currentPeriodEnd,
-            currentPeriodEnd: newPeriodEnd,
-          }
-        });
+    // Update wallet with subscription coins
+    const wallet = await tx.wallet.upsert({
+      where: { userId: payment.userId },
+      update: { balance: { increment: plan.coins } },
+      create: { userId: payment.userId, balance: plan.coins },
+    });
 
-        this.logger.log(`Subscription ${subscriptionId} renewed, new period end: ${newPeriodEnd}`);
+    this.logger.log(`Wallet updated for user ${payment.userId}, new balance: ${wallet.balance}`);
 
-        // Add coins for new period
-        const wallet = await this.prisma.wallet.upsert({
-          where: { userId: subscription.userId },
-          update: { balance: { increment: subscription.plan.coins } },
-          create: { userId: subscription.userId, balance: subscription.plan.coins },
-        });
+    // Create wallet transaction WITH SOURCE FIELD
+    await tx.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        userId: payment.userId,
+        amount: plan.coins,
+        type: 'CREDIT',
+        source: 'SUBSCRIPTION',
+        description: `Subscription: ${plan.name} (${plan.interval})`,
+        metadata: { 
+          planId: plan.id, 
+          paymentId: payment.id,
+          subscriptionId: userSubscription.id,
+          interval: plan.interval
+        },
+      },
+    });
 
-        await this.prisma.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            userId: subscription.userId,
-            amount: subscription.plan.coins,
-            type: 'CREDIT',
-            source: 'SUBSCRIPTION', // ADD THIS LINE
-            description: `Subscription renewal: ${subscription.plan.name}`,
-            metadata: { 
-              subscriptionId: subscription.id,
-              planId: subscription.plan.id
-            },
-          },
-        });
+    this.logger.log(`Wallet transaction created for ${plan.coins} coins`);
 
-        this.logger.log(`Added ${subscription.plan.coins} coins to user ${subscription.userId} for renewal`);
+    // Calculate new period dates
+    const newPeriodStart = new Date();
+    const newPeriodEnd = plan.interval === 'MONTHLY' 
+      ? addMonths(newPeriodStart, 1)
+      : addYears(newPeriodStart, 1);
 
-        return { 
-          status: 'renewed', 
-          coinsGranted: subscription.plan.coins,
-          periodEnd: newPeriodEnd 
-        };
+    // Activate subscription
+    await tx.userSubscription.update({
+      where: { id: userSubscription.id },
+      data: { 
+        status: 'ACTIVE' as any,
+        currentPeriodStart: newPeriodStart,
+        currentPeriodEnd: newPeriodEnd
+      },
+    });
+
+    this.logger.log(`Subscription activated: ${userSubscription.id}, period: ${newPeriodStart} to ${newPeriodEnd}`);
+
+    // ========== GRANT PREMIUM ACCESS TO ALL ARTICLES ==========
+    // Get ALL premium articles (not just published ones for admin? Check your requirements)
+    const premiumArticles = await tx.article.findMany({
+      where: { 
+        accessType: 'PREMIUM',
+        // You might want to include all premium articles, not just published
+        // status: 'PUBLISHED' // Comment this out if you want to grant access to all
+      },
+      select: { id: true }
+    });
+
+    this.logger.log(`Found ${premiumArticles.length} premium articles to grant access to`);
+
+    // Delete any existing premium access records for this user (cleanup)
+    const deleted = await tx.premiumAccess.deleteMany({
+      where: { 
+        userId: payment.userId,
+        articleId: { in: premiumArticles.map(a => a.id) }
       }
+    });
+    
+    if (deleted.count > 0) {
+      this.logger.log(`Deleted ${deleted.count} existing premium access records for user ${payment.userId}`);
     }
 
-    this.logger.log(`Subscription ${subscriptionId} not due for renewal yet`);
-    return { status: 'not_due' };
-  } catch (error) {
-    this.logger.error(`Failed to process renewal for subscription ${subscriptionId}`, error);
-    throw error;
-  }
+    // Create NEW PremiumAccess records in batch
+    if (premiumArticles.length > 0) {
+      const premiumAccessData = premiumArticles.map(article => ({
+        userId: payment.userId,
+        articleId: article.id,
+        amountPaid: Number(plan.price), // Store the subscription price
+        accessUntil: newPeriodEnd, // Access until subscription ends
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+
+      const result = await tx.premiumAccess.createMany({
+        data: premiumAccessData,
+        skipDuplicates: false, // We want fresh records
+      });
+
+      this.logger.log(`Created ${result.count} PremiumAccess records for user ${payment.userId}`);
+      
+      // Log the first few article IDs for debugging
+      if (premiumArticles.length > 0) {
+        this.logger.debug(`First 5 article IDs: ${premiumArticles.slice(0, 5).map(a => a.id).join(', ')}`);
+      }
+    } else {
+      this.logger.warn(`No premium articles found to grant access to!`);
+    }
+
+    // Update payment status
+    await tx.payment.update({
+      where: { id: paymentId },
+      data: { 
+        status: 'SUCCESS', 
+        coinsGranted: plan.coins 
+      },
+    });
+
+    this.logger.log(`Payment ${paymentId} marked as SUCCESS`);
+
+    return {
+      subscriptionId: userSubscription.id,
+      coinsGranted: plan.coins,
+      periodEnd: newPeriodEnd,
+      articlesGranted: premiumArticles.length
+    };
+  });
 }
 
+
+async checkUserPremiumAccess(userId: string, articleId: string): Promise<boolean> {
+  this.logger.log(`Checking premium access for user ${userId} to article ${articleId}`);
+  
+  const access = await this.prisma.premiumAccess.findFirst({
+    where: {
+      userId,
+      articleId,
+      accessUntil: { gt: new Date() }
+    }
+  });
+  
+  return !!access;
+}
+
+async getUserPremiumArticles(userId: string): Promise<string[]> {
+  this.logger.log(`Fetching premium articles for user ${userId}`);
+  
+  const accesses = await this.prisma.premiumAccess.findMany({
+    where: {
+      userId,
+      accessUntil: { gt: new Date() }
+    },
+    select: { articleId: true }
+  });
+  
+  return accesses.map(a => a.articleId);
+}
+
+
+async expirePremiumAccess(userId: string) {
+  this.logger.log(`Expiring premium access for user ${userId}`);
+  
+  await this.prisma.premiumAccess.updateMany({
+    where: { 
+      userId,
+      accessUntil: { gt: new Date() }
+    },
+    data: { accessUntil: new Date() }
+  });
+}
 
   // Add a method to get subscription by ID (useful for webhooks and admin)
   async getSubscriptionById(subscriptionId: string) {

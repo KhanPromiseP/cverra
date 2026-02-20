@@ -1,9 +1,75 @@
 // types/assistant.ts
-export type AssistantMode = 
+// export type AssistantMode = 
+//   | 'GENERAL_ASSISTANT'
+//   | 'TUTOR'
+//   | 'CAREER_COACH'
+//   | 'CONTENT_GUIDE';
+
+  export type AssistantMode = 
   | 'GENERAL_ASSISTANT'
   | 'TUTOR'
   | 'CAREER_COACH'
-  | 'CONTENT_GUIDE';
+  | 'CONTENT_GUIDE'
+  | 'DECISION_ARCHITECT'
+  | 'LIFE_COACH'
+  | 'SECOND_BRAIN'
+  | 'FUTURE_SIMULATOR';
+
+
+
+// Add Decision types
+export interface Decision {
+  id: string;
+  context: string;
+  options: Array<{
+    description: string;
+    pros: string[];
+    cons: string[];
+  }>;
+  scores: Array<{
+    option: string;
+    score: number;
+    breakdown: {
+      pros: number;
+      cons: number;
+      goalAlignment: number;
+      identityAlignment: number;
+      pastPattern: number;
+    };
+  }>;
+  recommendation: string;
+  confidence: number;
+  chosenOption?: string;
+  createdAt: string;
+}
+
+// Add Brain Item types
+export interface BrainItem {
+  id: string;
+  type: 'THOUGHT' | 'IDEA' | 'NOTE' | 'TODO' | 'PROJECT' | 'QUESTION' | 'INSIGHT';
+  title: string;
+  content: string;
+  tags: string[];
+  category: string;
+  priority: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Add Weekly Summary type
+export interface WeeklySummary {
+  id: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  summary: string;
+  highlights: string[];
+  challenges: string[];
+  goalProgress: any;
+  emotionalTrend: any;
+  recommendedFocus: string;
+  recommendedActions: string[];
+}
 
 export interface AssistantMessage {
   id: string;
@@ -45,11 +111,12 @@ export interface AssistantAnalytics {
 export interface Conversation {
   id: string;
   title?: string;
-  mode: string;
+  mode: AssistantMode;
   messageCount: number;
   createdAt: string;
   updatedAt: string;
   lastMessage?: string;
+  preview?: string;
   messages?: Array<{
     id: string;
     role: 'user' | 'assistant';
@@ -66,6 +133,7 @@ export interface Conversation {
   archivedAt?: string;
   restoredAt?: string;
 }
+
 
 // Web Speech API Types
 export interface SpeechRecognitionEvent {

@@ -57,7 +57,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState<'memories' | 'history'>('memories');
+  const [activeTab, setActiveTab] = useState<'memories' | 'history' | 'trash'>('memories');
   const [fetchedConversations, setFetchedConversations] = useState<Conversation[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -65,7 +65,9 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
   const [showMenuFor, setShowMenuFor] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState('');
-  
+  const [showToast, setShowToast] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [trashItems, setTrashItems] = useState<Conversation[]>([]); // For soft-deleted items
+
   const [expandedMemoryId, setExpandedMemoryId] = useState<string | null>(null);
   const user = useAuthStore((state) => state.user);
 
@@ -423,6 +425,32 @@ const handleExportConversation = async (conversationId: string) => {
   }
 };
 
+{/* Toast Notification */}
+{showToast && (
+  <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
+    <div className={`
+      px-4 py-3 rounded-lg shadow-lg border flex items-center gap-3 min-w-[300px] max-w-md
+      ${showToast.type === 'success' 
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' 
+        : showToast.type === 'error'
+        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+      }
+    `}>
+      {showToast.type === 'success' && <Check className="w-5 h-5 text-green-500" />}
+      {showToast.type === 'error' && <X className="w-5 h-5 text-red-500" />}
+      {showToast.type === 'info' && <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">i</div>}
+      <span className="flex-1 text-sm">{showToast.message}</span>
+      <button 
+        onClick={() => setShowToast(null)}
+        className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+)}
+
 const handleDeleteConversation = async (conversationId: string, permanent: boolean = false) => {
   const message = permanent 
     ? t`Are you sure you want to permanently delete this conversation? This cannot be undone.`
@@ -433,8 +461,7 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
   }
 
   try {
-    // CHANGE THIS URL:
-    await fetch(`/api/assistant/conversations/${conversationId}/delete`, {
+    const response = await fetch(`/api/assistant/conversations/${conversationId}/delete`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -442,23 +469,83 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
       },
       body: JSON.stringify({ conversationId, permanent }),
     });
-    
-    if (permanent) {
-      // Remove from state
-      setFetchedConversations(prev => prev.filter(c => c.id !== conversationId));
-    } else {
-      // Mark as deleted
-      setFetchedConversations(prev => 
-        prev.map(conv => 
-          conv.id === conversationId 
-            ? { ...conv, isDeleted: true }
-            : conv
-        )
-      );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete');
     }
+
+    if (permanent) {
+      // PERMANENT DELETE: Remove from both active and trash
+      setFetchedConversations(prev => prev.filter(c => c.id !== conversationId));
+      setTrashItems(prev => prev.filter(c => c.id !== conversationId));
+      setShowToast({ 
+        message: t`Conversation permanently deleted`, 
+        type: 'success' 
+      });
+    } else {
+      // SOFT DELETE: Move to trash
+      const deletedConversation = fetchedConversations.find(c => c.id === conversationId);
+      if (deletedConversation) {
+        // Remove from active conversations
+        setFetchedConversations(prev => prev.filter(c => c.id !== conversationId));
+        // Add to trash with deleted flag
+        setTrashItems(prev => [...prev, { ...deletedConversation, isDeleted: true }]);
+        setShowToast({ 
+          message: t`Conversation moved to trash. You can restore it from the Trash tab.`, 
+          type: 'success' 
+        });
+      }
+    }
+
+    // Auto-hide toast after 3 seconds
+    setTimeout(() => setShowToast(null), 3000);
+
   } catch (err: any) {
     console.error('Failed to delete conversation:', err);
-    alert(t`Failed to delete conversation. Please try again.`);
+    setShowToast({ 
+      message: t`Failed to delete conversation. Please try again.`, 
+      type: 'error' 
+    });
+    setTimeout(() => setShowToast(null), 3000);
+  }
+};
+
+const handleRestoreConversation = async (conversationId: string) => {
+  try {
+    const response = await fetch(`/api/assistant/conversations/${conversationId}/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ conversationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to restore');
+    }
+
+    // Move from trash back to active conversations
+    const restoredConversation = trashItems.find(c => c.id === conversationId);
+    if (restoredConversation) {
+      setTrashItems(prev => prev.filter(c => c.id !== conversationId));
+      setFetchedConversations(prev => [...prev, { ...restoredConversation, isDeleted: false }]);
+    }
+
+    setShowToast({ 
+      message: t`Conversation restored successfully`, 
+      type: 'success' 
+    });
+    setTimeout(() => setShowToast(null), 3000);
+
+  } catch (err: any) {
+    console.error('Failed to restore conversation:', err);
+    setShowToast({ 
+      message: t`Failed to restore conversation`, 
+      type: 'error' 
+    });
+    setTimeout(() => setShowToast(null), 3000);
   }
 };
 
@@ -538,6 +625,8 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
     };
   }, [showMenuFor]);
 
+  
+
   return (
     <div className="h-full bg-card flex flex-col">
       {/* Header with close button for mobile */}
@@ -592,6 +681,25 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
             <div className="flex items-center justify-center gap-2">
               <History className="w-4 h-4" />
               {t`History`}
+            </div>
+          </button>
+          {/* NEW: Trash Tab */}
+          <button
+            onClick={() => setActiveTab('trash')}
+            className={`flex-1 py-2 text-sm font-medium transition-colors relative ${
+              activeTab === 'trash'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Trash2 className="w-4 h-4" />
+              {t`Trash`}
+              {trashItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                  {trashItems.length}
+                </span>
+              )}
             </div>
           </button>
         </div>
@@ -777,7 +885,7 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
             })}
           </div>
           )
-        ) : (
+        ) : activeTab === 'history' ? (
           // History Tab
           <div className="space-y-3">
             {/* History Header with Refresh */}
@@ -1006,24 +1114,87 @@ const handleDeleteConversation = async (conversationId: string, permanent: boole
                               <span>{t`Delete`}</span>
                             </button>
                             
-                            {/* Add Permanent Delete option */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteConversation(conversation.id, true);
-                                setShowMenuFor(null);
-                              }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-red-500 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span>{t`Permanent Delete`}</span>
-                            </button>
+                            
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
 
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          // TRASH TAB - MOVED INSIDE RETURN
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {t`Deleted Conversations`} ({trashItems.length})
+              </h3>
+              <button
+                onClick={() => setActiveTab('history')}
+                className="text-xs text-primary hover:underline"
+              >
+                {t`Back to History`}
+              </button>
+            </div>
+
+            {trashItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Trash2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p className="font-medium mb-1">{t`Trash is empty`}</p>
+                <p className="text-xs">
+                  {t`Deleted conversations appear here`}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {trashItems.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className="bg-secondary/50 border border-border rounded-lg p-3 opacity-75"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 p-2 rounded-lg bg-red-500/10">
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-medium text-sm line-clamp-1 text-muted-foreground">
+                            {conversation.title}
+                          </h4>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(conversation.updatedAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs px-2 py-0.5 bg-red-500/10 text-red-500 rounded-full">
+                            Deleted
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {conversation.messageCount} {t`messages`}
+                          </span>
+                        </div>
+                        {conversation.lastMessage && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 italic">
+                            "{conversation.lastMessage}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Restore Button */}
+                    <div className="mt-3 pt-2 border-t border-border flex justify-end">
+                      <button
+                        onClick={() => handleRestoreConversation(conversation.id)}
+                        className="px-3 py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <History className="w-3 h-3" />
+                        {t`Restore Conversation`}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

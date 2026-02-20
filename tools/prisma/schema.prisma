@@ -56,6 +56,12 @@ enum ContactStatus {
   CLOSED
 }
 
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum CategoryTranslationStatus {
   PENDING
   PROCESSING
@@ -152,7 +158,17 @@ model User {
   assistantAnalytics     AssistantAnalytics?
 
   // AuditLog relation
-  auditLogs AuditLog[]
+  auditLogs                  AuditLog[]
+  ArticleReview              ArticleReview[]
+  ReviewHelpfulVote          ReviewHelpfulVote[]
+  AssistantGoal              AssistantGoal[]
+  AssistantEmotionalSnapshot AssistantEmotionalSnapshot[]
+  AssistantEmotionalPattern  AssistantEmotionalPattern[]
+  AssistantIdentity          AssistantIdentity?
+  AssistantDecision          AssistantDecision[]
+  AssistantWeeklySummary     AssistantWeeklySummary[]
+  AssistantBrainItem         AssistantBrainItem[]
+  AssistantPathSimulation    AssistantPathSimulation[]
 }
 
 model Secrets {
@@ -296,12 +312,10 @@ model CoverLetter {
   translations CoverLetter[] @relation("TranslationVersions")
   parent       CoverLetter?  @relation("TranslationVersions", fields: [originalId], references: [id])
 
-  // 🔥 FIX: Make slug truly unique per user
+  // FIX: Make slug truly unique per user
   @@unique([userId, slug]) // Remove language from unique constraint
-  
   // Add a separate unique for translations if needed
   @@unique([userId, originalId, language]) // This ensures only one translation per language
-  
   @@index([userId])
   @@index([originalId])
   @@index([language])
@@ -676,6 +690,11 @@ model Article {
   availableLanguages String[] @default(["en"]) // Languages this article is available in
   targetLanguages    String[] @default(["fr"]) // Target languages for auto-translation
 
+  // Review fields
+  reviews       ArticleReview[]
+  reviewCount   Int             @default(0)
+  averageRating Float           @default(0)
+
   // Timestamps
   publishedAt    DateTime?
   scheduledFor   DateTime?
@@ -884,6 +903,56 @@ model ArticleTranslation {
 }
 
 // ========== ENGAGEMENT MODELS ==========
+
+model ArticleReview {
+  id          String @id @default(cuid())
+  articleId   String
+  userId      String
+  rating      Int // 1-5
+  insightText String @db.Text
+
+  // Helpful votes
+  helpfulCount Int @default(0)
+
+  // Status for premium articles
+  status ReviewStatus @default(APPROVED) // For free articles, auto-approved
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Helpful votes relation
+  helpfulVotes ReviewHelpfulVote[]
+
+  @@unique([articleId, userId]) // One review per user per article
+  @@index([articleId])
+  @@index([userId])
+  @@index([rating])
+  @@index([status])
+  @@index([createdAt])
+  @@map("article_reviews")
+}
+
+model ReviewHelpfulVote {
+  id       String @id @default(cuid())
+  reviewId String
+  userId   String
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  review ArticleReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId]) // One vote per user per review
+  @@index([reviewId])
+  @@index([userId])
+  @@map("review_helpful_votes")
+}
 
 // Enhanced comments for articles
 model ArticleComment {
@@ -1360,10 +1429,21 @@ model AssistantMemory {
   relevanceScore Float            @default(0.5) // 0-1
   lastAccessed   DateTime         @default(now())
 
+  emotionalContext String? // Emotional state when memory was created
+  linkedGoals      String[] // Goal IDs related to this memory
+  linkedIdentity   String? // Identity statement ID
+  decisionContext  String? // If part of a decision process
+  importanceScore  Float? // Calculated importance (0-1)
+  patternIds       String[] // Emotional patterns detected
+
   // Temporal awareness
   startedAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   expiresAt DateTime? // Optional expiration
+
+  // relationship
+  goals              AssistantGoalMention[]
+  emotionalSnapshots AssistantEmotionalSnapshot[]
 
   // Metadata
   source   String // e.g., "conversation", "article_read", "resume_created"
@@ -1408,11 +1488,24 @@ model AssistantConversation {
   isStarred  Boolean   @default(false)
   isPinned   Boolean   @default(false)
 
+  primaryGoal  String? // Goal being discussed
+  emotionalArc Json? // Emotional journey through conversation
+  keyDecisions String[] // Decision IDs made in this conversation
+  brainItems   String[] // Brain items created from this conversation
+  insights     String[] // Key insights extracted
+
   // Timestamps
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   lastMessageAt      DateTime?
   lastMessageContent String? // Add this field for better UI
+
+  identityLens          String? // Which identity was active
+  coachingEffectiveness Float? // How helpful was the coaching
+
+  // Relations
+  goals              AssistantGoalMention[]
+  emotionalSnapshots AssistantEmotionalSnapshot[]
 
   // Relations
   messages AssistantMessage[]
@@ -1452,6 +1545,13 @@ model AssistantMessage {
   // User feedback
   userFeedback Json? // { helpful: boolean, rating: number }
 
+  emotionalState        String? // Emotional state detected
+  goalMentions          String[] // Goals mentioned in this message
+  identityReinforcement Boolean? // Does this reinforce user identity?
+  decisionPoint         Boolean  @default(false) // Was this a decision moment?
+  insightExtracted      String? // Key insight from this message
+  brainItemCreated      String? // Brain item ID if created
+
   // Soft delete
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
@@ -1490,6 +1590,410 @@ model AssistantAnalytics {
 
   @@unique([userId])
   @@map("assistant_analytics")
+}
+
+// 1️⃣ GOAL TRACKING SYSTEM
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  PAUSED
+  ACHIEVED
+}
+
+enum GoalCategory {
+  CAREER
+  LEARNING
+  HEALTH
+  FINANCE
+  RELATIONSHIP
+  PERSONAL_GROWTH
+  CONTENT_CREATION
+  BUSINESS
+}
+
+model AssistantGoal {
+  id          String       @id @default(cuid())
+  userId      String
+  description String       @db.Text
+  category    GoalCategory
+  status      GoalStatus   @default(ACTIVE)
+
+  // Progress tracking
+  targetDate DateTime?
+  progress   Int?      @default(0) // 0-100
+  milestones Json? // [{description: "", completed: false, dueDate: "", order: 1}]
+
+  // Importance metrics
+  priority      Int       @default(3) // 1-5, higher = more important
+  mentionCount  Int       @default(0)
+  lastMentioned DateTime?
+
+  // Stalled detection
+  stalledSince DateTime?
+  stallReason  String? // "no_progress", "lost_interest", "blocked"
+
+  // Identity alignment
+  alignsWithIdentity  Boolean @default(true)
+  identityStatementId String? @map("identity_statement_id")
+
+  // Metadata
+  metadata Json? @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions AssistantGoalMention[]
+  identity AssistantIdentity?     @relation(fields: [identityStatementId], references: [id])
+
+  @@unique([userId, description])
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([stalledSince])
+  @@map("assistant_goals")
+}
+
+model AssistantGoalMention {
+  id             String  @id @default(cuid())
+  goalId         String
+  conversationId String?
+  messageId      String?
+
+  // Context of mention
+  context   String  @db.Text // What was said about the goal
+  sentiment String? // "positive", "neutral", "frustrated", "excited"
+  progress  Int? // 0-100 if progress mentioned
+
+  // Detection metadata
+  confidence Float    @default(1.0) // AI confidence this is about the goal
+  keywords   String[] // Matched keywords
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  goal                    AssistantGoal          @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  AssistantMemory         AssistantMemory?       @relation(fields: [assistantMemoryId], references: [id])
+  assistantMemoryId       String?
+  AssistantConversation   AssistantConversation? @relation(fields: [assistantConversationId], references: [id])
+  assistantConversationId String?
+
+  @@index([goalId])
+  @@index([createdAt])
+  @@map("assistant_goal_mentions")
+}
+
+// 2️⃣ EMOTIONAL PATTERN INTELLIGENCE
+enum EmotionalState {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  FRUSTRATED
+  CONFUSED
+  ANXIOUS
+  MOTIVATED
+  TIRED
+  OVERWHELMED
+  DISCOURAGED
+  EXCITED
+  CURIOUS
+}
+
+model AssistantEmotionalSnapshot {
+  id     String @id @default(cuid())
+  userId String
+
+  // Detected state
+  primaryState    EmotionalState
+  secondaryStates EmotionalState[]
+  intensity       Int              @default(5) // 1-10
+
+  // Context
+  conversationId String?
+  messageId      String?
+  trigger        String?  @db.Text // What caused this state
+  keywords       String[] // Trigger keywords detected
+
+  // AI analysis
+  confidence Float   @default(0.8)
+  analysis   String? @db.Text // AI explanation
+
+  // Pattern detection
+  isPattern Boolean @default(false)
+  patternId String? // Link to recurring pattern
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  user                        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  AssistantMemory             AssistantMemory?           @relation(fields: [assistantMemoryId], references: [id])
+  assistantMemoryId           String?
+  AssistantConversation       AssistantConversation?     @relation(fields: [assistantConversationId], references: [id])
+  assistantConversationId     String?
+  AssistantEmotionalPattern   AssistantEmotionalPattern? @relation(fields: [assistantEmotionalPatternId], references: [id])
+  assistantEmotionalPatternId String?
+
+  @@index([userId])
+  @@index([primaryState])
+  @@index([createdAt])
+  @@index([isPattern])
+  @@map("assistant_emotional_snapshots")
+}
+
+model AssistantEmotionalPattern {
+  id     String @id @default(cuid())
+  userId String
+
+  // Pattern identification
+  patternType String // "fatigue_cycle", "confusion_on_topic", "motivation_dip"
+  description String @db.Text
+
+  // Detection criteria
+  triggers  String[] // Keywords that trigger this pattern
+  frequency String // "daily", "weekly", "monthly", "occasional"
+  severity  Int      @default(5) // 1-10
+
+  // Statistics
+  occurrences   Int      @default(1)
+  firstDetected DateTime @default(now())
+  lastDetected  DateTime @updatedAt
+
+  // Intervention tracking
+  lastInterventionAt        DateTime?
+  interventionCount         Int       @default(0)
+  interventionEffectiveness Float? // 0-1
+
+  // Relations
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots AssistantEmotionalSnapshot[]
+
+  @@index([userId])
+  @@index([patternType])
+  @@index([frequency])
+  @@map("assistant_emotional_patterns")
+}
+
+// 3️⃣ IDENTITY TRACKING
+model AssistantIdentity {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Core identity statements
+  statements Json // ["I am a backend developer", "I want financial independence"]
+
+  // Identity dimensions
+  careerIdentity   String?  @db.Text // "backend developer", "tech lead", etc.
+  learningIdentity String?  @db.Text // "self-taught", "lifelong learner"
+  values           String[] // ["autonomy", "growth", "impact"]
+
+  // Goal alignment
+  goals AssistantGoal[]
+
+  // Confidence and evolution
+  confidence Float @default(0.7) // How strongly they identify
+  evolution  Json? @default("{}") // How identity has changed over time
+
+  // Last updated
+  lastReinforced DateTime?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("assistant_identities")
+}
+
+// 4️⃣ DECISION ENGINE
+model AssistantDecision {
+  id     String @id @default(cuid())
+  userId String
+
+  // The decision
+  context String @db.Text // What they were deciding about
+  options Json // [{description: "", pros: [], cons: []}]
+
+  // AI analysis
+  prosCons       Json // Structured pros/cons
+  scores         Json // Score per option
+  recommendation String? @db.Text // Recommended option
+  confidence     Float   @default(0.8)
+
+  // Alignment with goals/identity
+  goalAlignment Json? // How each option aligns with goals
+
+  // User's actual choice (if made)
+  chosenOption String?
+  chosenAt     DateTime?
+
+  // Follow-up
+  outcome      String? @db.Text // What happened after decision
+  satisfaction Int? // 1-10, user rating of decision
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("assistant_decisions")
+}
+
+// 5️⃣ LIFE DASHBOARD
+model AssistantWeeklySummary {
+  id            String   @id @default(cuid())
+  userId        String
+  weekStartDate DateTime
+  weekEndDate   DateTime
+
+  // Generated summary
+  summary    String   @db.Text
+  highlights String[] // Top 3 positive moments
+  challenges String[] // Top challenges
+
+  // Progress tracking
+  goalProgress   Json // {goalId: {before: 30, after: 45}}
+  completedGoals String[] // Goal IDs completed this week
+
+  // Emotional trends
+  emotionalTrend Json // {primary: "positive", volatility: 0.3, dominantStates: []}
+  fatigueDays    Int  @default(0)
+  motivatedDays  Int  @default(0)
+
+  // Activity metrics
+  conversationCount Int @default(0)
+  messageCount      Int @default(0)
+  articleReadCount  Int @default(0)
+
+  // Drift detection
+  driftingTopics String[] // Topics losing focus
+
+  // Next week focus
+  recommendedFocus   String?  @db.Text
+  recommendedActions String[] // Action items for next week
+
+  // Metadata
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStartDate])
+  @@index([userId])
+  @@index([weekStartDate])
+  @@index([isRead])
+  @@map("assistant_weekly_summaries")
+}
+
+// 6️⃣ SECOND BRAIN
+enum BrainItemType {
+  THOUGHT
+  IDEA
+  NOTE
+  TODO
+  PROJECT
+  QUESTION
+  INSIGHT
+  REFERENCE
+}
+
+enum BrainItemStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+  DEFERRED
+}
+
+model AssistantBrainItem {
+  id     String @id @default(cuid())
+  userId String
+
+  // Core content
+  type    BrainItemType
+  content String        @db.Text
+  title   String? // Auto-generated for ideas/projects
+
+  // Organization
+  status   BrainItemStatus @default(ACTIVE)
+  parentId String? // For hierarchy
+  tags     String[]        @default([])
+
+  // Automatic categorization
+  category   String? // Auto-detected: "career", "learning", etc.
+  confidence Float   @default(0.8) // AI confidence in categorization
+
+  // Linking
+  linkedItems    String[] // IDs of related brain items
+  linkedGoals    String[] // Goal IDs
+  linkedArticles String[] // Article IDs
+
+  // For projects
+  projectPhase String? // "ideation", "planning", "execution"
+  milestones   Json? // For project tracking
+
+  // Priority
+  priority  Int     @default(3) // 1-5
+  isStarred Boolean @default(false)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  dueDate     DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@map("assistant_brain_items")
+}
+
+// 7️⃣ FUTURE SIMULATION
+model AssistantPathSimulation {
+  id     String @id @default(cuid())
+  userId String
+
+  // Simulation parameters
+  path       String // e.g., "Learn React for 6 months"
+  duration   Int // months
+  confidence Float  @default(0.7)
+
+  // Results
+  skillProjections    Json // Projected skills with levels
+  marketOpportunities Json // Job market analysis
+  risks               Json // Identified risks
+  tradeoffs           Json // Tradeoffs compared to alternatives
+
+  // Alternatives compared
+  alternatives Json // Other paths analyzed
+
+  // User interaction
+  wasViewed Boolean   @default(false)
+  viewedAt  DateTime?
+  feedback  String? // User feedback on accuracy
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("assistant_path_simulations")
 }
 
 // Audit Log model for SUPER_ADMIN tracking

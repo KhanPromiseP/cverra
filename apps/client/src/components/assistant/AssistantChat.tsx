@@ -25,7 +25,12 @@ import {
   Pin,
   Crown,
   AlertTriangle,
-  ArrowUpRight
+  ArrowUpRight,
+  Scale,      
+  Heart,     
+  Network,    
+  LineChart,  
+  Lock     
 } from 'lucide-react';
 import { useAssistant } from '../../hooks/useAssistant';
 import { useAssistantHistory } from '../../hooks/useAssistantHistory';
@@ -146,6 +151,9 @@ interface AssistantChatProps {
   onConversationLoaded?: () => void;
   onClearConversation?: () => void;
   onClose?: () => void;
+  mode?: AssistantMode;
+  onModeChange?: (mode: AssistantMode) => void;
+  canAccessPremium?: boolean;
 }
 
 export const AssistantChat: React.FC<AssistantChatProps> = ({ 
@@ -155,7 +163,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   selectedConversation = null,
   onConversationLoaded,
   onClearConversation,
-  onClose
+  onClose,
+  onModeChange,
+  canAccessPremium = false
 }) => {
   const { user } = useUser();
   const navigate = useNavigate(); 
@@ -168,6 +178,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const [showUpgradeTooltip, setShowUpgradeTooltip] = useState(false);
   
   const [isLoadingInitialChat, setIsLoadingInitialChat] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedLockedMode, setSelectedLockedMode] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -506,9 +518,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           // Customize link rendering
           a: ({ node, href, children, ...props }) => {
             const isArticleLink = href?.includes('/dashboard/article/') || 
-                                href?.includes('/article/');
+                                  href?.includes('/article/');
             
-            if (!isArticleLink) {
+            if (!isArticleLink || !href) { // Add !href check
               return (
                 <a href={href} {...props}>
                   {children}
@@ -533,12 +545,12 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             return (
               <a 
                 href={href}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={(e) => {
                   e.preventDefault();
                   console.log('Article clicked:', href);
-                  window.open(href, '_blank');
+                  // Use navigate for internal routing instead of window.open
+                  // href is guaranteed to be string here because of the !href check above
+                  navigate(href);
                 }}
                 style={{
                   color: baseColor,
@@ -645,6 +657,20 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     );
   }, []);
 
+  // Check if input should be disabled (premium mode locked)
+  const isInputDisabled = useCallback((): boolean => {
+    const currentMode = MODES.find(m => m.id === mode);
+    return !canAccessPremium && !!currentMode?.isPremium;
+  }, [mode, canAccessPremium]);
+
+  // Get dynamic placeholder
+  const getInputPlaceholder = useCallback((): string => {
+    if (isInputDisabled()) {
+      return t`Upgrade to premium to start chatting in this mode`;
+    }
+    return selectedMode?.description || t`Ask me anything...`;
+  }, [isInputDisabled, selectedMode]);
+
   // Calculate progress percentage for rate limit bar
  const getProgressPercentage = () => {
   if (!rateLimitInfo) return 0;
@@ -666,6 +692,30 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     return 'bg-gradient-to-r from-blue-500 to-indigo-600';
   }
 };
+
+    const getWelcomeMessage = (mode: AssistantMode): string => {
+  const modeConfig = MODES.find(m => m.id === mode);
+  
+  // If it's a premium mode and user can't access
+  if (modeConfig?.isPremium && !canAccessPremium) {
+    switch(mode) {
+      case 'DECISION_ARCHITECT':
+        return t`✨ Preview: Decision Architect helps you analyze choices with pros/cons, goal alignment, and regret prediction. Upgrade to start making better decisions.`;
+      case 'LIFE_COACH':
+        return t`✨ Preview: Life Coach helps you understand emotional patterns, track personal growth, and become who you want to be. Upgrade to begin your journey.`;
+      case 'SECOND_BRAIN':
+        return t`✨ Preview: Second Brain organizes your thoughts, ideas, and knowledge into a connected network. Upgrade to start building your knowledge graph.`;
+      case 'FUTURE_SIMULATOR':
+        return t`✨ Preview: Future Simulator lets you explore possible paths and compare outcomes. Upgrade to see where your choices could lead.`;
+      default:
+        return t`✨ This is a premium feature. Upgrade to unlock full access.`;
+    }
+  }
+  
+  // Regular welcome message for free modes or premium users
+  return modeConfig?.description || t`How can I help you today?`;
+};
+
 
   return (
     <>
@@ -769,26 +819,32 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-card"></div>
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm md:text-lg font-semibold">{t`Assistant`}</h2>
-                {userTier === 'FREE' && (
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
-                    {t`Free`}
-                  </span>
-                )}
-                {userTier === 'PREMIUM' && (
-                  <span className="text-xs px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center gap-1">
-                    <Crown className="w-3 h-3" />
-                    {t`Premium`}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm md:text-lg font-semibold">{t`Assistant`}</h2>
+                  {selectedMode?.isPremium && (
+                    <span className="text-xs px-2 py-0.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-full flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
+                      {t`Premium`}
+                    </span>
+                  )}
+                  {userTier === 'FREE' && !selectedMode?.isPremium && (
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
+                      {t`Free`}
+                    </span>
+                  )}
+                  {userTier === 'PREMIUM' && (
+                    <span className="text-xs px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
+                      {t`Premium`}
+                    </span>
+                  )}
+                </div>
+                {!isMobilePopup && (
+                  <p className="hidden md:block text-xs md:text-sm text-muted-foreground mt-0.5">
+                    {selectedMode?.description || t`Your personalized AI assistant`}
+                  </p>
                 )}
               </div>
-              {!isMobilePopup && (
-                <p className="hidden md:block text-xs md:text-sm text-muted-foreground mt-0.5">
-                  {selectedMode?.description || t`Your personalized AI assistant`}
-                </p>
-              )}
-            </div>
           </div>
           
           <div className="flex items-center gap-1 md:gap-2">
@@ -838,31 +894,114 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           </div>
         </div>
 
-        {/* Mode Selector */}
-        <div className="px-3 md:px-4 py-2 md:py-3 border-b border-border bg-muted/30 overflow-x-auto scrollbar-thin">
-          <div className="flex gap-1 md:gap-3">
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleSwitchMode(m.id)}
-                className={`
-                  flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg transition-all whitespace-nowrap text-sm md:text-base
-                  ${mode === m.id
-                    ? `bg-gradient-to-r ${m.color} ${m.darkColor} text-white shadow-sm`
-                    : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
-                  }
-                `}
-                aria-label={`Switch to ${m.label} mode`}
-                aria-pressed={mode === m.id}
-              >
-                {m.icon}
-                <span className="font-medium">{m.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Mode Selector - ALL modes clickable, premium show paywall */}
+<div className="px-3 md:px-4 py-2 md:py-3 border-b border-border bg-muted/30 overflow-x-auto scrollbar-thin">
+  <div className="flex gap-1 md:gap-2">
+    {MODES.map((m) => {
+      const isPremiumLocked = m.isPremium && !canAccessPremium;
+      
+      return (
+        <button
+          key={m.id}
+          onClick={() => {
+            // Always switch mode - even for locked premium
+            handleSwitchMode(m.id);
+          }}
+          className={`
+            flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg transition-all whitespace-nowrap text-sm md:text-base relative
+            ${mode === m.id
+              ? `bg-gradient-to-r ${m.color} ${m.darkColor} text-white shadow-sm`
+              : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+            }
+            ${isPremiumLocked ? 'opacity-90' : ''}
+          `}
+          aria-label={`${m.label} mode`}
+        >
+          {m.icon}
+          <span className="font-medium">{m.label}</span>
+          
+          {/* Premium badge for locked modes */}
+          {isPremiumLocked && (
+            <span className="ml-1 flex items-center gap-0.5 text-amber-300">
+              <Crown className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">PRO</span>
+            </span>
+          )}
+        </button>
+      );
+    })}
+  </div>
+</div>
 
-       {/* Enhanced Rate Limit Status Bar - CORRECTED VERSION */}
+{/* Premium Paywall Banner - Shows when free user selects premium mode */}
+{!canAccessPremium && mode !== 'GENERAL_ASSISTANT' && mode !== 'TUTOR' && 
+ mode !== 'CAREER_COACH' && mode !== 'CONTENT_GUIDE' && (
+  <div className="mx-3 md:mx-4 my-2 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+    <div className="flex items-start gap-3">
+      <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-lg">
+        <Crown className="w-5 h-5 text-amber-600 dark:text-amber-300" />
+      </div>
+      <div className="flex-1">
+        <h4 className="font-semibold text-amber-800 dark:text-amber-200 mb-1">
+          Unlock {MODES.find(m => m.id === mode)?.label} Mode
+        </h4>
+        <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+          This is a premium feature. Upgrade to get unlimited access to all premium modes and dashboards.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/dashboard/pricing')}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+          >
+            <Crown className="w-4 h-4" />
+            Upgrade Now
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              // Switch back to a free mode
+              const freeMode = MODES.find(m => !m.isPremium);
+              if (freeMode) handleSwitchMode(freeMode.id);
+            }}
+            className="px-4 py-2 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-lg text-sm font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition"
+          >
+            Try Free Mode
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{canAccessPremium && mode !== 'GENERAL_ASSISTANT' && mode !== 'TUTOR' && 
+ mode !== 'CAREER_COACH' && mode !== 'CONTENT_GUIDE' && (
+  <div className="px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-b border-purple-200 dark:border-purple-800">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300">
+        <Sparkles className="w-4 h-4" />
+        <span>
+          Your {MODES.find(m => m.id === mode)?.label} insights appear in the dashboard
+        </span>
+      </div>
+      <button
+        onClick={() => {
+          const modeConfig = MODES.find(m => m.id === mode);
+          if (modeConfig?.dashboardPath) {
+            navigate(modeConfig.dashboardPath);
+          } else {
+            navigate('/dashboard/assistant?tab=life-dashboard');
+          }
+        }}
+        className="text-xs px-3 py-1 bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700 rounded-full transition flex items-center gap-1"
+      >
+        View Dashboard
+        <ArrowUpRight className="w-3 h-3" />
+      </button>
+    </div>
+  </div>
+)}
+
+{/* Enhanced Rate Limit Status Bar - CORRECTED VERSION */}
 {userTier === 'FREE' && rateLimitInfo && (
   <div className="px-3 md:px-4 py-2 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
     <div className="flex flex-col gap-2">
@@ -995,8 +1134,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                     : t`Hello! I'm your Personal Assistant @Inlirah`
                 }
               </h3>
-              <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-6 max-w-sm md:max-w-lg">
+              {/* <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-6 max-w-sm md:max-w-lg">
                 {selectedMode?.description || t`How can I help you today?`}
+              </p> */}
+              <p className="text-sm md:text-lg text-muted-foreground mb-4 md:mb-6 max-w-sm md:max-w-lg">
+                {getWelcomeMessage(mode)}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 md:gap-2 max-w-xs md:max-w-md">
                 {[
@@ -1030,6 +1172,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                     </div>
                   );
                 }
+
+            
                 
                 return (
                   <div
@@ -1209,15 +1353,15 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                   transition-all duration-200
                 "
                 rows={1}
-                disabled={isLoading}
+                disabled={isLoading || isInputDisabled()}
                 aria-label={t`Message input`}
               />
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || isInputDisabled()}
                 className={`
                   absolute right-2 bottom-1 p-2 rounded-lg transition-all
-                  ${!input.trim() || isLoading
+                  ${!input.trim() || isLoading || isInputDisabled()
                     ? 'bg-muted text-muted-foreground cursor-not-allowed'
                     : `bg-gradient-to-r ${selectedMode?.color} ${selectedMode?.darkColor} text-white hover:opacity-90 hover:shadow-md active:scale-95`
                   }
@@ -1267,11 +1411,27 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           </form>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && selectedLockedMode && (
+        <UpgradeModal
+          mode={selectedLockedMode}
+          onClose={() => setShowUpgradeModal(false)}
+          onUpgrade={() => {
+            setShowUpgradeModal(false);
+            navigate('/dashboard/pricing');
+          }}
+        />
+      )}
     </>
+    
   );
+
+
+  
 };
 
-// Add MODES array at the bottom
+// MODES array at the bottom - ALL 8 modes
 const MODES: Array<{
   id: AssistantMode;
   label: string;
@@ -1279,43 +1439,173 @@ const MODES: Array<{
   description: string;
   color: string;
   darkColor: string;
+  isPremium: boolean;
+  dashboardPath?: string; // Link to related dashboard
 }> = [
+  // FREE modes
   {
     id: 'GENERAL_ASSISTANT',
-    label: t`General Assistant`,
+    label: t`General`,
     icon: <Brain className="w-4 h-4" />,
-    description: t`Your personal assistant for everything`,
+    description: t`Your personal assistant`,
     color: 'from-purple-500 to-indigo-600',
     darkColor: 'dark:from-purple-600 dark:to-indigo-700',
+    isPremium: false,
   },
   {
     id: 'TUTOR',
-    label: t`Tutor Mode`,
+    label: t`Tutor`,
     icon: <BookOpen className="w-4 h-4" />,
-    description: t`Learn and understand concepts deeply`,
+    description: t`Learn concepts deeply`,
     color: 'from-emerald-500 to-teal-600',
     darkColor: 'dark:from-emerald-600 dark:to-teal-700',
+    isPremium: false,
   },
   {
     id: 'CAREER_COACH',
-    label: t`Career Coach`,
+    label: t`Career`,
     icon: <Briefcase className="w-4 h-4" />,
-    description: t`Resume, interview, and career guidance`,
+    description: t`Resume & interview help`,
     color: 'from-blue-500 to-cyan-600',
     darkColor: 'dark:from-blue-600 dark:to-cyan-700',
+    isPremium: false,
   },
   {
     id: 'CONTENT_GUIDE',
-    label: t`Content Guide`,
+    label: t`Content`,
     icon: <Sparkles className="w-4 h-4" />,
-    description: t`Article recommendations and writing help`,
+    description: t`Articles & writing`,
     color: 'from-amber-500 to-orange-600',
     darkColor: 'dark:from-amber-600 dark:to-orange-700',
+    isPremium: false,
+  },
+  
+  // PREMIUM modes (visible but locked)
+  {
+    id: 'DECISION_ARCHITECT',
+    label: t`Decision`,
+    icon: <Scale className="w-4 h-4" />,
+    description: t`Strategic decisions`,
+    color: 'from-violet-500 to-purple-600',
+    darkColor: 'dark:from-violet-600 dark:to-purple-700',
+    isPremium: true,
+    dashboardPath: '/dashboard/assistant?tab=decision-journal'
+  },
+  {
+    id: 'LIFE_COACH',
+    label: t`Life Coach`,
+    icon: <Heart className="w-4 h-4" />,
+    description: t`Personal growth`,
+    color: 'from-rose-500 to-pink-600',
+    darkColor: 'dark:from-rose-600 dark:to-pink-700',
+    isPremium: true,
+    dashboardPath: '/dashboard/assistant?tab=life-dashboard'
+  },
+  {
+    id: 'SECOND_BRAIN',
+    label: t`Brain`,
+    icon: <Network className="w-4 h-4" />,
+    description: t`Organize thoughts`,
+    color: 'from-sky-500 to-blue-600',
+    darkColor: 'dark:from-sky-600 dark:to-blue-700',
+    isPremium: true,
+    dashboardPath: '/dashboard/assistant?tab=brain-dashboard'
+  },
+  {
+    id: 'FUTURE_SIMULATOR',
+    label: t`Future`,
+    icon: <LineChart className="w-4 h-4" />,
+    description: t`Path simulation`,
+    color: 'from-indigo-500 to-blue-600',
+    darkColor: 'dark:from-indigo-600 dark:to-blue-700',
+    isPremium: true,
+    dashboardPath: '/dashboard/assistant?tab=growth-analytics'
   },
 ];
 
 
-
+// Upgrade Modal Component
+const UpgradeModal: React.FC<{
+  mode: typeof MODES[0];
+  onClose: () => void;
+  onUpgrade: () => void;
+}> = ({ mode, onClose, onUpgrade }) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-card rounded-xl shadow-2xl border border-border animate-in zoom-in-95 duration-300">
+        <div className={`p-6 rounded-t-xl bg-gradient-to-r ${mode.color} ${mode.darkColor} text-white`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-3 bg-white/20 rounded-xl">
+              {mode.icon}
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">{mode.label} Mode</h3>
+              <p className="text-white/80 text-sm">{mode.description}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <Crown className="w-5 h-5" />
+            <span className="font-semibold">Premium Feature</span>
+          </div>
+          
+          <p className="text-muted-foreground">
+            Unlock {mode.label} mode and all premium features including:
+          </p>
+          
+          <ul className="space-y-2">
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="w-4 h-4 text-green-500" />
+              <span>Strategic decision analysis with pros/cons</span>
+            </li>
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="w-4 h-4 text-green-500" />
+              <span>Emotional intelligence and life coaching</span>
+            </li>
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="w-4 h-4 text-green-500" />
+              <span>Second Brain knowledge management</span>
+            </li>
+            <li className="flex items-center gap-2 text-sm">
+              <Check className="w-4 h-4 text-green-500" />
+              <span>Future path simulation and comparison</span>
+            </li>
+            <li className="flex items-center gap-2 text-sm font-medium text-primary">
+              <Check className="w-4 h-4" />
+              <span>All dashboards: Life, Brain, Decisions, Growth</span>
+            </li>
+          </ul>
+          
+          <div className="pt-4 flex gap-3">
+            <button
+              onClick={onUpgrade}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Crown className="w-4 h-4" />
+              Upgrade Now
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-3 bg-secondary hover:bg-secondary/80 rounded-lg font-medium transition"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+        
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition text-white"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 
 

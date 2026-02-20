@@ -162,6 +162,27 @@ export class ContextBuilderService {
     };
   }
 
+  async hasPremiumAccess(userId: string): Promise<boolean> {
+    const [subscription, premiumAccess] = await Promise.all([
+      this.prisma.userSubscription.findFirst({
+        where: { 
+          userId, 
+          status: 'ACTIVE',
+          currentPeriodEnd: { gt: new Date() }
+        }
+      }),
+      this.prisma.premiumAccess.findFirst({
+        where: {
+          userId,
+          accessUntil: { gt: new Date() }
+        },
+        take: 1
+      })
+    ]);
+
+    return !!(subscription || premiumAccess);
+  }
+
   private determineUserTier(role?: string, activeSubscription?: any): string {
     // Admin users get ADMIN tier regardless of subscription
     if (role === 'ADMIN' || role === 'SUPER_ADMIN') {

@@ -6125,381 +6125,14 @@ async triggerManualTranslations(articleId: string, languages: string[], force: b
   };
 }
 
-//  async getArticle(slug: string, userId?: string, language?: string) {
-//   console.log('🔍 Service getArticle called:', { slug, language, userId });
-  
-//   try {
-//     // First, get the basic article to check if it exists
-//     const basicArticle = await this.prisma.article.findUnique({
-//       where: { slug },
-//       select: {
-//         id: true,
-//         slug: true,
-//         status: true,
-//         accessType: true,
-//         authorId: true,
-//       },
-//     });
-
-//     if (!basicArticle) {
-//       console.log('❌ Article not found in database for slug:', slug);
-//       throw new NotFoundException('Article not found');
-//     }
-
-//     // Check article status and user access
-//     if (basicArticle.status !== ArticleStatus.PUBLISHED && userId) {
-//       const user = await this.prisma.user.findUnique({
-//         where: { id: userId },
-//         select: { role: true, id: true },
-//       });
-
-//       const canAccess = user && (
-//         basicArticle.authorId === user.id ||
-//         user.role === 'ADMIN' ||
-//         user.role === 'SUPER_ADMIN'
-//       );
-
-//       if (!canAccess) {
-//         throw new ForbiddenException('You do not have access to this article');
-//       }
-//     } else if (basicArticle.status !== ArticleStatus.PUBLISHED) {
-//       throw new ForbiddenException('This article is not published');
-//     }
-
-//     // ========== PREMIUM ACCESS CHECK ==========
-//     if (basicArticle.accessType === ContentAccess.PREMIUM && userId) {
-//       const hasPremiumAccess = await this.prisma.premiumAccess.findFirst({
-//         where: {
-//           userId,
-//           articleId: basicArticle.id,
-//           accessUntil: { gt: new Date() }
-//         },
-//       });
-
-//       const isAuthor = basicArticle.authorId === userId;
-      
-//       const hasSubscription = await this.prisma.userSubscription.findFirst({
-//         where: {
-//           userId,
-//           status: 'ACTIVE',
-//           currentPeriodEnd: { gt: new Date() },
-//         },
-//       });
-
-//       console.log('💰 Premium access check:', {
-//         userId,
-//         articleId: basicArticle.id,
-//         hasPremiumAccess: !!hasPremiumAccess,
-//         isAuthor,
-//         hasSubscription: !!hasSubscription,
-//       });
-
-//       if (!hasPremiumAccess && !isAuthor && !hasSubscription) {
-//         console.log('🔒 User does not have access, returning preview');
-//         // Fetch full article for preview
-//         const fullArticle = await this.prisma.article.findUnique({
-//           where: { slug },
-//           include: {
-//             category: true,
-//             author: {
-//               select: {
-//                 id: true,
-//                 name: true,
-//                 username: true,
-//                 picture: true,
-//                 email: true,
-//               },
-//             },
-//           },
-//         });
-        
-//         if (!fullArticle) {
-//           throw new NotFoundException('Article not found');
-//         }
-        
-//         return this.getPreviewVersion(fullArticle);
-//       }
-//     }
-
-//     // ========== FETCH FULL ARTICLE WITH TRANSLATION ==========
-    
-//     // Define translation type
-//     type ArticleTranslationType = {
-//       id: string;
-//       title: string;
-//       excerpt: string;
-//       content: any;
-//       plainText: string | null;
-//       metaTitle: string | null;
-//       metaDescription: string | null;
-//       keywords: string[];
-//       coverImage?: string | null;
-//       qualityScore: number | null;
-//       confidence: number | null;
-//       needsReview: boolean;
-//       language: string;
-//     };
-
-//     // Get translation if requested
-//     let articleTranslation: ArticleTranslationType | null = null;
-    
-//     if (language && language !== 'en') {
-//       console.log(`🌐 Looking for translation in ${language}`);
-      
-//       // Get translation separately
-//       const translationResult = await this.prisma.articleTranslation.findFirst({
-//         where: { 
-//           articleId: basicArticle.id,
-//           language, 
-//           status: 'COMPLETED' 
-//         },
-//       });
-      
-//       if (translationResult) {
-//         articleTranslation = translationResult as ArticleTranslationType;
-//       }
-//     }
-
-//     // Fetch the full article
-//     const article = await this.prisma.article.findUnique({
-//       where: { slug },
-//       include: {
-//         category: true,
-//         author: {
-//           select: {
-//             id: true,
-//             name: true,
-//             username: true,
-//             picture: true,
-//             email: true,
-//           },
-//         },
-//       },
-//     });
-
-//     if (!article) {
-//       throw new NotFoundException('Article not found');
-//     }
-
-//     console.log('📄 Article loaded:', {
-//       articleId: article.id,
-//       title: article.title,
-//       hasTranslation: !!articleTranslation,
-//       language: language || 'en'
-//     });
-
-//     // ========== CRITICAL FIX: Get ALL Available Languages ==========
-//     console.log('🌐 Starting available languages calculation for article:', article.id);
-    
-//     // Get ALL completed translations for this article
-//     const allTranslations = await this.prisma.articleTranslation.findMany({
-//       where: {
-//         articleId: article.id,
-//         status: TranslationStatus.COMPLETED,
-//       },
-//       select: {
-//         language: true,
-//         qualityScore: true,
-//         confidence: true,
-//       },
-//     });
-
-//     console.log('📊 Found translations:', {
-//       count: allTranslations.length,
-//       languages: allTranslations.map(t => t.language)
-//     });
-
-//     // Create a Set to store all unique languages
-//     const allLanguagesSet = new Set<string>();
-    
-//     // 1. Always include English (original language)
-//     allLanguagesSet.add('en');
-    
-//     // 2. Add languages from the article's availableLanguages array
-//     if (article.availableLanguages && Array.isArray(article.availableLanguages)) {
-//       article.availableLanguages.forEach(lang => {
-//         if (lang && lang.trim() !== '') {
-//           allLanguagesSet.add(lang);
-//         }
-//       });
-//     }
-    
-//     // 3. Add languages from ArticleTranslation table
-//     allTranslations.forEach(translation => {
-//       if (translation.language && translation.language.trim() !== '') {
-//         allLanguagesSet.add(translation.language);
-//       }
-//     });
-
-//     // Convert Set to sorted array
-//     const allAvailableLanguages = Array.from(allLanguagesSet).sort();
-    
-//     console.log('✅ Final available languages:', allAvailableLanguages);
-
-//     // Update article's availableLanguages if needed (for consistency)
-//     const currentArticleLanguages = article.availableLanguages?.sort() || [];
-//     const shouldUpdate = JSON.stringify(currentArticleLanguages) !== JSON.stringify(allAvailableLanguages);
-    
-//     if (shouldUpdate) {
-//       console.log('🔄 Updating article availableLanguages:', {
-//         old: currentArticleLanguages,
-//         new: allAvailableLanguages
-//       });
-      
-//       try {
-//         await this.prisma.article.update({
-//           where: { id: article.id },
-//           data: {
-//             availableLanguages: allAvailableLanguages,
-//           },
-//         });
-//         article.availableLanguages = allAvailableLanguages;
-//       } catch (updateError) {
-//         console.warn('⚠️ Failed to update availableLanguages:', updateError.message);
-//       }
-//     }
-
-//     // ========== IMAGE URL TRANSFORMATION ==========
-//     const transformImageUrl = (url: string | undefined | null): string => {
-//       if (!url || url.trim() === '') return '';
-      
-//       const serverUrl = 'http://localhost:3000';
-      
-//       if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-//         return url;
-//       }
-      
-//       if (url.startsWith('/')) {
-//         return `${serverUrl}${url}`;
-//       }
-      
-//       return `${serverUrl}/uploads/articles/${url}`;
-//     };
-
-//     if (article.coverImage) {
-//       article.coverImage = transformImageUrl(article.coverImage);
-//     }
-    
-//     if (article.author?.picture) {
-//       article.author.picture = transformImageUrl(article.author.picture);
-//     }
-
-//     // Transform content URLs
-//     const transformContentUrls = (content: any): any => {
-//       if (!content) return content;
-      
-//       const serverUrl = 'http://localhost:3000';
-      
-//       if (typeof content === 'string') {
-//         return content
-//           .replace(/src="(\/uploads\/[^"]+)"/g, `src="${serverUrl}$1"`)
-//           .replace(/src=(\/uploads\/[^"'\s>]+)/g, `src="${serverUrl}$1"`);
-//       }
-      
-//       if (typeof content === 'object' && content.type === 'doc') {
-//         const contentCopy = JSON.parse(JSON.stringify(content));
-        
-//         const fixImagesInContent = (node: any) => {
-//           if (node.type === 'image' && node.attrs?.src) {
-//             node.attrs.src = transformImageUrl(node.attrs.src);
-//           }
-          
-//           if (node.content && Array.isArray(node.content)) {
-//             node.content.forEach(fixImagesInContent);
-//           }
-//         };
-        
-//         if (contentCopy.content) {
-//           contentCopy.content.forEach(fixImagesInContent);
-//         }
-        
-//         return contentCopy;
-//       }
-      
-//       return content;
-//     };
-
-//     article.content = transformContentUrls(article.content);
-
-//     // ========== TRACK ENGAGEMENT ==========
-//     if (userId && !this.isPreviewVersion(article)) {
-//       try {
-//         await this.engagementService.trackView(userId, article.id, language || 'en');
-//         await this.engagementService.trackEngagement(userId, article.id, 'VIEW');
-//       } catch (error) {
-//         console.warn(`⚠️ Failed to track engagement for article ${article.id}:`, error.message);
-//       }
-//     }
-
-//     // ========== HANDLE TRANSLATION REQUEST ==========
-//     if (language && language !== 'en' && articleTranslation) {
-//       console.log(`🌐 Processing translation to ${language}`);
-      
-//       // Transform translation URLs if needed
-//       let transformedCoverImage = articleTranslation.coverImage 
-//         ? transformImageUrl(articleTranslation.coverImage) 
-//         : article.coverImage;
-      
-//       let transformedContent = articleTranslation.content 
-//         ? transformContentUrls(articleTranslation.content) 
-//         : article.content;
-      
-//       // Create merged article with translation
-//       const translatedArticle = {
-//         ...article,
-//         // Override with translated fields
-//         title: articleTranslation.title || article.title,
-//         excerpt: articleTranslation.excerpt || article.excerpt,
-//         content: transformedContent,
-//         plainText: articleTranslation.plainText || article.plainText,
-//         metaTitle: articleTranslation.metaTitle || article.metaTitle,
-//         metaDescription: articleTranslation.metaDescription || article.metaDescription,
-//         keywords: articleTranslation.keywords?.length > 0 ? articleTranslation.keywords : article.keywords,
-//         coverImage: transformedCoverImage,
-//         // Add translation metadata
-//         isTranslated: true,
-//         translationLanguage: language,
-//         translationQuality: articleTranslation.qualityScore,
-//         translationConfidence: articleTranslation.confidence,
-//         translationNeedsReview: articleTranslation.needsReview,
-//         // Use the ALL languages we calculated
-//         availableLanguages: allAvailableLanguages,
-//       };
-      
-//       console.log('✅ Returning translated article in', language);
-//       return translatedArticle;
-//     }
-
-//     // ========== RETURN ORIGINAL ARTICLE ==========
-//     console.log('✅ Returning original article in English');
-    
-//     return {
-//       ...article,
-//       availableLanguages: allAvailableLanguages,
-//       language: language || 'en',
-//       isTranslated: false,
-//     };
-    
-//   } catch (error) {
-//     console.error('❌ Error in getArticle:', error);
-    
-//     if (error instanceof NotFoundException || 
-//         error instanceof ForbiddenException) {
-//       throw error;
-//     }
-    
-//     throw new BadRequestException(`Failed to load article: ${error.message}`);
-//   }
-// }
 
 async getArticle(slug: string, userId?: string, language?: string) {
-  console.log('🔍 Service getArticle called:', { slug, language, userId });
-  console.log('🔍 ========== getArticle START ==========');
-  console.log('📋 Input:', { slug, language, userId });
-  console.log('🕒 Timestamp:', new Date().toISOString());
+  console.log('========== getArticle START ==========');
+  console.log('Input:', { slug, language, userId });
+  console.log('Timestamp:', new Date().toISOString());
 
   try {
-    // First, get the basic article to check if it exists
+    // First, get the basic article info
     const basicArticle = await this.prisma.article.findUnique({
       where: { slug },
       select: {
@@ -6508,6 +6141,7 @@ async getArticle(slug: string, userId?: string, language?: string) {
         status: true,
         accessType: true,
         authorId: true,
+        coinPrice: true,
       },
     });
 
@@ -6516,96 +6150,477 @@ async getArticle(slug: string, userId?: string, language?: string) {
       throw new NotFoundException('Article not found');
     }
 
-    // Check article status and user access
-    if (basicArticle.status !== ArticleStatus.PUBLISHED && userId) {
+    // ========== CHECK USER ROLE ==========
+    let isSuperAdmin = false;
+    let isAdmin = false;
+    let isAuthor = false;
+    let userRole = null;
+    
+    if (userId) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { role: true, id: true },
+        select: { role: true },
       });
-
-      const canAccess = user && (
-        basicArticle.authorId === user.id ||
-        user.role === 'ADMIN' ||
-        user.role === 'SUPER_ADMIN'
-      );
-
-      if (!canAccess) {
-        throw new ForbiddenException('You do not have access to this article');
-      }
-    } else if (basicArticle.status !== ArticleStatus.PUBLISHED) {
-      throw new ForbiddenException('This article is not published');
+      userRole = user?.role;
+      isSuperAdmin = user?.role === 'SUPER_ADMIN';
+      isAdmin = user?.role === 'ADMIN'; // Admin/Author
+      isAuthor = basicArticle.authorId === userId;
+      
+      console.log('👤 User role check:', { 
+        userId, 
+        role: userRole, 
+        isSuperAdmin,
+        isAdmin,
+        isAuthor,
+      });
     }
 
-    // ========== PREMIUM ACCESS CHECK ==========
-    if (basicArticle.accessType === ContentAccess.PREMIUM && userId) {
-      const hasPremiumAccess = await this.prisma.premiumAccess.findFirst({
-        where: {
-          userId,
-          articleId: basicArticle.id,
-          accessUntil: { gt: new Date() }
+    // ========== SUPER ADMIN - FULL ACCESS TO ALL ARTICLES (NO RESTRICTIONS) ==========
+    if (isSuperAdmin) {
+      console.log('👑 SUPER_ADMIN ACCESS - Fetching FULL article content (any article, any status, any access type)');
+      
+      const fullArticle = await this.prisma.article.findUnique({
+        where: { slug },
+        include: {
+          category: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              picture: true,
+              email: true,
+            },
+          },
+          translations: {
+            where: { status: 'COMPLETED' },
+            select: {
+              id: true,
+              language: true,
+              title: true,
+              excerpt: true,
+              content: true,
+              plainText: true,
+              metaTitle: true,
+              metaDescription: true,
+              keywords: true,
+              qualityScore: true,
+              confidence: true,
+              needsReview: true,
+            },
+          },
         },
       });
 
-      const isAuthor = basicArticle.authorId === userId;
+      if (!fullArticle) {
+        throw new NotFoundException('Article not found');
+      }
+
+      console.log('✅ SUPER_ADMIN full article fetched:', {
+        id: fullArticle.id,
+        title: fullArticle.title,
+        authorId: fullArticle.authorId,
+        accessType: fullArticle.accessType,
+        status: fullArticle.status,
+        hasContent: !!fullArticle.content,
+        // contentLength: fullArticle.content?.length,
+      });
+
+      // Transform image URLs
+      const transformImageUrl = (url: string | undefined | null): string => {
+        if (!url || url.trim() === '') return '';
+        const serverUrl = 'http://localhost:3000';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        if (url.startsWith('/')) return `${serverUrl}${url}`;
+        return `${serverUrl}/uploads/articles/${url}`;
+      };
+
+      // Process translations and languages
+      const allTranslations = fullArticle.translations || [];
+      const allLanguagesSet = new Set<string>(['en']);
+      allTranslations.forEach((t: any) => t.language && allLanguagesSet.add(t.language));
+
+      // Format translations
+      const formattedTranslations: Record<string, { title: string; excerpt: string }> = {};
+      allTranslations.forEach((translation: any) => {
+        if (translation.language) {
+          formattedTranslations[translation.language] = {
+            title: translation.title,
+            excerpt: translation.excerpt || '',
+          };
+        }
+      });
+
+      // Handle language selection
+      let finalLanguage = 'en';
+      let selectedTranslation: any = null;
+
+      if (language && language !== 'en') {
+        selectedTranslation = allTranslations.find((t: any) => 
+          t.language === language || t.language === language.split('-')[0]
+        );
+        if (selectedTranslation) {
+          finalLanguage = language;
+        }
+      }
+
+      // Get review stats
+      const reviewStats = await this.getArticleReviewStats(fullArticle.id, userId);
+
+      // Prepare base response
+      const baseResponse = {
+        ...fullArticle,
+        coverImage: transformImageUrl(fullArticle.coverImage),
+        author: fullArticle.author ? {
+          ...fullArticle.author,
+          picture: transformImageUrl(fullArticle.author.picture),
+        } : fullArticle.author,
+        translations: formattedTranslations,
+        availableLanguages: Array.from(allLanguagesSet),
+        language: finalLanguage,
+        reviewStats,
+        hasAccess: true,
+        isSuperAdminView: true,
+        canEdit: true,
+        canDelete: true,
+        canPublish: true,
+      };
+
+      // Apply translation if selected
+      if (selectedTranslation) {
+        return {
+          ...baseResponse,
+          title: selectedTranslation.title || fullArticle.title,
+          excerpt: selectedTranslation.excerpt || fullArticle.excerpt,
+          content: selectedTranslation.content || fullArticle.content,
+          plainText: selectedTranslation.plainText || fullArticle.plainText,
+          metaTitle: selectedTranslation.metaTitle || fullArticle.metaTitle,
+          metaDescription: selectedTranslation.metaDescription || fullArticle.metaDescription,
+          keywords: selectedTranslation.keywords?.length ? selectedTranslation.keywords : fullArticle.keywords,
+          isTranslated: true,
+          translationLanguage: finalLanguage,
+          translationQuality: selectedTranslation.qualityScore,
+          translationConfidence: selectedTranslation.confidence,
+          translationNeedsReview: selectedTranslation.needsReview,
+        };
+      }
+
+      return {
+        ...baseResponse,
+        isTranslated: false,
+      };
+    }
+
+    // ========== AUTHOR/ADMIN - FULL ACCESS TO THEIR OWN ARTICLES (NO PREMIUM RESTRICTIONS) ==========
+    if (isAdmin && isAuthor) {
+      console.log('✍️ AUTHOR/ADMIN ACCESS - Fetching FULL article content (own article, any access type)');
       
-      const hasSubscription = await this.prisma.userSubscription.findFirst({
+      const authorArticle = await this.prisma.article.findUnique({
+        where: { slug },
+        include: {
+          category: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              picture: true,
+              email: true,
+            },
+          },
+          translations: {
+            where: { status: 'COMPLETED' },
+            select: {
+              id: true,
+              language: true,
+              title: true,
+              excerpt: true,
+              content: true,
+              plainText: true,
+              metaTitle: true,
+              metaDescription: true,
+              keywords: true,
+              qualityScore: true,
+              confidence: true,
+              needsReview: true,
+            },
+          },
+        },
+      });
+
+      if (!authorArticle) {
+        throw new NotFoundException('Article not found');
+      }
+
+      console.log('✅ AUTHOR full article fetched:', {
+        id: authorArticle.id,
+        title: authorArticle.title,
+        accessType: authorArticle.accessType,
+        status: authorArticle.status,
+        hasContent: !!authorArticle.content,
+        // contentLength: authorArticle.content?.length,
+      });
+
+      // Transform image URLs
+      const transformImageUrl = (url: string | undefined | null): string => {
+        if (!url || url.trim() === '') return '';
+        const serverUrl = 'http://localhost:3000';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        if (url.startsWith('/')) return `${serverUrl}${url}`;
+        return `${serverUrl}/uploads/articles/${url}`;
+      };
+
+      // Process translations and languages
+      const allTranslations = authorArticle.translations || [];
+      const allLanguagesSet = new Set<string>(['en']);
+      allTranslations.forEach((t: any) => t.language && allLanguagesSet.add(t.language));
+
+      // Format translations
+      const formattedTranslations: Record<string, { title: string; excerpt: string }> = {};
+      allTranslations.forEach((translation: any) => {
+        if (translation.language) {
+          formattedTranslations[translation.language] = {
+            title: translation.title,
+            excerpt: translation.excerpt || '',
+          };
+        }
+      });
+
+      // Handle language selection
+      let finalLanguage = 'en';
+      let selectedTranslation: any = null;
+
+      if (language && language !== 'en') {
+        selectedTranslation = allTranslations.find((t: any) => 
+          t.language === language || t.language === language.split('-')[0]
+        );
+        if (selectedTranslation) {
+          finalLanguage = language;
+        }
+      }
+
+      // Get review stats
+      const reviewStats = await this.getArticleReviewStats(authorArticle.id, userId);
+
+      // Prepare base response
+      const baseResponse = {
+        ...authorArticle,
+        coverImage: transformImageUrl(authorArticle.coverImage),
+        author: authorArticle.author ? {
+          ...authorArticle.author,
+          picture: transformImageUrl(authorArticle.author.picture),
+        } : authorArticle.author,
+        translations: formattedTranslations,
+        availableLanguages: Array.from(allLanguagesSet),
+        language: finalLanguage,
+        reviewStats,
+        hasAccess: true,
+        isAuthorView: true,
+        canEdit: true,
+        canDelete: true,
+        canPublish: false, // Authors need super admin to publish
+      };
+
+      // Apply translation if selected
+      if (selectedTranslation) {
+        return {
+          ...baseResponse,
+          title: selectedTranslation.title || authorArticle.title,
+          excerpt: selectedTranslation.excerpt || authorArticle.excerpt,
+          content: selectedTranslation.content || authorArticle.content,
+          plainText: selectedTranslation.plainText || authorArticle.plainText,
+          metaTitle: selectedTranslation.metaTitle || authorArticle.metaTitle,
+          metaDescription: selectedTranslation.metaDescription || authorArticle.metaDescription,
+          keywords: selectedTranslation.keywords?.length ? selectedTranslation.keywords : authorArticle.keywords,
+          isTranslated: true,
+          translationLanguage: finalLanguage,
+          translationQuality: selectedTranslation.qualityScore,
+          translationConfidence: selectedTranslation.confidence,
+          translationNeedsReview: selectedTranslation.needsReview,
+        };
+      }
+
+      return {
+        ...baseResponse,
+        isTranslated: false,
+      };
+    }
+
+    // ========== FOR ALL OTHER USERS (REGULAR USERS, OR ADMINS VIEWING OTHERS' ARTICLES) ==========
+    console.log('👤 Regular user access (or admin viewing someone else\'s article)');
+
+    // Check if article is published for regular users
+    if (basicArticle.status !== 'PUBLISHED') {
+      throw new ForbiddenException('This article is not published');
+    }
+
+    // ========== CHECK PREMIUM ACCESS FOR REGULAR USERS ==========
+    let hasAccess = true; // Default for free articles
+    let requiresPurchase = false;
+    
+    if (basicArticle.accessType === 'PREMIUM') {
+      // Check if user has purchased access or has subscription
+      const hasSubscription = userId ? await this.prisma.userSubscription.findFirst({
         where: {
           userId,
           status: 'ACTIVE',
           currentPeriodEnd: { gt: new Date() },
         },
-      });
+      }) : null;
+      
+      const hasPremiumAccess = userId ? await this.prisma.premiumAccess.findFirst({
+        where: {
+          userId,
+          articleId: basicArticle.id,
+          accessUntil: { gt: new Date() }
+        },
+      }) : null;
 
-      console.log('💰 Premium access check:', {
+      hasAccess = !!hasSubscription || !!hasPremiumAccess;
+      requiresPurchase = !hasAccess;
+      
+      console.log('💰 Premium access check for regular user:', {
         userId,
         articleId: basicArticle.id,
         hasPremiumAccess: !!hasPremiumAccess,
-        isAuthor,
         hasSubscription: !!hasSubscription,
+        hasAccess,
+        requiresPurchase,
       });
-
-      if (!hasPremiumAccess && !isAuthor && !hasSubscription) {
-        console.log('🔒 User does not have access, returning preview');
-        // Fetch full article for preview with proper types
-        const fullArticle = await this.prisma.article.findUnique({
-          where: { slug },
-          include: {
-            category: true,
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                picture: true,
-                email: true,
-              },
-            },
-            translations: {
-              where: { status: TranslationStatus.COMPLETED },
-              select: {
-                language: true,
-                title: true,
-                excerpt: true,
-              },
-            },
-          },
-        });
-        
-        if (!fullArticle) {
-          throw new NotFoundException('Article not found');
-        }
-        
-        return this.getPreviewVersion(fullArticle);
-      }
     }
 
-    // ========== FETCH FULL ARTICLE WITH TRANSLATIONS ==========
+    // ========== FETCH APPROPRIATE DATA BASED ON ACCESS ==========
+    if (!hasAccess) {
+      // USER DOES NOT HAVE ACCESS - FETCH ONLY PREVIEW DATA (NO CONTENT!)
+      console.log('🔒 User does not have access, fetching preview data only');
+      
+      const previewArticle = await this.prisma.article.findUnique({
+        where: { slug },
+        select: {
+          // Basic info
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          // NO content field here!
+          
+          // Metadata
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+              color: true,
+            },
+          },
+          tags: true,
+          accessType: true,
+          coinPrice: true,
+          
+          // Author info
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              picture: true,
+              email: true,
+            },
+          },
+          
+          // Media
+          coverImage: true,
+          
+          // Stats
+          readingTime: true,
+          viewCount: true,
+          likeCount: true,
+          commentCount: true,
+          saveCount: true,
+          shareCount: true,
+          
+          // Status flags
+          isFeatured: true,
+          isTrending: true,
+          isEditorPick: true,
+          isPopular: true,
+          
+          // Timestamps
+          publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          
+          // Languages (metadata only)
+          availableLanguages: true,
+          
+          // Get translations but WITHOUT content
+          translations: {
+            where: { status: 'COMPLETED' },
+            select: {
+              language: true,
+              title: true,
+              excerpt: true,
+            },
+          },
+        },
+      });
+
+      if (!previewArticle) {
+        throw new NotFoundException('Article not found');
+      }
+
+      // Transform image URLs
+      const transformImageUrl = (url: string | undefined | null): string => {
+        if (!url || url.trim() === '') return '';
+        const serverUrl = 'http://localhost:3000';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        if (url.startsWith('/')) return `${serverUrl}${url}`;
+        return `${serverUrl}/uploads/articles/${url}`;
+      };
+
+      // Format translations for frontend
+      const formattedTranslations: Record<string, { title: string; excerpt: string }> = {};
+      previewArticle.translations?.forEach((translation: any) => {
+        if (translation.language && translation.title) {
+          formattedTranslations[translation.language] = {
+            title: translation.title,
+            excerpt: translation.excerpt || '',
+          };
+        }
+      });
+
+      // Get review stats
+      const reviewStats = await this.getArticleReviewStats(basicArticle.id, userId);
+
+      return {
+        ...previewArticle,
+        coverImage: transformImageUrl(previewArticle.coverImage),
+        author: previewArticle.author ? {
+          ...previewArticle.author,
+          picture: transformImageUrl(previewArticle.author.picture),
+        } : previewArticle.author,
+        content: null, // Explicitly set to null
+        plainText: null,
+        metaTitle: null,
+        metaDescription: null,
+        keywords: null,
+        translations: formattedTranslations,
+        reviewStats,
+        isPreview: true,
+        requiresPurchase: true,
+        hasAccess: false,
+        canEdit: false,
+        canDelete: false,
+        canPublish: false,
+        message: 'This is a premium article. Purchase or subscribe to access the full content.',
+      };
+    }
+
+    // ========== REGULAR USER WITH ACCESS - FETCH FULL ARTICLE ==========
+    console.log('🔓 Regular user has access, fetching full article content');
     
-    // Define the type for our article query
-    type ArticleWithRelations = any; // We'll use 'any' to avoid complex type issues
-    
-    // Fetch the full article WITH translations included
-  const article: ArticleWithRelations = await this.prisma.article.findUnique({
+    const fullArticle = await this.prisma.article.findUnique({
       where: { slug },
       include: {
         category: true,
@@ -6619,7 +6634,7 @@ async getArticle(slug: string, userId?: string, language?: string) {
           },
         },
         translations: {
-          where: { status: TranslationStatus.COMPLETED },
+          where: { status: 'COMPLETED' },
           select: {
             id: true,
             language: true,
@@ -6638,141 +6653,39 @@ async getArticle(slug: string, userId?: string, language?: string) {
       },
     });
 
-    if (!article) {
+    if (!fullArticle) {
       throw new NotFoundException('Article not found');
     }
 
-    // ========== ADD EXTENSIVE DEBUG LOGGING HERE ==========
-    console.log('📊 Article loaded - RAW DATA:', {
-      articleId: article.id,
-      originalTitle: article.title,
-      originalExcerpt: article.excerpt?.substring(0, 100),
-      hasTranslations: !!(article as any).translations,
-      translationsCount: (article as any).translations?.length || 0,
-      allTranslations: (article as any).translations?.map((t: any) => ({
-        language: t.language,
-        title: t.title?.substring(0, 50),
-        excerpt: t.excerpt?.substring(0, 50)
-      })) || 'none',
-      requestedLanguage: language,
-      currentLocaleFromParam: language
+    // Process translations and languages
+    const allTranslations = fullArticle.translations || [];
+    const allLanguagesSet = new Set<string>(['en']);
+    allTranslations.forEach((t: any) => t.language && allLanguagesSet.add(t.language));
+
+    const formattedTranslations: Record<string, { title: string; excerpt: string }> = {};
+    allTranslations.forEach((translation: any) => {
+      if (translation.language) {
+        formattedTranslations[translation.language] = {
+          title: translation.title,
+          excerpt: translation.excerpt || '',
+        };
+      }
     });
 
-    // Check what languages are available
-    const allTranslations = (article as any).translations || [];
-    console.log('🌐 Available translation languages:', allTranslations.map((t: any) => t.language));
-    
-    // Check specifically for French
-    const frenchTranslations = allTranslations.filter((t: any) => 
-      t.language === 'fr' || t.language === 'fr-FR'
-    );
-    console.log('🇫🇷 French translations found:', frenchTranslations.length);
-    if (frenchTranslations.length > 0) {
-      console.log('🇫🇷 French translation details:', frenchTranslations.map((t: any) => ({
-        language: t.language,
-        title: t.title,
-        hasTitle: !!t.title,
-        hasExcerpt: !!t.excerpt
-      })));
-    }
-
-    console.log('📄 Article loaded:', {
-      articleId: article.id,
-      title: article.title,
-      translationsCount: (article as any).translations?.length || 0,
-      translations: (article as any).translations?.map((t: any) => ({ 
-        language: t.language, 
-        title: t.title?.substring(0, 30) 
-      })),
-    });
-
-    // Cast to any to access translations safely
-    const articleAny = article as any;
-    const translationsArray = articleAny.translations || [];
-
-    // ========== FORMAT TRANSLATIONS FOR FRONTEND ==========
-    // Convert translations array to the format expected by frontend
-    let formattedTranslations: Record<string, { title: string; excerpt: string }> = {};
-    
-    if (translationsArray && Array.isArray(translationsArray)) {
-      translationsArray.forEach((translation: any) => {
-        if (translation.language && translation.title) {
-          formattedTranslations[translation.language] = {
-            title: translation.title,
-            excerpt: translation.excerpt || ''
-          };
-        }
-      });
-    }
-
-    console.log('🔤 Formatted translations:', {
-      keys: Object.keys(formattedTranslations),
-      hasFrench: !!formattedTranslations['fr'],
-      frenchTitle: formattedTranslations['fr']?.title
-    });
-
-    // ========== HANDLE LANGUAGE SELECTION ==========
+    // Handle language selection
     let finalLanguage = 'en';
     let selectedTranslation: any = null;
 
     if (language && language !== 'en') {
-      console.log(`🌐 Looking for translation in ${language}`);
-      
-      // Try to find translation for requested language
-      const translationForLanguage = translationsArray.find((t: any) => 
-        t.language === language || 
-        t.language === language.split('-')[0] // Match 'fr' for 'fr-FR'
+      selectedTranslation = allTranslations.find((t: any) => 
+        t.language === language || t.language === language.split('-')[0]
       );
-
-      if (translationForLanguage) {
-        selectedTranslation = translationForLanguage;
+      if (selectedTranslation) {
         finalLanguage = language;
-        console.log(`✅ Found translation for ${language}:`, translationForLanguage.title?.substring(0, 50));
-      } else {
-        console.log(`⚠️ No translation found for ${language}, falling back to English`);
-        finalLanguage = 'en';
       }
     }
 
-    // ========== GET ALL AVAILABLE LANGUAGES ==========
-    const allLanguagesSet = new Set<string>();
-    allLanguagesSet.add('en'); // Always include English
-    
-    // Add languages from translations
-    if (translationsArray && Array.isArray(translationsArray)) {
-      translationsArray.forEach((t: any) => {
-        if (t.language && t.language.trim() !== '') {
-          allLanguagesSet.add(t.language);
-        }
-      });
-    }
-    
-    // Add languages from article.availableLanguages
-    if (article.availableLanguages && Array.isArray(article.availableLanguages)) {
-      article.availableLanguages.forEach((lang: string) => {
-        if (lang && lang.trim() !== '') {
-          allLanguagesSet.add(lang);
-        }
-      });
-    }
-    
-    const allAvailableLanguages = Array.from(allLanguagesSet).sort();
-
-    // Update article's availableLanguages if needed
-    const currentArticleLanguages = article.availableLanguages?.sort() || [];
-    if (JSON.stringify(currentArticleLanguages) !== JSON.stringify(allAvailableLanguages)) {
-      try {
-        await this.prisma.article.update({
-          where: { id: article.id },
-          data: { availableLanguages: allAvailableLanguages },
-        });
-        article.availableLanguages = allAvailableLanguages;
-      } catch (updateError) {
-        console.warn('⚠️ Failed to update availableLanguages:', updateError.message);
-      }
-    }
-
-    // ========== IMAGE URL TRANSFORMATION ==========
+    // Image URL transformation
     const transformImageUrl = (url: string | undefined | null): string => {
       if (!url || url.trim() === '') return '';
       const serverUrl = 'http://localhost:3000';
@@ -6780,9 +6693,6 @@ async getArticle(slug: string, userId?: string, language?: string) {
       if (url.startsWith('/')) return `${serverUrl}${url}`;
       return `${serverUrl}/uploads/articles/${url}`;
     };
-
-    if (article.coverImage) article.coverImage = transformImageUrl(article.coverImage);
-    if (articleAny.author?.picture) articleAny.author.picture = transformImageUrl(articleAny.author.picture);
 
     const transformContentUrls = (content: any): any => {
       if (!content) return content;
@@ -6792,100 +6702,71 @@ async getArticle(slug: string, userId?: string, language?: string) {
           .replace(/src="(\/uploads\/[^"]+)"/g, `src="${serverUrl}$1"`)
           .replace(/src=(\/uploads\/[^"'\s>]+)/g, `src="${serverUrl}$1"`);
       }
-      if (typeof content === 'object' && content.type === 'doc') {
-        const contentCopy = JSON.parse(JSON.stringify(content));
-        const fixImagesInContent = (node: any) => {
-          if (node.type === 'image' && node.attrs?.src) {
-            node.attrs.src = transformImageUrl(node.attrs.src);
-          }
-          if (node.content && Array.isArray(node.content)) node.content.forEach(fixImagesInContent);
-        };
-        if (contentCopy.content) contentCopy.content.forEach(fixImagesInContent);
-        return contentCopy;
-      }
       return content;
     };
 
-    article.content = transformContentUrls(article.content);
+    // Get review stats
+    const reviewStats = await this.getArticleReviewStats(fullArticle.id, userId);
 
-    // ========== TRACK ENGAGEMENT ==========
-    if (userId && !this.isPreviewVersion(article)) {
+    // Track engagement for regular users
+    if (userId) {
       try {
-        await this.engagementService.trackView(userId, article.id, finalLanguage);
-        await this.engagementService.trackEngagement(userId, article.id, 'VIEW');
+        await this.engagementService.trackView(userId, fullArticle.id, finalLanguage);
+        await this.engagementService.trackEngagement(userId, fullArticle.id, 'VIEW');
       } catch (error) {
-        console.warn(`⚠️ Failed to track engagement for article ${article.id}:`, error.message);
+        console.warn(`⚠️ Failed to track engagement:`, error.message);
       }
     }
 
-    // ========== RETURN TRANSLATED OR ORIGINAL ARTICLE ==========
-    if (selectedTranslation) {
-      console.log(`🌐 Returning translated article in ${finalLanguage}`);
-      
-      // Apply image transformations to translation if needed
-      const transformedCoverImage = selectedTranslation.coverImage 
-        ? transformImageUrl(selectedTranslation.coverImage) 
-        : article.coverImage;
-      
-      const transformedContent = selectedTranslation.content 
-        ? transformContentUrls(selectedTranslation.content) 
-        : article.content;
+    // Get user's review
+    let userReview = null;
+    if (userId) {
+      const userReviewResult = await this.getUserReview(fullArticle.id, userId);
+      userReview = userReviewResult.review;
+    }
 
+    // Prepare base response
+    const baseResponse = {
+      ...fullArticle,
+      coverImage: transformImageUrl(fullArticle.coverImage),
+      content: transformContentUrls(fullArticle.content),
+      author: fullArticle.author ? {
+        ...fullArticle.author,
+        picture: transformImageUrl(fullArticle.author.picture),
+      } : fullArticle.author,
+      translations: formattedTranslations,
+      availableLanguages: Array.from(allLanguagesSet),
+      language: finalLanguage,
+      reviewStats,
+      userReview,
+      hasAccess: true,
+      isPreview: false,
+      canEdit: false,
+      canDelete: false,
+      canPublish: false,
+    };
+
+    // Apply translation if selected
+    if (selectedTranslation) {
       return {
-        ...article,
-        // Include author object
-        author: articleAny.author,
-        category: articleAny.category,
-        
-        // Override with translated content
-        title: selectedTranslation.title || article.title,
-        excerpt: selectedTranslation.excerpt || article.excerpt,
-        content: transformedContent,
-        plainText: selectedTranslation.plainText || article.plainText,
-        metaTitle: selectedTranslation.metaTitle || article.metaTitle,
-        metaDescription: selectedTranslation.metaDescription || article.metaDescription,
-        keywords: selectedTranslation.keywords?.length ? selectedTranslation.keywords : article.keywords,
-        coverImage: transformedCoverImage,
-        
-        // Translation metadata
-        translations: formattedTranslations, // Send formatted translations object
+        ...baseResponse,
+        title: selectedTranslation.title || fullArticle.title,
+        excerpt: selectedTranslation.excerpt || fullArticle.excerpt,
+        content: transformContentUrls(selectedTranslation.content) || fullArticle.content,
+        plainText: selectedTranslation.plainText || fullArticle.plainText,
+        metaTitle: selectedTranslation.metaTitle || fullArticle.metaTitle,
+        metaDescription: selectedTranslation.metaDescription || fullArticle.metaDescription,
+        keywords: selectedTranslation.keywords?.length ? selectedTranslation.keywords : fullArticle.keywords,
         isTranslated: true,
         translationLanguage: finalLanguage,
         translationQuality: selectedTranslation.qualityScore,
         translationConfidence: selectedTranslation.confidence,
         translationNeedsReview: selectedTranslation.needsReview,
-        
-        // Language info
-        availableLanguages: allAvailableLanguages,
-        language: finalLanguage,
       };
     }
 
-    // At the very end, before returning, add:
-    console.log('📤 Final response being sent:', {
-      title: selectedTranslation ? selectedTranslation.title : article.title,
-      isTranslated: !!selectedTranslation,
-      translationLanguage: finalLanguage,
-      translationsObjectKeys: Object.keys(formattedTranslations),
-      availableLanguages: allAvailableLanguages
-    });
-    
-    console.log('✅ ========== getArticle END ==========');
-
-    // ========== RETURN ORIGINAL ARTICLE ==========
-    console.log('✅ Returning original article in English');
     return {
-      ...article,
-      // Include author and category objects
-      author: articleAny.author,
-      category: articleAny.category,
-      
-      // Send formatted translations object
-      translations: formattedTranslations,
-      
-      // Language info
-      availableLanguages: allAvailableLanguages,
-      language: finalLanguage,
+      ...baseResponse,
       isTranslated: false,
     };
 
@@ -6896,367 +6777,156 @@ async getArticle(slug: string, userId?: string, language?: string) {
   }
 }
 
-  // async updateArticle(slug: string, userId: string, dto: UpdateArticleDto) {
-  //   const article = await this.prisma.article.findUnique({
-  //     where: { slug },
-  //   });
+/**
+ * Get review statistics for an article
+ */
+private async getArticleReviewStats(articleId: string, userId?: string) {
+  try {
+    // Get approved reviews count and average rating
+    const [count, avg, ratingDistribution] = await Promise.all([
+      this.prisma.articleReview.count({
+        where: {
+          articleId,
+          status: 'APPROVED'
+        }
+      }),
+      this.prisma.articleReview.aggregate({
+        where: {
+          articleId,
+          status: 'APPROVED'
+        },
+        _avg: {
+          rating: true
+        }
+      }),
+      this.prisma.articleReview.groupBy({
+        by: ['rating'],
+        where: {
+          articleId,
+          status: 'APPROVED'
+        },
+        _count: true
+      })
+    ]);
 
-  //   if (!article) {
-  //     throw new NotFoundException('Article not found');
-  //   }
+    // Format rating distribution
+    const distribution = {
+      1: 0, 2: 0, 3: 0, 4: 0, 5: 0
+    };
+    
+    ratingDistribution.forEach(item => {
+      distribution[item.rating as keyof typeof distribution] = item._count;
+    });
 
-  //   // Check ownership or admin role
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id: userId },
-  //     select: { role: true, id: true },
-  //   });
+    // Get recent reviews (limit to 3 for preview)
+    const recentReviews = await this.prisma.articleReview.findMany({
+      where: {
+        articleId,
+        status: 'APPROVED'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            picture: true,
+            username: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    });
 
-  //   if (!user) {
-  //     throw new ForbiddenException('User not found');
-  //   }
+    // If user is logged in, check which reviews they've found helpful
+    let helpfulVotes: Set<string> = new Set();
+    if (userId && recentReviews.length > 0) {
+      const votes = await this.prisma.reviewHelpfulVote.findMany({
+        where: {
+          userId,
+          reviewId: {
+            in: recentReviews.map(r => r.id)
+          }
+        },
+        select: {
+          reviewId: true
+        }
+      });
+      helpfulVotes = new Set(votes.map(v => v.reviewId));
+    }
 
-  //   const canEdit = article.authorId === userId || 
-  //                   user.role === 'ADMIN' || 
-  //                   user.role === 'SUPER_ADMIN';
+    // Add helpful flags to recent reviews
+    const recentReviewsWithFlags = recentReviews.map(review => ({
+      ...review,
+      isHelpful: userId ? helpfulVotes.has(review.id) : false,
+      isOwn: userId ? review.userId === userId : false
+    }));
 
-  //   if (!canEdit) {
-  //     throw new ForbiddenException('Not authorized to update this article');
-  //   }
+    return {
+      averageRating: avg._avg.rating || 0,
+      totalReviews: count,
+      ratingDistribution: distribution,
+      recentReviews: recentReviewsWithFlags,
+      hasReviews: count > 0,
+      fiveStarPercentage: count > 0 ? (distribution[5] / count) * 100 : 0,
+      fourStarPercentage: count > 0 ? (distribution[4] / count) * 100 : 0,
+      threeStarPercentage: count > 0 ? (distribution[3] / count) * 100 : 0,
+      twoStarPercentage: count > 0 ? (distribution[2] / count) * 100 : 0,
+      oneStarPercentage: count > 0 ? (distribution[1] / count) * 100 : 0,
+    };
+  } catch (error) {
+    console.error('Error getting review stats:', error);
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      recentReviews: [],
+      hasReviews: false,
+      fiveStarPercentage: 0,
+      fourStarPercentage: 0,
+      threeStarPercentage: 0,
+      twoStarPercentage: 0,
+      oneStarPercentage: 0,
+    };
+  }
+}
 
-  //   const updateData: any = {};
+/**
+ * Get user's review for an article
+ */
+private async getUserReview(articleId: string, userId: string) {
+  try {
+    const review = await this.prisma.articleReview.findUnique({
+      where: {
+        articleId_userId: {
+          articleId,
+          userId
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            picture: true,
+            username: true
+          }
+        }
+      }
+    });
 
-  //   // Update only provided fields
-  //   if (dto.title !== undefined) {
-  //     updateData.title = dto.title;
-  //     updateData.slug = slugify(dto.title);
-  //   }
-  //   if (dto.excerpt !== undefined) updateData.excerpt = dto.excerpt;
-  //   if (dto.content !== undefined) {
-  //     updateData.content = dto.content;
-  //     updateData.plainText = this.extractPlainText(dto.content);
-  //     updateData.readingTime = this.calculateReadingTime(dto.content);
-  //   }
-  //   if (dto.categoryId !== undefined) updateData.categoryId = dto.categoryId;
-  //   if (dto.tags !== undefined) updateData.tags = dto.tags;
-  //   if (dto.accessType !== undefined) updateData.accessType = dto.accessType;
-  //   if (dto.coinPrice !== undefined) updateData.coinPrice = dto.coinPrice;
-  //   if (dto.coverImage !== undefined) updateData.coverImage = dto.coverImage;
-  //   if (dto.metaTitle !== undefined) updateData.metaTitle = dto.metaTitle;
-  //   if (dto.metaDescription !== undefined) updateData.metaDescription = dto.metaDescription;
-  //   if (dto.autoTranslate !== undefined) updateData.autoTranslate = dto.autoTranslate;
-  //   if (dto.targetLanguages !== undefined) updateData.targetLanguages = dto.targetLanguages;
-  //   if (dto.status !== undefined) {
-  //     updateData.status = dto.status;
-  //     // Set publishedAt if status changes to PUBLISHED
-  //     if (dto.status === ArticleStatus.PUBLISHED && article.status !== ArticleStatus.PUBLISHED) {
-  //       updateData.publishedAt = new Date();
-  //     }
-  //   }
-
-  //   const updated = await this.prisma.article.update({
-  //     where: { slug: article.slug }, // Use original slug in case title changed
-  //     data: updateData,
-  //     include: {
-  //       category: true,
-  //       author: {
-  //         select: {
-  //           id: true,
-  //           name: true,
-  //           username: true,
-  //           picture: true,
-  //         },
-  //       },
-  //     },
-  //   });
-
-  //   // Check if we need to trigger translations
-  //   // Trigger if: 
-  //   // 1. Article is now published (or was already published)
-  //   // 2. Auto-translate is enabled
-  //   // 3. There are target languages
-  //   // 4. Content was changed OR status changed to PUBLISHED
-  //   const shouldTriggerTranslations = 
-  //     (updated.status === ArticleStatus.PUBLISHED) &&
-  //     updated.autoTranslate &&
-  //     updated.targetLanguages &&
-  //     updated.targetLanguages.length > 0 &&
-  //     (dto.content !== undefined || dto.status === ArticleStatus.PUBLISHED);
-
-  //   if (shouldTriggerTranslations) {
-  //     const existingTranslations = await this.prisma.articleTranslation.findMany({
-  //       where: { articleId: updated.id },
-  //       select: { language: true },
-  //     });
-
-  //     const existingLanguages = existingTranslations.map(t => t.language);
-  //     const languagesToTranslate = updated.targetLanguages.filter(lang => 
-  //       lang !== 'en' && !existingLanguages.includes(lang)
-  //     );
-
-  //     if (languagesToTranslate.length > 0) {
-  //       this.processTranslationsInBackground(updated.id, languagesToTranslate)
-  //         .then(result => {
-  //           this.logger.log(
-  //             `Updated translations for article "${updated.title}": ` +
-  //             `${result.successful} successful, ${result.failed} failed`
-  //           );
-  //         })
-  //         .catch(error => {
-  //           this.logger.error(`Background translation update failed for article ${updated.id}:`, error);
-  //         });
-  //     }
-  //   }
-
-  //   return updated;
-  // }
-// Update the existing listArticles method in article.service.ts
-// async listArticles(options: {
-//   page?: number;
-//   limit?: number;
-//   category?: string | string[];
-//   tag?: string;
-//   status?: ArticleStatus;
-//   accessType?: ContentAccess | 'all';
-//   featured?: boolean;
-//   trending?: boolean;
-//   language?: string;
-//   authorId?: string;
-//   search?: string;
-//   sort?: string;
-//   readingTime?: 'short' | 'medium' | 'long' | 'any';
-// }) {
-//   const page = options.page || 1;
-//   const limit = Math.min(options.limit || 20, 100);
-//   const skip = (page - 1) * limit;
-
-//   const where: any = {};
-
-//   // Default to published articles unless specified
-//   if (options.status !== undefined) {
-//     where.status = options.status;
-//   } else {
-//     where.status = ArticleStatus.PUBLISHED;
-//   }
-
-//   // Handle category (could be string or array)
-//   if (options.category) {
-//     if (Array.isArray(options.category)) {
-//       where.category = { slug: { in: options.category } };
-//     } else {
-//       where.category = { slug: options.category };
-//     }
-//   }
-
-//   // Handle access type
-//   if (options.accessType && options.accessType !== 'all') {
-//     where.accessType = options.accessType as ContentAccess;
-//   }
-
-//   // Handle reading time
-//   if (options.readingTime && options.readingTime !== 'any') {
-//     const readingTimeCondition = this.getReadingTimeCondition(options.readingTime);
-//     if (readingTimeCondition) {
-//       where.readingTime = readingTimeCondition;
-//     }
-//   }
-
-//   // Other existing filters...
-//   if (options.tag) {
-//     where.tags = { has: options.tag };
-//   }
-
-//   if (options.featured !== undefined) {
-//     where.isFeatured = options.featured;
-//   }
-
-//   if (options.trending !== undefined) {
-//     where.isTrending = options.trending;
-//   }
-
-//   if (options.authorId) {
-//     where.authorId = options.authorId;
-//   }
-
-//   if (options.search) {
-//     where.OR = [
-//       { title: { contains: options.search, mode: 'insensitive' } },
-//       { excerpt: { contains: options.search, mode: 'insensitive' } },
-//       { plainText: { contains: options.search, mode: 'insensitive' } },
-//     ];
-//   }
-
-//   // Get sort order
-//   const orderBy = this.getSortOrder(options.sort || 'recent');
-
-//   const [articles, total] = await Promise.all([
-//     this.prisma.article.findMany({
-//       where,
-//       skip,
-//       take: limit,
-//       orderBy,
-//       include: {
-//         category: {
-//           select: {
-//             id: true,
-//             name: true,
-//             slug: true,
-//             icon: true,
-//             color: true,
-//           },
-//         },
-//         author: {
-//           select: {
-//             id: true,
-//             name: true,
-//             username: true,
-//             picture: true,
-//           },
-//         },
-//       },
-//     }),
-//     this.prisma.article.count({ where }),
-//   ]);
-
-//   // Get counts for each article
-//   const articlesWithCounts = await Promise.all(
-//     articles.map(async (article) => {
-//       const [commentCount, likeCount, viewCount] = await Promise.all([
-//         this.prisma.articleComment.count({ where: { articleId: article.id, status: 'ACTIVE' } }),
-//         this.prisma.articleLike.count({ where: { articleId: article.id } }),
-//         this.prisma.articleView.count({ where: { articleId: article.id } }),
-//       ]);
-
-//       return {
-//         ...article,
-//         commentCount,
-//         likeCount,
-//         viewCount,
-//       };
-//     })
-//   );
-
-//   return {
-//     articles: articlesWithCounts,
-//     total,
-//     page,
-//     limit,
-//     totalPages: Math.ceil(total / limit),
-//     hasMore: total > skip + limit,
-//   };
-// }
-
-//   async getDashboardStats(timeRange: string = '7days') {
-//   const now = new Date();
-//   const startDate = new Date();
-  
-//   // Calculate start date based on timeRange
-//   switch (timeRange) {
-//     case '7days':
-//       startDate.setDate(now.getDate() - 7);
-//       break;
-//     case '30days':
-//       startDate.setDate(now.getDate() - 30);
-//       break;
-//     case '90days':
-//       startDate.setDate(now.getDate() - 90);
-//       break;
-//     case 'year':
-//       startDate.setFullYear(now.getFullYear() - 1);
-//       break;
-//     default:
-//       startDate.setDate(now.getDate() - 7);
-//   }
-
-//   try {
-//     // Execute all queries in parallel
-//     const [
-//       totalArticles,
-//       publishedArticles,
-//       draftArticles,
-//       premiumArticles,
-//       totalViews,
-//       totalLikes,
-//       totalComments,
-//       monthlyGrowth,
-//       topCategories,
-//       recentActivity,
-//     ] = await Promise.all([
-//       // Total articles
-//       this.prisma.article.count(),
-      
-//       // Published articles
-//       this.prisma.article.count({
-//         where: { status: ArticleStatus.PUBLISHED },
-//       }),
-      
-//       // Draft articles
-//       this.prisma.article.count({
-//         where: { status: ArticleStatus.DRAFT },
-//       }),
-      
-//       // Premium articles
-//       this.prisma.article.count({
-//         where: { 
-//           accessType: ContentAccess.PREMIUM,
-//           status: ArticleStatus.PUBLISHED,
-//         },
-//       }),
-      
-//       // Total views
-//       this.prisma.articleView.count({
-//         where: { createdAt: { gte: startDate } },
-//       }),
-      
-//       // Total likes
-//       this.prisma.articleLike.count({
-//         where: { createdAt: { gte: startDate } },
-//       }),
-      
-//       // Total comments
-//       this.prisma.articleComment.count({
-//         where: { createdAt: { gte: startDate } },
-//       }),
-      
-//       // Monthly growth (calculated from last month)
-//       this.calculateMonthlyGrowth(startDate),
-      
-//       // Top categories
-//       this.getTopCategories(),
-      
-//       // Recent activity
-//       this.getRecentActivity(),
-//     ]);
-
-//     return {
-//       totalArticles,
-//       publishedArticles,
-//       draftArticles,
-//       premiumArticles,
-//       totalViews,
-//       totalLikes,
-//       totalComments,
-//       monthlyGrowth,
-//       topCategories,
-//       recentActivity,
-//     };
-//   } catch (error) {
-//     this.logger.error('Error getting dashboard stats:', error);
-//     // Return empty/default stats
-//     return {
-//       totalArticles: 0,
-//       publishedArticles: 0,
-//       draftArticles: 0,
-//       premiumArticles: 0,
-//       totalViews: 0,
-//       totalLikes: 0,
-//       totalComments: 0,
-//       monthlyGrowth: 0,
-//       topCategories: [],
-//       recentActivity: [],
-//     };
-//   }
-// }
-
+    return {
+      exists: !!review,
+      review
+    };
+  } catch (error) {
+    console.error('Error getting user review:', error);
+    return {
+      exists: false,
+      review: null
+    };
+  }
+}
 
 async listArticles(options: {
   page?: number;
@@ -7286,7 +6956,7 @@ async listArticles(options: {
     where.status = ArticleStatus.PUBLISHED;
   }
 
-  // Handle category (could be string or array)
+  // Handle category
   if (options.category) {
     if (Array.isArray(options.category)) {
       where.category = { slug: { in: options.category } };
@@ -7308,7 +6978,6 @@ async listArticles(options: {
     }
   }
 
-  // Other existing filters...
   if (options.tag) {
     where.tags = { has: options.tag };
   }
@@ -7333,15 +7002,12 @@ async listArticles(options: {
     ];
   }
 
-  // ========== FIX: REMOVE language filter - include ALL articles ==========
-  // DO NOT filter by language here. We'll handle translations in processing.
-
   // Get sort order
   const orderBy = this.getSortOrder(options.sort || 'recent');
 
   const [articles, total] = await Promise.all([
     this.prisma.article.findMany({
-      where, // NO language filter here
+      where,
       skip,
       take: limit,
       orderBy,
@@ -7363,7 +7029,6 @@ async listArticles(options: {
             picture: true,
           },
         },
-        // ========== FIX: Include translations if language specified ==========
         translations: options.language && options.language !== 'en' ? {
           where: { 
             OR: [
@@ -7377,7 +7042,6 @@ async listArticles(options: {
             language: true,
             title: true,
             excerpt: true,
-            // REMOVED: content and plainText if not in schema
             qualityScore: true,
             confidence: true,
           },
@@ -7390,47 +7054,40 @@ async listArticles(options: {
   // Get counts for each article
   const articlesWithCounts = await Promise.all(
     articles.map(async (article) => {
-      const [commentCount, likeCount, viewCount] = await Promise.all([
+      const [commentCount, likeCount, viewCount, saveCount] = await Promise.all([
         this.prisma.articleComment.count({ where: { articleId: article.id, status: 'ACTIVE' } }),
         this.prisma.articleLike.count({ where: { articleId: article.id } }),
         this.prisma.articleView.count({ where: { articleId: article.id } }),
+        this.prisma.articleSave.count({ where: { articleId: article.id } }),
       ]);
 
-      // ========== FIX: Apply translation if available, otherwise use English ==========
+      // Get review stats for this article
+      const reviewStats = await this.getArticleReviewStats(article.id);
+
+      // Apply translation if available
       let finalTitle = article.title;
       let finalExcerpt = article.excerpt;
-      // Use English as default since article may not have language field
       let articleLanguage = 'en';
       let isTranslated = false;
-      let translationQuality = undefined;
-      let translationConfidence = undefined;
 
-      // Cast to any to access translations
       const articleAny = article as any;
       const translationsArray = articleAny.translations || [];
 
-      // Apply translation if requested and available
       if (options.language && options.language !== 'en' && translationsArray.length > 0) {
-        // Try to find translation for requested language
         const translation = translationsArray.find((t: any) => {
-          // Match exact language code or base language
           return t.language === options.language || 
                  t.language === options.language?.split('-')[0];
         });
 
         if (translation) {
-          // Use translation
           finalTitle = translation.title || article.title;
           finalExcerpt = translation.excerpt || article.excerpt;
           articleLanguage = options.language;
           isTranslated = true;
-          translationQuality = translation.qualityScore;
-          translationConfidence = translation.confidence;
         }
-        // If no translation found, keep English (default) - don't filter out!
       }
 
-      // Get all available translations for this article
+      // Get all available translations
       const allTranslations = await this.prisma.articleTranslation.findMany({
         where: {
           articleId: article.id,
@@ -7440,44 +7097,24 @@ async listArticles(options: {
           language: true, 
           title: true, 
           excerpt: true, 
-          qualityScore: true,
-          confidence: true,
-          // Only include if these fields exist in your schema
-          // content: true,
-          // plainText: true,
         },
       });
 
-      // Create translations object for frontend
       const translationsObject: Record<string, any> = {};
-      
-      // Always include English (original)
       translationsObject['en'] = {
         title: article.title,
         excerpt: article.excerpt,
-        // Only include if these exist
-        // content: article.content,
-        // plainText: article.plainText,
         isOriginal: true,
-        qualityScore: 5,
-        confidence: 1,
       };
 
-      // Add all other translations
       allTranslations.forEach(trans => {
         translationsObject[trans.language] = {
           title: trans.title,
           excerpt: trans.excerpt,
-          // Only include if these fields exist
-          // content: trans.content,
-          // plainText: trans.plainText,
           isOriginal: false,
-          qualityScore: trans.qualityScore || 3,
-          confidence: trans.confidence || 0.9,
         };
       });
 
-      // Get available languages array
       const availableLanguages = ['en', ...allTranslations.map(t => t.language)];
 
       return {
@@ -7487,16 +7124,16 @@ async listArticles(options: {
         commentCount,
         likeCount,
         viewCount,
-        // ========== New fields for translations ==========
+        saveCount,
         language: articleLanguage,
         isTranslated,
-        translationQuality,
-        translationConfidence,
         translations: translationsObject,
         availableLanguages,
-        originalTitle: article.title, // Keep original for reference
-        originalExcerpt: article.excerpt, // Keep original for reference
-        hasTranslation: isTranslated,
+        originalTitle: article.title,
+        originalExcerpt: article.excerpt,
+        
+        // Include review stats
+        reviewStats,
       };
     })
   );
@@ -7515,6 +7152,15 @@ async getDashboardStats(timeRange: string = '7days', adminId?: string) {
   const now = new Date();
   const startDate = new Date();
   
+
+  // Add this query for total reviews
+  const totalReviews = await this.prisma.articleReview.count({
+    where: {
+      createdAt: { gte: startDate },
+      status: 'APPROVED' // or whatever status you use for approved reviews
+    }
+  });
+
   // Calculate start date based on timeRange
   switch (timeRange) {
     case '7days':
@@ -7638,6 +7284,7 @@ async getDashboardStats(timeRange: string = '7days', adminId?: string) {
       totalLikes,
       totalComments,
       monthlyGrowth,
+      totalReviews,
       topCategories,
       recentActivity,
       isAdminView: !!adminId,
@@ -7652,6 +7299,7 @@ async getDashboardStats(timeRange: string = '7days', adminId?: string) {
       premiumArticles: 0,
       totalViews: 0,
       totalLikes: 0,
+      totalReviews: 0,
       totalComments: 0,
       monthlyGrowth: 0,
       topCategories: [],
@@ -9172,61 +8820,59 @@ async getCommentReplies(
   
 
   private async checkPremiumAccess(userId: string, articleId: string): Promise<boolean> {
-    // Check if user is the author (authors have free access to their own articles)
-    const article = await this.prisma.article.findUnique({
-      where: { id: articleId },
-      select: { authorId: true },
-    });
+  // Check if user is the author (authors have free access to their own articles)
+  const article = await this.prisma.article.findUnique({
+    where: { id: articleId },
+    select: { authorId: true, coinPrice: true },
+  });
 
-    if (article?.authorId === userId) {
-      return true;
-    }
-
-    // Check subscription
-    const subscription = await this.prisma.userSubscription.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-        currentPeriodEnd: { gt: new Date() },
-      },
-    });
-
-    if (subscription) return true;
-
-    // Check if user already purchased access
-    const existingAccess = await this.prisma.premiumAccess.findUnique({
-      where: {
-        userId_articleId: {
-          userId,
-          articleId,
-        },
-      },
-    });
-
-    if (existingAccess && existingAccess.accessUntil > new Date()) {
-      return true;
-    }
-
-    // Check wallet balance for coin purchase
-    const articleWithPrice = await this.prisma.article.findUnique({
-      where: { id: articleId },
-      select: { coinPrice: true },
-    });
-
-    if (articleWithPrice?.coinPrice && articleWithPrice.coinPrice > 0) {
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { userId },
-      });
-
-      if (wallet && wallet.balance >= articleWithPrice.coinPrice) {
-        // Process coin payment
-        await this.processCoinPurchase(userId, articleId, articleWithPrice.coinPrice);
-        return true;
-      }
-    }
-
-    return false;
+  if (article?.authorId === userId) {
+    return true;
   }
+
+  // Check subscription
+  const subscription = await this.prisma.userSubscription.findFirst({
+    where: {
+      userId,
+      status: 'ACTIVE',
+      currentPeriodEnd: { gt: new Date() },
+    },
+  });
+
+  if (subscription) return true;
+
+  // Check if user already purchased access
+  const existingAccess = await this.prisma.premiumAccess.findUnique({
+    where: {
+      userId_articleId: {
+        userId,
+        articleId,
+      },
+    },
+  });
+
+  if (existingAccess && existingAccess.accessUntil > new Date()) {
+    return true;
+  }
+
+  // DO NOT AUTO-PURCHASE HERE!
+  // Just check if they have enough coins for potential purchase
+  if (article?.coinPrice && article.coinPrice > 0) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      select: { balance: true },
+    });
+
+    // Return that they have sufficient balance for purchase,
+    // but DON'T auto-purchase
+    if (wallet && wallet.balance >= article.coinPrice) {
+      // Still return false because they haven't purchased yet
+      return false;
+    }
+  }
+
+  return false;
+}
 
   private async processCoinPurchase(userId: string, articleId: string, price: number) {
     return await this.prisma.$transaction(async (tx) => {
@@ -9423,33 +9069,46 @@ async getCommentReplies(
   }
 
   public getPreviewVersion(article: any) {
-    return {
-      id: article.id,
-      slug: article.slug,
-      title: article.title,
-      excerpt: article.excerpt,
-      preview: article.excerpt.substring(0, 200) + (article.excerpt.length > 200 ? '...' : ''),
-      category: article.category,
-      tags: article.tags,
-      accessType: article.accessType,
-      coinPrice: article.coinPrice,
-      author: article.author,
-      coverImage: article.coverImage,
-      readingTime: article.readingTime,
-      status: article.status,
-      isFeatured: article.isFeatured,
-      isTrending: article.isTrending,
-      viewCount: article.viewCount,
-      likeCount: article.likeCount,
-      commentCount: article.commentCount,
-      publishedAt: article.publishedAt,
-      availableLanguages: article.availableLanguages,
-      isPreview: true,
-      requiresPurchase: true,
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
-    };
-  }
+  // Ensure we NEVER expose content in preview
+  return {
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt,
+    preview: article.excerpt?.substring(0, 200) + (article.excerpt?.length > 200 ? '...' : ''),
+    category: article.category,
+    tags: article.tags,
+    accessType: article.accessType,
+    coinPrice: article.coinPrice,
+    author: article.author,
+    coverImage: article.coverImage,
+    readingTime: article.readingTime,
+    status: article.status,
+    isFeatured: article.isFeatured,
+    isTrending: article.isTrending,
+    viewCount: article.viewCount || 0,
+    likeCount: article.likeCount || 0,
+    commentCount: article.commentCount || 0,
+    publishedAt: article.publishedAt,
+    availableLanguages: article.availableLanguages,
+    reviewStats: {
+      averageRating: article.averageRating || 0,
+      totalReviews: article.reviewCount || 0,
+      hasReviews: (article.reviewCount || 0) > 0,
+    },
+    isPreview: true,
+    requiresPurchase: true,
+    hasAccess: false,
+    createdAt: article.createdAt,
+    updatedAt: article.updatedAt,
+    // Explicitly exclude content fields
+    content: null,
+    plainText: null,
+    metaTitle: null,
+    metaDescription: null,
+    keywords: null,
+  };
+}
 
   private isPreviewVersion(article: any): boolean {
     return article.isPreview === true;
@@ -9519,149 +9178,118 @@ async getCommentReplies(
   //   };
   // }
 
+async purchaseArticle(articleId: string, userId: string, language: string = 'en') {
+  console.log('=== PURCHASE START ===');
+  console.log('Article ID:', articleId);
+  console.log('User ID:', userId);
+  
+  try {
+    // Step 1: Get article
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { 
+        id: true,
+        title: true,
+        accessType: true,
+        coinPrice: true,
+        authorId: true,
+        status: true 
+      },
+    });
 
-  async purchaseArticle(articleId: string, userId: string, language: string = 'en') {
-    console.log('=== PURCHASE START ===');
-    console.log('Article ID:', articleId);
-    console.log('User ID:', userId);
+    if (!article) throw new NotFoundException('Article not found');
+    if (article.status !== 'PUBLISHED') throw new BadRequestException('Article is not published');
+    if (article.accessType !== 'PREMIUM') throw new BadRequestException('This article is not premium');
+
+    // Step 2: Check if user already has access
+    const existingAccess = await this.prisma.premiumAccess.findFirst({
+      where: {
+        userId,
+        articleId,
+        accessUntil: { gt: new Date() }
+      },
+    });
+
+    if (existingAccess) {
+      // This should NEVER happen - user already has access
+      console.log('⚠️ User already has access - throwing error');
+      throw new BadRequestException(
+        'You already have access to this article. No purchase needed.'
+      );
+    }
+
+    // Step 3: Check wallet balance
+    const wallet = await this.prisma.wallet.findUnique({ 
+      where: { userId } 
+    });
     
-    try {
-      const article = await this.prisma.article.findUnique({
-        where: { id: articleId },
-        select: { 
-          id: true,
-          title: true,
-          accessType: true,
-          coinPrice: true,
-          authorId: true,
-          status: true 
+    if (!wallet) throw new BadRequestException('Wallet not found');
+    if (wallet.balance < article.coinPrice) throw new BadRequestException('Insufficient balance');
+
+    // Step 4: ADD A CONFIRMATION CHECK - This is critical!
+    // You can pass a confirmation flag from the frontend
+    // Or use a transaction with a timeout to ensure it's user-initiated
+    
+    // Process purchase in transaction
+    const transactionResult = await this.prisma.$transaction(async (tx) => {
+      // Deduct coins
+      const updatedWallet = await tx.wallet.update({
+        where: { 
+          userId,
+          balance: { gte: article.coinPrice } // This ensures balance hasn't changed
+        },
+        data: { balance: { decrement: article.coinPrice } },
+      });
+
+      // Create transaction record
+      const transaction = await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId,
+          amount: article.coinPrice,
+          type: 'DEBIT',
+          source: 'ONE_TIME_PURCHASE',
+          description: `Purchased premium article: ${article.title}`,
         },
       });
 
-      console.log('Article found:', article);
-
-      if (!article || article.status !== ArticleStatus.PUBLISHED) {
-        console.log('Article not found or not published');
-        throw new NotFoundException('Article not found or not published');
-      }
-
-      if (article.accessType !== ContentAccess.PREMIUM) {
-        console.log('Article is not premium');
-        throw new BadRequestException('This article is not premium');
-      }
-
-      // Check if already has access
-      const existingAccess = await this.prisma.premiumAccess.findFirst({
-        where: {
+      // Create premium access record
+      const premiumAccess = await tx.premiumAccess.create({
+        data: {
           userId,
           articleId,
-          accessUntil: { gt: new Date() }
+          amountPaid: article.coinPrice,
+          accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         },
       });
 
-      console.log('Existing access check:', existingAccess);
+      return { transaction, premiumAccess, newBalance: updatedWallet.balance };
+    });
 
-      // If user already has access, return success
-      if (existingAccess) {
-        console.log('User already has access');
-        return {
-          success: true,
-          data: { purchased: true },
-          message: 'Already have access to this article',
-        };
-      }
+    return {
+      success: true,
+      data: { 
+        purchased: true,
+        transactionId: transactionResult.transaction.id,
+        premiumAccessId: transactionResult.premiumAccess.id,
+        newBalance: transactionResult.newBalance,
+        accessUntil: transactionResult.premiumAccess.accessUntil,
+      },
+      message: 'Article purchased successfully',
+    };
 
-      // Check wallet balance
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { userId },
-      });
-
-      console.log('Wallet found:', wallet);
-
-      if (!wallet || wallet.balance < article.coinPrice) {
-        console.log('Insufficient balance:', wallet?.balance, 'needed:', article.coinPrice);
-        throw new BadRequestException('Insufficient balance');
-      }
-
-      console.log('Proceeding with purchase...');
-      
-      // Process purchase in transaction
-      const result = await this.prisma.$transaction(async (tx) => {
-        console.log('Starting transaction...');
-        
-        // Deduct coins
-        const updatedWallet = await tx.wallet.update({
-          where: { userId },
-          data: {
-            balance: { decrement: article.coinPrice },
-          },
-        });
-        console.log('Coins deducted. New balance:', updatedWallet.balance);
-
-        // Create transaction record
-        const transaction = await tx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            amount: article.coinPrice,
-            type: 'DEBIT',
-            source: TransactionSource.ONE_TIME_PURCHASE,
-            description: `Purchased premium article: ${article.title}`,
-            userId,
-          },
-        });
-        console.log('Transaction created:', transaction.id);
-
-        // Create premium access record
-        const premiumAccess = await tx.premiumAccess.create({
-          data: {
-            userId,
-            articleId,
-            amountPaid: article.coinPrice,
-            accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          },
-        });
-        console.log('PremiumAccess created:', premiumAccess.id);
-
-        // Log usage
-        await tx.usageLog.create({
-          data: {
-            userId,
-            action: UsageAction.TEMPLATE_PREMIUM,
-            cost: article.coinPrice,
-            metadata: { 
-              articleId, 
-              articleTitle: article.title,
-              type: 'PREMIUM_ARTICLE_PURCHASE' 
-            },
-          },
-        });
-        console.log('Usage logged');
-
-        return {
-          transaction,
-          premiumAccess,
-        };
-      });
-
-      console.log('=== PURCHASE COMPLETED SUCCESSFULLY ===');
-      
-      return {
-        success: true,
-        data: { purchased: true },
-        message: 'Article purchased successfully',
-        transactionId: result.transaction.id,
-        premiumAccessId: result.premiumAccess.id,
-      };
-
-    } catch (error) {
-      console.error('=== PURCHASE FAILED ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      
-      // Re-throw the error so it can be handled by the controller
+  } catch (error) {
+    console.error('Purchase failed:', error);
+    
+    // Don't auto-retry - throw the error
+    if (error instanceof BadRequestException || error instanceof NotFoundException) {
       throw error;
     }
+    
+    throw new BadRequestException(error.message || 'Failed to purchase article');
   }
+}
+
 
 
 
@@ -10934,183 +10562,7 @@ async calculateCompletionRate(userId: string): Promise<number> {
   }
 }
 
-  // async getArticlesWithAdvancedFilters(options: {
-  //   page?: number;
-  //   limit?: number;
-  //   category?: string | string[];
-  //   tag?: string;
-  //   status?: ArticleStatus;
-  //   accessType?: ContentAccess | 'all';
-  //   featured?: boolean;
-  //   trending?: boolean;
-  //   language?: string;
-  //   authorId?: string;
-  //   search?: string;
-  //   sort?: string;
-  //   readingTime?: 'short' | 'medium' | 'long' | 'any';
-  //   minRating?: number;
-  //   minViews?: number;
-  //   minLikes?: number;
-  //   contentType?: string;
-  //   readingLevel?: string;
-  //   authors?: string[];
-  //   languages?: string[];
-  //   tags?: string[];
-  //   categories?: string[];
-  // }): Promise<any> { // Change return type to any or create proper interface
-  //   const page = options.page || 1;
-  //   const limit = Math.min(options.limit || 24, 100);
-  //   const skip = (page - 1) * limit;
-
-  //   const where: any = { status: ArticleStatus.PUBLISHED };
-
-  //   // Handle category filter (single or array)
-  //   if (options.category) {
-  //     if (Array.isArray(options.category)) {
-  //       where.category = { slug: { in: options.category } };
-  //     } else {
-  //       where.category = { slug: options.category };
-  //     }
-  //   }
-
-  //   // Handle access type filter
-  //   if (options.accessType && options.accessType !== 'all') {
-  //     where.accessType = options.accessType as ContentAccess;
-  //   }
-
-  //   // Handle reading time filter
-  //   if (options.readingTime && options.readingTime !== 'any') {
-  //     const readingTimeCondition = this.getReadingTimeCondition(options.readingTime);
-  //     if (readingTimeCondition) {
-  //       where.readingTime = readingTimeCondition;
-  //     }
-  //   }
-
-  //   // Handle multiple authors filter
-  //   if (options.authors && options.authors.length > 0) {
-  //     where.authorId = { in: options.authors };
-  //   }
-
-  //   // Handle multiple languages filter
-  //   if (options.languages && options.languages.length > 0) {
-  //     if (options.languages.includes('en')) {
-  //       // If English is included, we need to include all articles (English original)
-  //       // and also check translations for other languages
-  //       const otherLanguages = options.languages.filter(lang => lang !== 'en');
-  //       if (otherLanguages.length > 0) {
-  //         where.OR = [
-  //           { availableLanguages: { hasSome: otherLanguages } },
-  //           { language: { in: otherLanguages } }
-  //         ];
-  //       }
-  //     } else {
-  //       where.OR = [
-  //         { availableLanguages: { hasSome: options.languages } },
-  //         { language: { in: options.languages } }
-  //       ];
-  //     }
-  //   }
-
-  //   // Handle multiple tags filter
-  //   if (options.tags && options.tags.length > 0) {
-  //     where.tags = { hasSome: options.tags };
-  //   }
-
-  //   // Handle multiple categories filter
-  //   if (options.categories && options.categories.length > 0) {
-  //     where.category = { slug: { in: options.categories } };
-  //   }
-
-  //   // Handle search
-  //   if (options.search) {
-  //     where.OR = [
-  //       { title: { contains: options.search, mode: 'insensitive' } },
-  //       { excerpt: { contains: options.search, mode: 'insensitive' } },
-  //       { plainText: { contains: options.search, mode: 'insensitive' } },
-  //     ];
-  //   }
-
-  //   // Handle featured and trending
-  //   if (options.featured !== undefined) {
-  //     where.isFeatured = options.featured;
-  //   }
-
-  //   if (options.trending !== undefined) {
-  //     where.isTrending = options.trending;
-  //   }
-
-  //   // Handle author filter
-  //   if (options.authorId) {
-  //     where.authorId = options.authorId;
-  //   }
-
-  //   // Get sort order
-  //   const orderBy = this.getSortOrder(options.sort || 'recent');
-
-  //   // First get count
-  //   const total = await this.prisma.article.count({ where });
-
-  //   // Then get articles with separate counts
-  //   const articles = await this.prisma.article.findMany({
-  //     where,
-  //     skip,
-  //     take: limit,
-  //     orderBy,
-  //     include: {
-  //       category: {
-  //         select: {
-  //           id: true,
-  //           name: true,
-  //           slug: true,
-  //           icon: true,
-  //           color: true,
-  //           description: true,
-  //         },
-  //       },
-  //       author: {
-  //         select: {
-  //           id: true,
-  //           name: true,
-  //           username: true,
-  //           picture: true,
-        
-  //         },
-  //       },
-  //     },
-  //   });
-
-  //   // Get counts for each article separately
-  //   const articlesWithCounts = await Promise.all(
-  //     articles.map(async (article) => {
-  //       const [commentCount, likeCount, viewCount, saveCount] = await Promise.all([
-  //         this.prisma.articleComment.count({ where: { articleId: article.id, status: 'ACTIVE' } }),
-  //         this.prisma.articleLike.count({ where: { articleId: article.id } }),
-  //         this.prisma.articleView.count({ where: { articleId: article.id } }),
-  //         this.prisma.articleSave.count({ where: { articleId: article.id } }),
-  //       ]);
-
-  //       return {
-  //         ...article,
-  //         commentCount,
-  //         likeCount,
-  //         viewCount,
-  //         saveCount,
-  //         isPremium: article.accessType === ContentAccess.PREMIUM,
-  //       };
-  //     })
-  //   );
-
-  //   return {
-  //     articles: articlesWithCounts,
-  //     total,
-  //     page,
-  //     limit,
-  //     totalPages: Math.ceil(total / limit),
-  //     hasMore: total > skip + limit,
-  //   };
-  // }
-
-
+  
   async getArticlesWithAdvancedFilters(options: {
   page?: number;
   limit?: number;
@@ -11296,6 +10748,9 @@ async calculateCompletionRate(userId: string): Promise<number> {
         this.prisma.articleSave.count({ where: { articleId: article.id } }),
       ]);
 
+      // Get review stats
+      const reviewStats = await this.getArticleReviewStats(article.id);
+
       // ========== HANDLE TRANSLATION ==========
       const articleAny = article as any;
       const translationsArray = articleAny.translations || [];
@@ -11430,6 +10885,7 @@ async calculateCompletionRate(userId: string): Promise<number> {
         likeCount,
         viewCount,
         saveCount,
+        reviewStats,
         
         // Premium status
         isPremium: article.accessType === ContentAccess.PREMIUM,

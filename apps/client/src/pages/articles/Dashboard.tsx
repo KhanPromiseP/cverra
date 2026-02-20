@@ -30,7 +30,7 @@ import {
   ArrowDownOutlined,
   EyeOutlined,
   LikeOutlined,
-  MessageOutlined,
+  StarOutlined,
   ShareAltOutlined,
   RiseOutlined,
   FileTextOutlined,
@@ -60,7 +60,7 @@ import ArticleAdminNavbar from './admin/ArticleAdminSidebar';
 import { 
   getDashboardStats, 
   getRecentArticles, 
- getTopArticles,
+  getTopArticles,
   getSystemStats,
   getAllUsers,
   getFinancialOverview,
@@ -70,6 +70,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigate } from 'react-router';
 import { motion } from 'framer-motion';
+import { getAdminArticles } from '../../services/articleApi';
 
 dayjs.extend(relativeTime);
 const { RangePicker } = DatePicker;
@@ -83,7 +84,7 @@ interface DashboardStats {
   premiumArticles: number;
   totalViews: number;
   totalLikes: number;
-  totalComments: number;
+  reviewCount?: number;
   monthlyGrowth: number;
   topCategories: Array<{ name: string; count: number; growth: number }>;
   recentActivity: Array<{
@@ -122,7 +123,7 @@ interface SystemStats {
   engagement: {
     totalViews: number;
     totalLikes: number;
-    totalComments: number;
+    totalReviews: number;  // Changed from totalComments
     totalSaves: number;
     averageEngagementRate: number;
   };
@@ -181,6 +182,12 @@ const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState<string>('ADMIN');
   const [showSystemStats, setShowSystemStats] = useState(false);
+  const [articles, setArticles] = useState<any[]>([]);
+
+  // Then calculate total reviews
+  const totalReviews = articles.reduce((sum, article) => 
+    sum + (article.reviewCount || article.reviewStats?.totalCount || 0), 0
+  );
 
   useEffect(() => {
     // Check user role from localStorage or API
@@ -198,24 +205,28 @@ const Dashboard: React.FC = () => {
   }, [activeTab, userRole]);
 
   const fetchDashboardData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [statsData, recentData, topData] = await Promise.all([
-        getDashboardStats({ timeRange }),
-        getRecentArticles(),
-        getTopArticles(),
-      ]);
-      setStats(statsData);
-      setRecentArticles(recentData);
-      setTopArticles(topData);
-    } catch (error: any) {
-      console.error('Failed to load dashboard data:', error);
-      setError(error.message || t`Failed to load dashboard data`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  setError(null);
+  try {
+    const [statsData, recentData, topData, articlesData] = await Promise.all([
+      getDashboardStats({ timeRange }),
+      getRecentArticles(),
+      getTopArticles(),
+      getAdminArticles({ limit: 100, page: 1 }) // Fetch articles to calculate total reviews
+    ]);
+    
+    setStats(statsData);
+    setRecentArticles(recentData);
+    setTopArticles(topData);
+    setArticles(articlesData?.articles || []);
+    
+  } catch (error: any) {
+    console.error('Failed to load dashboard data:', error);
+    setError(error.message || t`Failed to load dashboard data`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchSystemStats = async () => {
     if (userRole !== 'SUPER_ADMIN') return;
@@ -287,13 +298,13 @@ const Dashboard: React.FC = () => {
       color: 'pink',
       adminOnly: false,
     },
-    {
-      title: t`Total Comments`,
-      value: stats?.totalComments ? stats.totalComments.toLocaleString() : '0',
-      icon: <MessageOutlined />,
-      color: 'cyan',
-      adminOnly: false,
-    },
+ {
+    title: t`Total Reviews`,
+    value: totalReviews.toLocaleString(), // Use the calculated value
+    icon: <StarOutlined />,
+    color: 'cyan',
+    adminOnly: false,
+  },
   ];
 
   const systemStatCards = [
@@ -712,7 +723,7 @@ const Dashboard: React.FC = () => {
                         <Button 
                           type="link" 
                           icon={<EditOutlined />}
-                          onClick={() => navigateTo(`/dashboard/article-admin/articles/edit/${record.id}`)}
+                          onClick={() => navigateTo(`/dashboard/article-admin/articles/edit/${record.slug || record.id}`)}
                           size="small"
                           className="text-blue-600 dark:text-blue-400"
                         >
@@ -870,8 +881,8 @@ const Dashboard: React.FC = () => {
                               {article.likeCount || 0}
                             </span>
                             <span className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-                              <MessageOutlined className="text-xs" />
-                              {article.commentCount || 0}
+                              <StarOutlined className="text-xs" />
+                              {article.reviewCount || 0}  {/* Changed from commentCount to reviewCount */}
                             </span>
                           </Space>
                         }
@@ -899,7 +910,7 @@ const Dashboard: React.FC = () => {
                   items={stats?.recentActivity?.map((activity) => ({
                     color: activity.action === 'PUBLISH' ? 'green' :
                            activity.action === 'UPDATE' ? 'blue' :
-                           activity.action === 'COMMENT' ? 'cyan' : 'magenta',
+                           activity.action === 'REVIEW' ? 'cyan' : 'magenta',  // Changed from 'COMMENT' to 'REVIEW'
                     children: (
                       <div className="ml-2">
                         <div className="font-medium text-gray-900 dark:text-white mb-1">

@@ -117,50 +117,54 @@ api.interceptors.request.use(
 
 
 // Article APIs
-// In your article.service.ts - update the getArticle function:
 export const getArticle = async (identifier: string, params?: any): Promise<any> => {
   try {
-    console.log('getArticle called with:', identifier, 'params:', params);
+    console.log('📞 getArticle called with:', { identifier, params });
     
-    const response = await api.get(`/articles/${identifier}`, { params });
+    // REMOVE THIS ENTIRE CHECK - it's causing the error
+    // const token = localStorage.getItem('token');
+    // if (!token) {
+    //   console.error('❌ No authentication token found');
+    //   throw new Error('You must be logged in to view this article');
+    // }
     
-    console.log('API Response:', {
-      status: response.status,
-      data: response.data,
-      dataStructure: response.data ? Object.keys(response.data) : 'no data'
+    // Also remove the Authorization header - cookies handle this
+    const response = await api.get(`/articles/${identifier}`, { 
+      params
+      // Remove headers.Authorization
     });
     
-    // Handle different response formats
+    console.log('📦 Raw API Response:', response);
+    
+    // Handle response formats
     let articleData;
     
-    // Format 1: New format { success: true, data: {...}, message: '...' }
     if (response.data && response.data.success === true && response.data.data) {
       articleData = response.data.data;
       console.log('✅ Using new format data from response.data.data');
     }
-    // Format 2: Data directly in response.data (old format)
     else if (response.data && (response.data.title || response.data.id)) {
       articleData = response.data;
       console.log('✅ Using old format data directly from response.data');
     }
     
-    
-    console.log('📦 Article data extracted:', {
+    console.log('📦 Final article data:', {
       title: articleData?.title,
       hasContent: !!articleData?.content,
-      contentType: typeof articleData?.content
+      contentLength: articleData?.content?.length,
+      contentType: typeof articleData?.content,
+      isSuperAdminView: articleData?.isSuperAdminView,
+      hasAccess: articleData?.hasAccess
     });
     
     return articleData;
     
   } catch (error: any) {
-    console.error('Error fetching article:', error);
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
+    console.error('❌ Error in getArticle:', error);
+    console.error('Error response:', error.response?.data);
+    console.error('Error status:', error.response?.status);
     
+    // Don't throw a custom error, let the API error propagate
     throw error;
   }
 };
